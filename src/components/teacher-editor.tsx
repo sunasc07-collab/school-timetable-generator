@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -29,29 +29,29 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
-
 import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher, Subject } from "@/lib/types";
+import type { Teacher, Subject, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
+
+const armPeriodSchema = z.object({
+    arm: z.string(),
+    periods: z.number().min(1, "Periods must be > 0").default(1),
+});
+
+const assignmentSchema = z.object({
+  id: z.string().optional(),
+  grades: z.array(z.string()).min(1, "At least one grade is required."),
+  armPeriods: z.array(armPeriodSchema).min(1, "At least one arm is required."),
+});
 
 const subjectSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Subject name is required."),
-  grades: z.array(z.string()).min(1, "At least one grade is required."),
-  arms: z.array(z.string()).min(1, "At least one arm is required."),
+  assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
 });
-
 
 const teacherSchema = z.object({
   id: z.string().optional(),
@@ -62,9 +62,139 @@ const teacherSchema = z.object({
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
-const ARM_OPTIONS = ["A", "B", "C"];
+const ARM_OPTIONS = ["A", "B", "C", "D"];
+
+
+const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean }) => {
+    
+    const { fields: armPeriodFields, append: appendArmPeriod, remove: removeArmPeriod, update: updateArmPeriod } = useFieldArray({
+        control: control,
+        name: `subjects.${subjectIndex}.assignments.${assignmentIndex}.armPeriods`
+    });
+
+    const handleArmCheck = (arm: string, isChecked: boolean) => {
+        const existingIndex = armPeriodFields.findIndex((field: any) => field.arm === arm);
+        if (isChecked && existingIndex === -1) {
+            appendArmPeriod({ arm: arm, periods: 1 });
+        } else if (!isChecked && existingIndex !== -1) {
+            removeArmPeriod(existingIndex);
+        }
+    };
+    
+    const form = useFormContext<TeacherFormValues>();
+    const selectedArms = (form.watch(`subjects.${subjectIndex}.assignments.${assignmentIndex}.armPeriods`) || []).map(ap => ap.arm);
+
+
+    return (
+        <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
+             <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={removeAssignment}
+                disabled={!canRemoveAssignment}
+                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
+              >
+                <Minus className="h-4 w-4" />
+            </Button>
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Grades</FormLabel>
+                    <div className="flex flex-wrap gap-4 p-2 border rounded-md">
+                    {GRADE_OPTIONS.map((grade) => (
+                    <FormField
+                        key={grade}
+                        control={control}
+                        name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                        render={({ field: gradeField }) => {
+                        return (
+                            <FormItem
+                            key={grade}
+                            className="flex flex-row items-start space-x-2 space-y-0"
+                            >
+                            <FormControl>
+                                <Checkbox
+                                checked={gradeField.value?.includes(grade)}
+                                onCheckedChange={(checked) => {
+                                    const currentValue = gradeField.value || [];
+                                    return checked
+                                    ? gradeField.onChange([...currentValue, grade])
+                                    : gradeField.onChange(currentValue.filter(value => value !== grade))
+                                }}
+                                />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                                {grade}
+                            </FormLabel>
+                            </FormItem>
+                        )
+                        }}
+                    />
+                    ))}
+                    </div>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            
+            <FormItem>
+                <FormLabel>Arms & Periods per week</FormLabel>
+                <div className="p-2 border rounded-md space-y-3">
+                    <div className="flex flex-wrap gap-4">
+                        {ARM_OPTIONS.map(arm => (
+                            <div key={arm} className="flex items-center gap-2">
+                                <Checkbox 
+                                    id={`arm-${arm}`}
+                                    checked={selectedArms.includes(arm)}
+                                    onCheckedChange={(checked) => handleArmCheck(arm, !!checked)}
+                                />
+                                <label htmlFor={`arm-${arm}`} className="font-normal">Arm {arm}</label>
+                            </div>
+                        ))}
+                    </div>
+
+                    {armPeriodFields.length > 0 && <hr/>}
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        {armPeriodFields.map((field, index) => (
+                             <FormField
+                                key={field.id}
+                                control={control}
+                                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.armPeriods.${index}.periods`}
+                                render={({ field: periodField }) => (
+                                    <FormItem>
+                                        <FormLabel>Periods for Arm {(field as any).arm}</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                min="1" 
+                                                {...periodField} 
+                                                onChange={e => periodField.onChange(parseInt(e.target.value, 10) || 1)}
+                                            />
+                                        </FormControl>
+                                        <FormMessage/>
+                                    </FormItem>
+                                )}
+                             />
+                        ))}
+                    </div>
+                </div>
+            </FormItem>
+
+        </div>
+    )
+}
 
 const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean }) => {
+    
+    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment } = useFieldArray({
+        control,
+        name: `subjects.${subjectIndex}.assignments`,
+    });
+    
     return (
         <div className="p-3 border rounded-md bg-muted/50 relative space-y-3">
              <Button
@@ -91,93 +221,27 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                 )}
             />
             <div className="p-2 border rounded-md bg-background/50 relative space-y-2">
-                <FormLabel>Class Assignment</FormLabel>
-                <div className="p-3 border rounded-md bg-background/50 space-y-3">
-                    <FormField
+                <FormLabel>Class Assignments</FormLabel>
+                 {assignmentFields.map((field, index) => (
+                    <AssignmentForm
+                        key={field.id}
+                        subjectIndex={subjectIndex}
+                        assignmentIndex={index}
                         control={control}
-                        name={`subjects.${subjectIndex}.grades`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Grades</FormLabel>
-                            <div className="flex flex-wrap gap-4 p-2 border rounded-md">
-                            {GRADE_OPTIONS.map((grade) => (
-                            <FormField
-                                key={grade}
-                                control={control}
-                                name={`subjects.${subjectIndex}.grades`}
-                                render={({ field: gradeField }) => {
-                                return (
-                                    <FormItem
-                                    key={grade}
-                                    className="flex flex-row items-start space-x-2 space-y-0"
-                                    >
-                                    <FormControl>
-                                        <Checkbox
-                                        checked={gradeField.value?.includes(grade)}
-                                        onCheckedChange={(checked) => {
-                                            const currentValue = gradeField.value || [];
-                                            return checked
-                                            ? gradeField.onChange([...currentValue, grade])
-                                            : gradeField.onChange(currentValue.filter(value => value !== grade))
-                                        }}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                        {grade}
-                                    </FormLabel>
-                                    </FormItem>
-                                )
-                                }}
-                            />
-                            ))}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
+                        removeAssignment={() => removeAssignment(index)}
+                        canRemoveAssignment={assignmentFields.length > 1}
                     />
-                    <FormField
-                        control={control}
-                        name={`subjects.${subjectIndex}.arms`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Arms</FormLabel>
-                            <div className="flex flex-wrap gap-4 p-2 border rounded-md">
-                            {ARM_OPTIONS.map((arm) => (
-                            <FormField
-                                key={arm}
-                                control={control}
-                                name={`subjects.${subjectIndex}.arms`}
-                                render={({ field: armField }) => {
-                                return (
-                                    <FormItem
-                                    key={arm}
-                                    className="flex flex-row items-start space-x-2 space-y-0"
-                                    >
-                                    <FormControl>
-                                        <Checkbox
-                                        checked={armField.value?.includes(arm)}
-                                        onCheckedChange={(checked) => {
-                                            const currentValue = armField.value || [];
-                                            return checked
-                                            ? armField.onChange([...currentValue, arm])
-                                            : armField.onChange(currentValue.filter(value => value !== arm))
-                                        }}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                        Arm {arm}
-                                    </FormLabel>
-                                    </FormItem>
-                                )
-                                }}
-                            />
-                            ))}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
+                ))}
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => appendAssignment({ grades: [], armPeriods: [] })}
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Assignment Group
+                </Button>
             </div>
         </div>
     )
@@ -192,7 +256,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", grades: [], arms: [] }],
+      subjects: [{ name: "", assignments: [{ grades: [], armPeriods: [] }] }],
     },
   });
 
@@ -209,12 +273,16 @@ export default function TeacherEditor() {
             name: teacher.name,
             subjects: teacher.subjects.length > 0 ? teacher.subjects.map(s => ({
                 ...s,
-            })) : [{ name: "", grades: [], arms: [] }],
+                assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
+                    ...a,
+                    id: a.id || crypto.randomUUID()
+                })) : [{ id: crypto.randomUUID(), grades: [], armPeriods: [] }],
+            })) : [{ name: "", assignments: [{ grades: [], armPeriods: [] }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", grades: [], arms: [] }],
+            subjects: [{ name: "", assignments: [{ grades: [], armPeriods: [] }] }],
         });
     }
     setIsDialogOpen(true);
@@ -227,6 +295,10 @@ export default function TeacherEditor() {
         subjects: data.subjects.map(s => ({
             ...s,
             id: s.id || crypto.randomUUID(),
+            assignments: s.assignments.map(a => ({
+                ...a,
+                id: a.id || crypto.randomUUID(),
+            }))
         }))
     }
 
@@ -256,58 +328,60 @@ export default function TeacherEditor() {
           <DialogHeader>
             <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
           </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)}>
-                <ScrollArea className="h-[60vh] p-4">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Teacher Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., Mr. Smith" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
+            <FormProvider {...form}>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)}>
+                  <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-4">
-                      <FormLabel>Subjects</FormLabel>
-                      <div className="space-y-3">
-                        {subjectFields.map((field, index) => (
-                          <SubjectForm 
-                              key={field.id} 
-                              subjectIndex={index} 
-                              control={form.control} 
-                              removeSubject={() => removeSubject(index)}
-                              canRemove={subjectFields.length > 1}
-                          />
-                        ))}
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teacher Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Mr. Smith" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="space-y-4">
+                        <FormLabel>Subjects</FormLabel>
+                        <div className="space-y-3">
+                          {subjectFields.map((field, index) => (
+                            <SubjectForm 
+                                key={field.id} 
+                                subjectIndex={index} 
+                                control={form.control} 
+                                removeSubject={() => removeSubject(index)}
+                                canRemove={subjectFields.length > 1}
+                            />
+                          ))}
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => appendSubject({ name: "", assignments: [{ grades: [], armPeriods: [] }] })}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Subject
+                          </Button>
                       </div>
-                      <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => appendSubject({ name: "", grades: [], arms: [] })}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Subject
-                        </Button>
                     </div>
-                  </div>
-                </ScrollArea>
-                <DialogFooter className="pt-4">
-                  <DialogClose asChild>
-                    <Button type="button" variant="ghost">Cancel</Button>
-                  </DialogClose>
-                  <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">Save Teacher</Button>
-                </DialogFooter>
-              </form>
-            </Form>
+                  </ScrollArea>
+                  <DialogFooter className="pt-4">
+                    <DialogClose asChild>
+                      <Button type="button" variant="ghost">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">Save Teacher</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </FormProvider>
         </DialogContent>
       </Dialog>
       
@@ -353,21 +427,25 @@ export default function TeacherEditor() {
                              <BookOpen className="mr-2 h-4 w-4 text-primary" />
                              <span>{subject.name}</span>
                            </div>
-                           <ul className="mt-2 space-y-1 pl-1">
-                            {subject.grades.flatMap(grade => 
-                                subject.arms.map(arm => {
-                                    const uniqueKey = `${subject.id}-${grade}-${arm}`;
-                                    return (
-                                        <li key={uniqueKey} className="flex items-center gap-4">
-                                            <div className="flex items-center text-xs">
-                                                <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                                <span>{grade} {arm}</span>
-                                            </div>
-                                        </li>
-                                    )
-                                })
-                            )}
-                           </ul>
+                           <div className="mt-2 space-y-2">
+                            {subject.assignments.map(assignment => (
+                                <div key={assignment.id} className="pl-2">
+                                    {assignment.grades.flatMap(grade => 
+                                        assignment.armPeriods.map(ap => {
+                                            const uniqueKey = `${assignment.id}-${grade}-${ap.arm}`;
+                                            return (
+                                                <li key={uniqueKey} className="flex items-center gap-4 list-none">
+                                                    <div className="flex items-center text-xs">
+                                                        <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
+                                                        <span>{grade} {ap.arm} ({ap.periods} periods)</span>
+                                                    </div>
+                                                </li>
+                                            )
+                                        })
+                                    )}
+                                </div>
+                            ))}
+                           </div>
                         </div>
                       ))}
                     </div>

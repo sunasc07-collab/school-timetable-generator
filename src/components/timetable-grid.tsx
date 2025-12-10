@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useTimetable } from "@/context/timetable-provider";
@@ -34,9 +35,20 @@ export default function TimetableGrid() {
   
   const getSessionForTeacher = (teacherName: string, day: string, periodIndex: number): TimetableSession | null => {
       const session = timetable[day]?.[periodIndex];
-      if (session && session.teacher === teacherName) {
-          return session;
+      // This logic is now flawed. The timetable is global, not per teacher.
+      // We need to find the session for the current teacher in the global timetable.
+      const teacherTimetable = Object.fromEntries(
+        Object.entries(timetable).map(([day, sessions]) => [
+            day,
+            sessions.filter(s => s?.teacher === teacherName)
+        ])
+      );
+      
+      const sessionForDay = timetable[day]?.[periodIndex];
+      if(sessionForDay && sessionForDay.teacher === teacherName) {
+        return sessionForDay;
       }
+      
       return null;
   }
 
@@ -72,7 +84,11 @@ export default function TimetableGrid() {
       </div>
     );
   }
-
+  
+  // This renders a timetable for EACH teacher.
+  // We need to render ONE global timetable and highlight conflicts.
+  // OR render one timetable per class.
+  // Let's stick with one per teacher for now, but the logic must be correct.
   return (
     <div className="space-y-8">
         {teachers.map(teacher => (
@@ -97,21 +113,21 @@ export default function TimetableGrid() {
                     </TableHeader>
                     <TableBody>
                     {days.map((day) => {
-                        return (
-                        <TableRow key={day}>
-                            <TableCell className="font-medium text-muted-foreground align-top pt-3">
-                                <div className="font-bold">{day}</div>
-                            </TableCell>
-                            {timeSlots.map((slot, slotIndex) => {
-                                if (slot.isBreak) {
-                                    return <TableCell key={slotIndex} className="bg-muted/50" />
-                                }
-                                const periodIndex = timeSlots.slice(0, slotIndex + 1).filter(s => !s.isBreak).length - 1;
-                                const session = getSessionForTeacher(teacher.name, day, periodIndex);
+                        const rowCells = [];
+                        let periodIndex = 0;
+                        for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
+                            const slot = timeSlots[slotIndex];
 
-                                const isDoublePart1 = session?.isDouble && session.part === 1;
-
-                                return (
+                            if (slot.isBreak) {
+                                rowCells.push(<TableCell key={`break-${slotIndex}`} className="bg-muted/50" />);
+                                continue;
+                            }
+                            
+                            const session = timetable[day]?.[periodIndex];
+                            const teacherSession = (session?.teacher === teacher.name) ? session : null;
+                            const isDoublePart1 = teacherSession?.isDouble && teacherSession.part === 1;
+                            
+                            rowCells.push(
                                 <TableCell
                                     key={slotIndex}
                                     colSpan={isDoublePart1 ? 2 : 1}
@@ -119,30 +135,24 @@ export default function TimetableGrid() {
                                     onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                                     onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
                                 >
-                                    {!slot.isBreak && renderCellContent(session, day, periodIndex)}
+                                    {!slot.isBreak && renderCellContent(teacherSession, day, periodIndex)}
                                 </TableCell>
-                                );
-                            }).filter((cell, i) => {
-                                // Filter out the cell for the second part of a double period
-                                if (!timeSlots[i].isBreak) {
-                                    const periodIndex = timeSlots.slice(0, i + 1).filter(s => !s.isBreak).length - 1;
-                                    if (periodIndex > 0) {
-                                        const prevPeriodIndex = periodIndex - 1;
-                                        const prevDay = days[days.indexOf(day)];
-                                        const prevSession = getSessionForTeacher(teacher.name, prevDay, prevPeriodIndex);
+                            );
 
-                                        if (prevSession && prevSession.isDouble && prevSession.part === 1) {
-                                            // check if it crosses a break
-                                            const prevSlotIndex = timeSlots.findIndex(s => s.period === prevSession.periods);
-                                            if (prevSlotIndex + 1 === i) {
-                                                return false;
-                                            }
-                                        }
-                                    }
-                                }
-                                return true;
-                            })}
-                        </TableRow>
+                            if (isDoublePart1) {
+                                slotIndex++; // Skip next slot as it's covered by colSpan
+                            }
+                            periodIndex++;
+                        }
+
+
+                        return (
+                            <TableRow key={day}>
+                                <TableCell className="font-medium text-muted-foreground align-top pt-3">
+                                    <div className="font-bold">{day}</div>
+                                </TableCell>
+                                {rowCells}
+                            </TableRow>
                         );
                     })}
                     </TableBody>

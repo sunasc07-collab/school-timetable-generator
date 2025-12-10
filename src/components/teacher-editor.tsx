@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm, useFieldArray, FormProvider, useFormContext } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -30,21 +30,27 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, GripVertical } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher, Subject, SubjectAssignment } from "@/lib/types";
+import type { Teacher, Subject } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "./ui/badge";
 
-const armPeriodSchema = z.object({
-    arm: z.string(),
+const armGroupSchema = z.object({
+    id: z.string().optional(),
+    arms: z.array(z.string()).min(1, "At least one arm is required."),
     periods: z.number().min(1, "Periods must be > 0").default(1),
 });
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
   grades: z.array(z.string()).min(1, "At least one grade is required."),
-  armPeriods: z.array(armPeriodSchema).min(1, "At least one arm is required."),
+  armGroups: z.array(armGroupSchema).min(1, "At least one arm group is required."),
 });
 
 const subjectSchema = z.object({
@@ -64,26 +70,119 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
+const ArmGroupForm = ({ subjectIndex, assignmentIndex, armGroupIndex, control, removeArmGroup, canRemoveArmGroup }: { subjectIndex: number; assignmentIndex: number; armGroupIndex: number; control: any; removeArmGroup: () => void; canRemoveArmGroup: boolean }) => {
+    return (
+        <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
+             <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={removeArmGroup}
+                disabled={!canRemoveArmGroup}
+                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
+              >
+                <Minus className="h-4 w-4" />
+            </Button>
+            <div className="flex gap-4 items-end">
+                <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.armGroups.${armGroupIndex}.arms`}
+                    render={({ field }) => (
+                        <FormItem className="flex-1">
+                            <FormLabel>Arms (grouped)</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                        "w-full justify-between",
+                                        !field.value?.length && "text-muted-foreground"
+                                    )}
+                                    >
+                                    <div className="flex gap-1 flex-wrap">
+                                        {field.value?.length > 0 ? (
+                                            field.value.map((arm: string) => (
+                                                <Badge
+                                                variant="secondary"
+                                                key={arm}
+                                                className="mr-1 mb-1"
+                                                >
+                                                {arm}
+                                                </Badge>
+                                            ))
+                                        ) : "Select Arms"}
+                                    </div>
+                                    <GripVertical className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[200px] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search arms..." />
+                                    <CommandEmpty>No arms found.</CommandEmpty>
+                                    <CommandGroup>
+                                    {ARM_OPTIONS.map((arm) => (
+                                        <CommandItem
+                                        value={arm}
+                                        key={arm}
+                                        onSelect={() => {
+                                            const currentValue = field.value || [];
+                                            const isSelected = currentValue.includes(arm);
+                                            field.onChange(isSelected ? currentValue.filter((a: string) => a !== arm) : [...currentValue, arm]);
+                                        }}
+                                        >
+                                        <Check
+                                            className={cn(
+                                            "mr-2 h-4 w-4",
+                                            (field.value || []).includes(arm)
+                                                ? "opacity-100"
+                                                : "opacity-0"
+                                            )}
+                                        />
+                                        Arm {arm}
+                                        </CommandItem>
+                                    ))}
+                                    </CommandGroup>
+                                </Command>
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.armGroups.${armGroupIndex}.periods`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Periods</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    min="1" 
+                                    className="w-24"
+                                    {...field} 
+                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
+                                />
+                            </FormControl>
+                            <FormMessage/>
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+    );
+};
 
 const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean }) => {
     
-    const { fields: armPeriodFields, append: appendArmPeriod, remove: removeArmPeriod, update: updateArmPeriod } = useFieldArray({
-        control: control,
-        name: `subjects.${subjectIndex}.assignments.${assignmentIndex}.armPeriods`
+    const { fields: armGroupFields, append: appendArmGroup, remove: removeArmGroup } = useFieldArray({
+        control,
+        name: `subjects.${subjectIndex}.assignments.${assignmentIndex}.armGroups`,
     });
-
-    const handleArmCheck = (arm: string, isChecked: boolean) => {
-        const existingIndex = armPeriodFields.findIndex((field: any) => field.arm === arm);
-        if (isChecked && existingIndex === -1) {
-            appendArmPeriod({ arm: arm, periods: 1 });
-        } else if (!isChecked && existingIndex !== -1) {
-            removeArmPeriod(existingIndex);
-        }
-    };
-    
-    const form = useFormContext<TeacherFormValues>();
-    const selectedArms = (form.watch(`subjects.${subjectIndex}.assignments.${assignmentIndex}.armPeriods`) || []).map(ap => ap.arm);
-
 
     return (
         <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
@@ -100,7 +199,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
             <FormField
                 control={control}
                 name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                render={({ field }) => (
+                render={() => (
                 <FormItem>
                     <FormLabel>Grades</FormLabel>
                     <div className="flex flex-wrap gap-4 p-2 border rounded-md">
@@ -109,7 +208,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                         key={grade}
                         control={control}
                         name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                        render={({ field: gradeField }) => {
+                        render={({ field }) => {
                         return (
                             <FormItem
                             key={grade}
@@ -117,12 +216,12 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                             >
                             <FormControl>
                                 <Checkbox
-                                checked={gradeField.value?.includes(grade)}
+                                checked={field.value?.includes(grade)}
                                 onCheckedChange={(checked) => {
-                                    const currentValue = gradeField.value || [];
+                                    const currentValue = field.value || [];
                                     return checked
-                                    ? gradeField.onChange([...currentValue, grade])
-                                    : gradeField.onChange(currentValue.filter(value => value !== grade))
+                                    ? field.onChange([...currentValue, grade])
+                                    : field.onChange(currentValue.filter(value => value !== grade))
                                 }}
                                 />
                             </FormControl>
@@ -141,46 +240,29 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
             />
             
             <FormItem>
-                <FormLabel>Arms & Periods per week</FormLabel>
+                <FormLabel>Arm Groups & Periods per week</FormLabel>
                 <div className="p-2 border rounded-md space-y-3">
-                    <div className="flex flex-wrap gap-4">
-                        {ARM_OPTIONS.map(arm => (
-                            <div key={arm} className="flex items-center gap-2">
-                                <Checkbox 
-                                    id={`arm-${arm}`}
-                                    checked={selectedArms.includes(arm)}
-                                    onCheckedChange={(checked) => handleArmCheck(arm, !!checked)}
-                                />
-                                <label htmlFor={`arm-${arm}`} className="font-normal">Arm {arm}</label>
-                            </div>
-                        ))}
-                    </div>
-
-                    {armPeriodFields.length > 0 && <hr/>}
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        {armPeriodFields.map((field, index) => (
-                             <FormField
-                                key={field.id}
-                                control={control}
-                                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.armPeriods.${index}.periods`}
-                                render={({ field: periodField }) => (
-                                    <FormItem>
-                                        <FormLabel>Periods for Arm {(field as any).arm}</FormLabel>
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                min="1" 
-                                                {...periodField} 
-                                                onChange={e => periodField.onChange(parseInt(e.target.value, 10) || 1)}
-                                            />
-                                        </FormControl>
-                                        <FormMessage/>
-                                    </FormItem>
-                                )}
-                             />
-                        ))}
-                    </div>
+                    {armGroupFields.map((field, index) => (
+                        <ArmGroupForm
+                            key={field.id}
+                            subjectIndex={subjectIndex}
+                            assignmentIndex={assignmentIndex}
+                            armGroupIndex={index}
+                            control={control}
+                            removeArmGroup={() => removeArmGroup(index)}
+                            canRemoveArmGroup={armGroupFields.length > 1}
+                        />
+                    ))}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => appendArmGroup({ arms: [], periods: 1, id: crypto.randomUUID() })}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Arm Group
+                    </Button>
                 </div>
             </FormItem>
 
@@ -237,7 +319,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => appendAssignment({ grades: [], armPeriods: [] })}
+                    onClick={() => appendAssignment({ grades: [], armGroups: [{arms: [], periods: 1, id: crypto.randomUUID()}], id: crypto.randomUUID() })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Assignment Group
@@ -256,7 +338,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", assignments: [{ grades: [], armPeriods: [] }] }],
+      subjects: [{ name: "", assignments: [{ grades: [], armGroups: [{id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
     },
   });
 
@@ -275,14 +357,18 @@ export default function TeacherEditor() {
                 ...s,
                 assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
                     ...a,
-                    id: a.id || crypto.randomUUID()
-                })) : [{ id: crypto.randomUUID(), grades: [], armPeriods: [] }],
-            })) : [{ name: "", assignments: [{ grades: [], armPeriods: [] }] }],
+                    id: a.id || crypto.randomUUID(),
+                    armGroups: a.armGroups.length > 0 ? a.armGroups.map(ag => ({
+                        ...ag,
+                        id: ag.id || crypto.randomUUID()
+                    })) : [{ id: crypto.randomUUID(), arms: [], periods: 1 }]
+                })) : [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }],
+            })) : [{ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", assignments: [{ grades: [], armPeriods: [] }] }],
+            subjects: [{ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
         });
     }
     setIsDialogOpen(true);
@@ -298,6 +384,10 @@ export default function TeacherEditor() {
             assignments: s.assignments.map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
+                armGroups: a.armGroups.map(ag => ({
+                    ...ag,
+                    id: ag.id || crypto.randomUUID(),
+                }))
             }))
         }))
     }
@@ -365,7 +455,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", assignments: [{ grades: [], armPeriods: [] }] })}
+                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] })}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subject
@@ -431,13 +521,14 @@ export default function TeacherEditor() {
                             {subject.assignments.map(assignment => (
                                 <div key={assignment.id} className="pl-2">
                                     {assignment.grades.flatMap(grade => 
-                                        assignment.armPeriods.map(ap => {
-                                            const uniqueKey = `${assignment.id}-${grade}-${ap.arm}`;
+                                        assignment.armGroups.map(ag => {
+                                            const className = `${grade} ${ag.arms.join(', ')}`;
+                                            const uniqueKey = `${assignment.id}-${grade}-${ag.id}`;
                                             return (
                                                 <li key={uniqueKey} className="flex items-center gap-4 list-none">
                                                     <div className="flex items-center text-xs">
                                                         <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                                        <span>{grade} {ap.arm} ({ap.periods} periods)</span>
+                                                        <span>{className} ({ag.periods} periods)</span>
                                                     </div>
                                                 </li>
                                             )

@@ -1,14 +1,15 @@
 
 
-export type ArmPeriod = {
-    arm: string;
+export type ArmGroup = {
+    id: string;
+    arms: string[];
     periods: number;
 }
 
 export type SubjectAssignment = {
     id: string;
     grades: string[];
-    armPeriods: ArmPeriod[];
+    armGroups: ArmGroup[];
 };
 
 export type Subject = {

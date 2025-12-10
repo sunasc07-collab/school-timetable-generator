@@ -1,6 +1,2 @@
-import { config } from 'dotenv';
-config();
-
-import '@/ai/flows/generate-initial-timetable.ts';
-import '@/ai/flows/summarize-timetable.ts';
-import '@/ai/flows/suggest-conflict-resolution.ts';
+// This file is no longer needed as AI generation is removed.
+// You can delete this file.

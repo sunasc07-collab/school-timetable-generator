@@ -29,16 +29,19 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { Teacher, Subject } from "@/lib/types";
 
 const subjectSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, "Subject name is required."),
   periods: z.coerce.number().min(1, "Periods must be at least 1."),
 });
 
 const teacherSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(2, "Teacher name is required."),
   subjects: z.array(subjectSchema).min(1, "At least one subject is required."),
 });
@@ -46,8 +49,9 @@ const teacherSchema = z.object({
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 
 export default function TeacherEditor() {
-  const { teachers, addTeacher, removeTeacher } = useTimetable();
+  const { teachers, addTeacher, removeTeacher, updateTeacher } = useTimetable();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherSchema),
@@ -57,29 +61,55 @@ export default function TeacherEditor() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "subjects",
   });
+  
+  const handleOpenDialog = (teacher: Teacher | null) => {
+    setEditingTeacher(teacher);
+    if (teacher) {
+        form.reset({
+            id: teacher.id,
+            name: teacher.name,
+            subjects: teacher.subjects,
+        });
+    } else {
+        form.reset({
+            name: "",
+            subjects: [{ name: "", periods: 1 }],
+        });
+    }
+    setIsDialogOpen(true);
+  }
 
   function onSubmit(data: TeacherFormValues) {
-    addTeacher(data.name, data.subjects.map(s => ({...s, id: crypto.randomUUID()})));
+    if (editingTeacher && data.id) {
+        const subjectsWithIds = data.subjects.map(s => ({ ...s, id: s.id || crypto.randomUUID() }));
+        updateTeacher(data.id, data.name, subjectsWithIds);
+    } else {
+        addTeacher(data.name, data.subjects);
+    }
     form.reset();
     setIsDialogOpen(false);
+    setEditingTeacher(null);
   }
 
   return (
     <div className="p-2 space-y-4">
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) setEditingTeacher(null);
+      }}>
         <DialogTrigger asChild>
-          <Button className="w-full">
+          <Button className="w-full" onClick={() => handleOpenDialog(null)}>
             <Plus className="mr-2" />
             Add Teacher
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Add New Teacher</DialogTitle>
+            <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -174,6 +204,17 @@ export default function TeacherEditor() {
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
                         <span className="font-medium">{teacher.name}</span>
                     </AccordionTrigger>
+                     <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-primary mr-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDialog(teacher);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

@@ -8,6 +8,7 @@ type TimetableContextType = {
   teachers: Teacher[];
   addTeacher: (name: string, subjects: Omit<Subject, "id">[]) => void;
   removeTeacher: (id: string) => void;
+  updateTeacher: (id: string, name: string, subjects: Subject[]) => void;
   timetable: TimetableData;
   days: string[];
   periods: number[];
@@ -70,6 +71,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setTeachers((prev) => prev.filter((teacher) => teacher.id !== id));
   };
   
+  const updateTeacher = (id: string, name: string, subjects: Subject[]) => {
+    setTeachers(prev => prev.map(t => t.id === id ? { id, name, subjects } : t));
+  };
+
   const parseAndSetTimetable = (jsonString: string) => {
     try {
         const parsed = JSON.parse(jsonString);
@@ -210,6 +215,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teachers,
         addTeacher,
         removeTeacher,
+        updateTeacher,
         timetable,
         days,
         periods,

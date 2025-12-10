@@ -104,36 +104,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     allSessions.sort(() => Math.random() - 0.5);
     
     let sessionIndex = 0;
-    for (const session of allSessions) {
-      let placed = false;
-      while (!placed) {
-        for (const day of DAYS) {
-          for (let period = 0; period < PERIOD_COUNT; period++) {
-            if (newTimetable[day][period].length === 0) { // simplistic check, can be improved
-              newTimetable[day][period].push(session);
-              placed = true;
-              break;
-            }
-          }
-          if (placed) break;
-        }
-        if (!placed) { // If all slots are full, start doubling up
-            let dayIndex = 0;
-            let periodIndex = 0;
-            while(sessionIndex < allSessions.length) {
-                newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
+            if (sessionIndex < allSessions.length) {
+                newTimetable[day][period].push(allSessions[sessionIndex]);
                 sessionIndex++;
-                periodIndex++;
-                if (periodIndex >= PERIOD_COUNT) {
-                    periodIndex = 0;
-                    dayIndex = (dayIndex + 1) % DAYS.length;
-                }
             }
-            break; 
         }
-      }
     }
     
+    // If there are still sessions left, distribute them (this will create conflicts)
+    let dayIndex = 0;
+    let periodIndex = 0;
+    while(sessionIndex < allSessions.length) {
+        newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
+        sessionIndex++;
+        periodIndex++;
+        if (periodIndex >= PERIOD_COUNT) {
+            periodIndex = 0;
+            dayIndex = (dayIndex + 1) % DAYS.length;
+        }
+    }
+
     setClasses(Array.from(classSet).sort());
     setTimetable(newTimetable);
   }, [teachers]);

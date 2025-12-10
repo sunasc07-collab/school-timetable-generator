@@ -33,13 +33,14 @@ import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "luc
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Checkbox } from "./ui/checkbox";
 
 const classArmSchema = z.object({
     id: z.string().optional(),
     grade: z.string().min(1, "Grade is required."),
-    arm: z.string().min(1, "Arm is required."),
+    arms: z.array(z.string()).refine(value => value.some(item => item), {
+      message: "You have to select at least one arm.",
+    }),
     periods: z.coerce.number().min(1, "Periods must be at least 1."),
 });
 
@@ -56,6 +57,8 @@ const teacherSchema = z.object({
 });
 
 type TeacherFormValues = z.infer<typeof teacherSchema>;
+
+const ARM_OPTIONS = ["A", "B", "C"];
 
 const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: number, control: any, removeSubject: (index: number) => void }) => {
     const { fields, append, remove } = useFieldArray({
@@ -88,10 +91,10 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                 )}
             />
             <div className="space-y-2">
-                 <FormLabel className="text-xs">Classes & Periods</FormLabel>
+                 <FormLabel className="text-sm">Classes & Periods</FormLabel>
                 {fields.map((field, classIndex) => (
-                    <div key={field.id} className="flex gap-2 items-end p-2 border rounded-md bg-background/50 relative">
-                        <div className="grid grid-cols-3 gap-2 flex-grow">
+                    <div key={field.id} className="p-2 border rounded-md bg-background/50 relative">
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-4 items-start">
                              <FormField
                                 control={control}
                                 name={`subjects.${subjectIndex}.classes.${classIndex}.grade`}
@@ -101,28 +104,6 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                                     <FormControl>
                                     <Input placeholder="e.g., Grade 9" {...field} />
                                     </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={control}
-                                name={`subjects.${subjectIndex}.classes.${classIndex}.arm`}
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs">Arm</FormLabel>
-                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select an arm" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="A">A</SelectItem>
-                                            <SelectItem value="B">B</SelectItem>
-                                            <SelectItem value="C">C</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -140,17 +121,63 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                                 </FormItem>
                                 )}
                             />
+                             <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => remove(classIndex)}
+                                disabled={fields.length <= 1}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive self-end"
+                            >
+                                <Minus className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => remove(classIndex)}
-                            disabled={fields.length <= 1}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                            <Minus className="h-4 w-4" />
-                        </Button>
+                        <FormField
+                            control={control}
+                            name={`subjects.${subjectIndex}.classes.${classIndex}.arms`}
+                            render={() => (
+                                <FormItem className="mt-2">
+                                    <FormLabel className="text-xs">Arms</FormLabel>
+                                    <div className="flex items-center gap-4 pt-1">
+                                    {ARM_OPTIONS.map((arm) => (
+                                        <FormField
+                                        key={arm}
+                                        control={control}
+                                        name={`subjects.${subjectIndex}.classes.${classIndex}.arms`}
+                                        render={({ field }) => {
+                                            return (
+                                            <FormItem
+                                                key={arm}
+                                                className="flex flex-row items-start space-x-2 space-y-0"
+                                            >
+                                                <FormControl>
+                                                <Checkbox
+                                                    checked={field.value?.includes(arm)}
+                                                    onCheckedChange={(checked) => {
+                                                    return checked
+                                                        ? field.onChange([...(field.value || []), arm])
+                                                        : field.onChange(
+                                                            field.value?.filter(
+                                                            (value) => value !== arm
+                                                            )
+                                                        )
+                                                    }}
+                                                />
+                                                </FormControl>
+                                                <FormLabel className="font-normal text-sm">
+                                                    Arm {arm}
+                                                </FormLabel>
+                                            </FormItem>
+                                            )
+                                        }}
+                                        />
+                                    ))}
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+
                     </div>
                 ))}
                 <Button
@@ -158,10 +185,10 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => append({ grade: "", arm: "A", periods: 1 })}
+                    onClick={() => append({ grade: "", arms: ["A"], periods: 1 })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Class Arm
+                    Add Class Group
                 </Button>
             </div>
         </div>
@@ -178,7 +205,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", classes: [{ grade: "", arm: "A", periods: 1 }] }],
+      subjects: [{ name: "", classes: [{ grade: "", arms: ["A"], periods: 1 }] }],
     },
   });
 
@@ -201,7 +228,7 @@ export default function TeacherEditor() {
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", classes: [{ grade: "", arm: "A", periods: 1 }] }],
+            subjects: [{ name: "", classes: [{ grade: "", arms: ["A"], periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
@@ -275,7 +302,7 @@ export default function TeacherEditor() {
                           variant="outline"
                           size="sm"
                           className="mt-2"
-                          onClick={() => appendSubject({ name: "", classes: [{grade: "", arm: "A", periods: 1}] })}
+                          onClick={() => appendSubject({ name: "", classes: [{grade: "", arms: ["A"], periods: 1}] })}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Subject
@@ -341,7 +368,7 @@ export default function TeacherEditor() {
                                 <li key={cls.id} className="flex items-center gap-4">
                                      <div className="flex items-center text-xs">
                                         <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                        <span>{cls.grade} {cls.arm} ({cls.periods} p/w)</span>
+                                        <span>{cls.grade} {cls.arms.join(', ')} ({cls.periods} p/w)</span>
                                     </div>
                                 </li>
                             ))}

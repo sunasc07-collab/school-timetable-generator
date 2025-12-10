@@ -1,7 +1,7 @@
 export type ClassArm = {
   id: string;
   grade: string;
-  arm: string;
+  arms: string[];
   periods: number;
 };
 

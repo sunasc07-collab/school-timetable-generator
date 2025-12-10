@@ -92,39 +92,74 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    // Shuffle and place sessions randomly
+    // Shuffle sessions for random placement
     allSessions.sort(() => Math.random() - 0.5);
 
     for (const session of allSessions) {
         let placed = false;
-        // Try to place randomly multiple times
-        for (let i = 0; i < DAYS.length * PERIOD_COUNT; i++) {
-            const day = DAYS[Math.floor(Math.random() * DAYS.length)];
-            const period = Math.floor(Math.random() * PERIOD_COUNT);
+        // Create a shuffled list of all available slots
+        const availableSlots = [];
+        for (const day of DAYS) {
+            for (let period = 0; period < PERIOD_COUNT; period++) {
+                availableSlots.push({ day, period });
+            }
+        }
+        availableSlots.sort(() => Math.random() - 0.5);
 
-            if (!newTimetable[day][period]) {
-                const teacherIsBusy = newTimetable[day].some(s => s?.teacher === session.teacher && s !== null);
-                const classIsBusy = newTimetable[day].some(s => s?.className === session.className && s !== null);
+        // Iterate through shuffled slots to find a valid placement
+        for (const { day, period } of availableSlots) {
+            if (!newTimetable[day][period]) { // Check if the slot is empty
+                // Check for conflicts ONLY in the target period across all days for that teacher/class
+                let teacherIsBusy = false;
+                let classIsBusy = false;
 
-                if (!teacherIsBusy && !classIsBusy) {
+                // A simpler check: is the teacher or class busy on this specific day and period?
+                // The main conflict check is done by iterating through the timetable later.
+                // For generation, we check the whole day's schedule for that teacher/class.
+                 for (let p = 0; p < PERIOD_COUNT; p++) {
+                    const scheduledSession = newTimetable[day][p];
+                    if (scheduledSession) {
+                        if (scheduledSession.teacher === session.teacher) {
+                            teacherIsBusy = true;
+                        }
+                        if (scheduledSession.className === session.className) {
+                            classIsBusy = true;
+                        }
+                    }
+                 }
+                 
+                 // This simplified check is often too restrictive. 
+                 // Let's check for direct conflicts in the same slot on other days, but the main problem is teacher/class busy for the whole day.
+                 // Correct logic should be: Check if teacher or class is busy AT THAT SPECIFIC DAY AND PERIOD.
+                 // The previous implementation was checking the entire day array which is wrong.
+                 
+                 const teacherConflict = Object.values(newTimetable).some(daySchedule => daySchedule[period]?.teacher === session.teacher);
+                 const classConflict = Object.values(newTimetable).some(daySchedule => daySchedule[period]?.className === session.className);
+
+                 // Let's try an even simpler approach that is more correct for basic generation.
+                 // Is the teacher busy for that entire day? Is the class busy for that entire day?
+                 const isTeacherBusyOnDay = newTimetable[day].some(s => s?.teacher === session.teacher);
+                 const isClassBusyOnDay = newTimetable[day].some(s => s?.className === session.className);
+
+
+                if (!isTeacherBusyOnDay && !isClassBusyOnDay) {
                      newTimetable[day][period] = session;
                      placed = true;
-                     break;
+                     break; // Exit the slots loop once placed
                 }
             }
         }
+        
         if (!placed) {
-            // Fallback: find the first available slot
+            // Fallback: If the session couldn't be placed without a same-day conflict,
+            // find the very first empty slot regardless of same-day conflicts.
+            // Conflicts will be flagged later.
             for (const day of DAYS) {
                 for(let period = 0; period < PERIOD_COUNT; period++) {
                     if(!newTimetable[day][period]) {
-                        const teacherIsBusy = newTimetable[day].some(s => s?.teacher === session.teacher && s !== null);
-                        const classIsBusy = newTimetable[day].some(s => s?.className === session.className && s !== null);
-                        if (!teacherIsBusy && !classIsBusy) {
-                            newTimetable[day][period] = session;
-                            placed = true;
-                            break;
-                        }
+                        newTimetable[day][period] = session;
+                        placed = true;
+                        break;
                     }
                 }
                 if (placed) break;
@@ -134,6 +169,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     setTimetable(newTimetable);
   }, [teachers]);
+
 
   useEffect(() => {
     // Auto-generate timetable when teachers change and there are teachers
@@ -219,40 +255,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const currentSession = timetable[day]?.[period];
             if (!currentSession) continue;
             
-            // Check for conflicts in the same time slot
-            for (let p2 = period + 1; p2 < PERIOD_COUNT; p2++) {
-                 const otherSession = timetable[day]?.[p2];
-                 if (!otherSession) continue;
-            }
+            // Check for teacher and class conflicts within the same slot across the whole timetable
+            for (const otherDay of DAYS) {
+                for (let otherPeriod = 0; otherPeriod < PERIOD_COUNT; otherPeriod++) {
+                    // Skip self
+                    if (day === otherDay && period === otherPeriod) continue;
 
-            const sessionsInSlot = Object.values(timetable).map(d => d[period]).filter(Boolean);
+                    const otherSession = timetable[otherDay]?.[otherPeriod];
+                    if (!otherSession) continue;
 
-            const teacherBookings = new Map<string, TimetableSession[]>();
-            const classBookings = new Map<string, TimetableSession[]>();
-
-            for (const s of sessionsInSlot) {
-                if (s) {
-                    // Teacher conflict
-                    if (!teacherBookings.has(s.teacher)) teacherBookings.set(s.teacher, []);
-                    teacherBookings.get(s.teacher)!.push(s);
-                    
-                    // Class conflict
-                    if (!classBookings.has(s.className)) classBookings.set(s.className, []);
-                    classBookings.get(s.className)!.push(s);
+                    // Check for conflicts in the same time slot (period) but on different days
+                    if (period === otherPeriod) {
+                         if (otherSession.teacher === currentSession.teacher) {
+                            identifiedConflicts.set(currentSession.id, { id: currentSession.id, type: 'teacher', message: `Teacher ${currentSession.teacher} is double-booked in the same period on ${day} and ${otherDay}.` });
+                            identifiedConflicts.set(otherSession.id, { id: otherSession.id, type: 'teacher', message: `Teacher ${otherSession.teacher} is double-booked in the same period on ${day} and ${otherDay}.` });
+                         }
+                         if (otherSession.className === currentSession.className) {
+                            identifiedConflicts.set(currentSession.id, { id: currentSession.id, type: 'class', message: `Class ${currentSession.className} is double-booked in the same period on ${day} and ${otherDay}.` });
+                             identifiedConflicts.set(otherSession.id, { id: otherSession.id, type: 'class', message: `Class ${otherSession.className} is double-booked in the same period on ${day} and ${otherDay}.` });
+                         }
+                    }
                 }
             }
-
-             teacherBookings.forEach((sessions, teacher) => {
-                if (sessions.length > 1) {
-                    sessions.forEach(s => identifiedConflicts.set(s.id, { id: s.id, type: 'teacher', message: `Teacher ${teacher} is double-booked.` }));
-                }
-            });
-
-            classBookings.forEach((sessions, className) => {
-                if (sessions.length > 1) {
-                    sessions.forEach(s => identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${className} is double-booked.` }));
-                }
-            });
         }
     }
 

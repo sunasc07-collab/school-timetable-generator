@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -32,23 +33,28 @@ export default function Header() {
       const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
 
       const body: (string | null)[][] = [];
+      const periodCount = timeSlots.filter(s => !s.isBreak).length;
 
       days.forEach(day => {
           const row: (string | null)[] = [day];
-          let periodIndex = 0;
+          const teacherSessionsForDay = (timetable[day] || []).map((session, period) => ({ session, period }))
+            .filter(({session}) => session?.teacher === teacher.name);
+          
+          let periodSlots = new Array(periodCount).fill(null);
+          teacherSessionsForDay.forEach(({ session, period }) => {
+            if (session && period < periodCount) {
+              periodSlots[period] = `${session.subject}\n${session.className}`;
+            }
+          });
+
+          let sessionIndex = 0;
           timeSlots.forEach(slot => {
             if (slot.isBreak) {
-              row.push(""); // Empty cell for break
-              return;
-            }
-
-            const session = (timetable[day] || [])[periodIndex];
-            if (session && session.teacher === teacher.name) {
-              row.push(session.subject);
+              row.push(null);
             } else {
-               row.push("");
+              row.push(periodSlots[sessionIndex] || "");
+              sessionIndex++;
             }
-            periodIndex++;
           });
           body.push(row);
       });

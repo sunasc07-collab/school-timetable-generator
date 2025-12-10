@@ -49,6 +49,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const classAssignmentSchema = z.object({
   id: z.string().optional(),
@@ -93,7 +94,41 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Grades</FormLabel>
-                    <MultiSelect options={GRADE_OPTIONS} selected={field.value || []} onChange={field.onChange} placeholder="Select grades..." />
+                    <div className="flex flex-wrap gap-4 p-2 border rounded-md">
+                    {GRADE_OPTIONS.map((grade) => (
+                      <FormField
+                        key={grade}
+                        control={control}
+                        name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={grade}
+                              className="flex flex-row items-start space-x-2 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(grade)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...(field.value || []), grade])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (value) => value !== grade
+                                          )
+                                        )
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {grade}
+                              </FormLabel>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    ))}
+                    </div>
                     <FormMessage />
                 </FormItem>
                 )}
@@ -455,6 +490,8 @@ function MultiSelect({ options, selected, onChange, placeholder }: { options: st
         </Popover>
     );
 }
+
+    
 
     
 

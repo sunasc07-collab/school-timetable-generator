@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
-import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, SubjectAssignment } from "@/lib/types";
+import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, TimetableSlot } from "@/lib/types";
 
 type TimetableContextType = {
   teachers: Teacher[];
@@ -45,11 +45,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [timetable, setTimetable] = useState<TimetableData>({});
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
-  const generateTimetable = useCallback(() => {
+   const generateTimetable = useCallback(() => {
     setTeachers(currentTeachers => {
         const newTimetable: TimetableData = {};
         for (const day of DAYS) {
-            newTimetable[day] = new Array(PERIOD_COUNT).fill(null);
+            newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
         }
 
         const allSessions: TimetableSession[] = [];
@@ -95,33 +95,23 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         for (const session of allSessions) {
             let placed = false;
-            for (const day of DAYS) {
-                for(let period = 0; period < PERIOD_COUNT; period++) {
-                    if(!newTimetable[day][period]) {
-                        newTimetable[day][period] = session;
-                        placed = true;
-                        break;
-                    }
+            // Try to place randomly first
+            const shuffledDays = DAYS.sort(() => Math.random() - 0.5);
+            for (const day of shuffledDays) {
+                const shuffledPeriods = Array.from({length: PERIOD_COUNT}, (_, i) => i).sort(() => Math.random() - 0.5);
+                for(const period of shuffledPeriods) {
+                    newTimetable[day][period].push(session);
+                    placed = true;
+                    break;
                 }
                 if (placed) break;
             }
         }
         
         setTimetable(newTimetable);
-
-        // This is important to trigger re-render if teachers state is what generateTimetable depends on
         return currentTeachers; 
     });
-  }, []); // No dependencies, it will get the current `teachers` from the `setTeachers` updater function.
-
-
-  useEffect(() => {
-    if (teachers.length > 0) {
-      generateTimetable();
-    } else {
-      setTimetable({});
-    }
-  }, [teachers, generateTimetable]);
+  }, []);
 
 
   const days = Object.keys(timetable).length > 0 ? DAYS : [];
@@ -159,26 +149,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setTimetable(prev => {
         const newTimetable = JSON.parse(JSON.stringify(prev));
         
-        const sourceCell = newTimetable[from.day][from.period];
-        const targetCell = newTimetable[to.day][to.period];
-
-        if (sourceCell && sourceCell.id !== session.id) {
-           let found = false;
-            for(const day of DAYS) {
-                for(let p = 0; p < PERIOD_COUNT; p++) {
-                    if (newTimetable[day][p] && newTimetable[day][p].id === session.id) {
-                        from.day = day;
-                        from.period = p;
-                        found = true;
-                        break;
-                    }
+        // Find and remove the session from its original slot
+        let found = false;
+        for (const day of DAYS) {
+            for (let p = 0; p < PERIOD_COUNT; p++) {
+                const index = (newTimetable[day][p] as TimetableSlot).findIndex(s => s.id === session.id);
+                if (index !== -1) {
+                    newTimetable[day][p].splice(index, 1);
+                    found = true;
+                    break;
                 }
-                if (found) break;
             }
+            if (found) break;
         }
 
-        newTimetable[from.day][from.period] = targetCell;
-        newTimetable[to.day][to.period] = session;
+        // Add the session to the new slot
+        newTimetable[to.day][to.period].push(session);
 
         return newTimetable;
     });
@@ -192,49 +178,37 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     const identifiedConflicts = new Map<string, Conflict>();
 
-    // This map will store teacher and class bookings for each slot.
-    // Key: "day-period", Value: { teachers: Set<string>, classes: Set<string> }
-    const slotBookings = new Map<string, { teachers: Set<string>; classes: Set<string> }>();
-
     for (const day of DAYS) {
       for (let period = 0; period < PERIOD_COUNT; period++) {
-        const session = timetable[day]?.[period];
-        if (!session) continue;
-        
-        const slotKey = `${day}-${period}`;
-        if (!slotBookings.has(slotKey)) {
-          slotBookings.set(slotKey, { teachers: new Set(), classes: new Set() });
-        }
-        
-        const booking = slotBookings.get(slotKey)!;
+        const slotSessions = timetable[day]?.[period];
+        if (!slotSessions || slotSessions.length <= 1) continue;
 
-        // Check for teacher conflict
-        if (booking.teachers.has(session.teacher)) {
-          // This teacher is already booked in this slot, find all sessions with this teacher in this slot and mark them
-           for (const d of DAYS) {
-                for (let p = 0; p < PERIOD_COUNT; p++) {
-                    const conflictSession = timetable[d]?.[p];
-                    if (conflictSession && d === day && p === period && conflictSession.teacher === session.teacher) {
-                         identifiedConflicts.set(conflictSession.id, { id: conflictSession.id, type: 'teacher', message: `Teacher ${conflictSession.teacher} is double-booked.` });
+        const teachersInSlot = new Set<string>();
+        const classesInSlot = new Set<string>();
+        
+        for (const session of slotSessions) {
+            // Check for teacher conflict
+            if (teachersInSlot.has(session.teacher)) {
+                // Find all sessions with this teacher in this slot and mark them
+                slotSessions.forEach(s => {
+                    if (s.teacher === session.teacher) {
+                        identifiedConflicts.set(s.id, { id: s.id, type: 'teacher', message: `Teacher ${s.teacher} is double-booked.` });
                     }
-                }
-           }
-        }
-        booking.teachers.add(session.teacher);
+                });
+            }
+            teachersInSlot.add(session.teacher);
 
-        // Check for class conflict
-        if (booking.classes.has(session.className)) {
-          // This class is already booked in this slot
-           for (const d of DAYS) {
-                for (let p = 0; p < PERIOD_COUNT; p++) {
-                    const conflictSession = timetable[d]?.[p];
-                    if (conflictSession && d === day && p === period && conflictSession.className === session.className) {
-                         identifiedConflicts.set(conflictSession.id, { id: conflictSession.id, type: 'class', message: `Class ${conflictSession.className} is double-booked.` });
+            // Check for class conflict
+            if (classesInSlot.has(session.className)) {
+                // Find all sessions with this class in this slot and mark them
+                slotSessions.forEach(s => {
+                    if (s.className === session.className) {
+                        identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} is double-booked.` });
                     }
-                }
-           }
+                });
+            }
+            classesInSlot.add(session.className);
         }
-        booking.classes.add(session.className);
       }
     }
     

@@ -39,14 +39,21 @@ export default function TimetableGrid() {
     }
   };
   
-  const renderCellContent = (session: TimetableSession | null, day: string, period: number) => {
-     if (session) {
+  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, teacherName?: string) => {
+     const relevantSessions = teacherName ? sessions.filter(s => s.teacher === teacherName) : sessions;
+     
+     if (relevantSessions.length > 0) {
       return (
-        <TimetableItem
-          session={session}
-          isConflict={isConflict(session.id)}
-          from={{ day, period }}
-        />
+        <div className="space-y-1">
+        {relevantSessions.map(session => (
+            <TimetableItem
+              key={session.id}
+              session={session}
+              isConflict={isConflict(session.id)}
+              from={{ day, period }}
+            />
+        ))}
+        </div>
       );
     }
     return <div className="h-20 w-full" />; // Placeholder for empty slot
@@ -82,17 +89,17 @@ export default function TimetableGrid() {
     );
   }
   
-  // This renders one global timetable
   return (
     <div className="space-y-8">
-        <div>
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold font-headline">Master Timetable</h2>
-                <Button onClick={generateTimetable} variant="outline">
-                    <Zap className="mr-2 h-4 w-4" />
-                    Re-generate
-                </Button>
-            </div>
+       <div className="flex justify-end items-center mb-4">
+            <Button onClick={generateTimetable} variant="outline">
+                <Zap className="mr-2 h-4 w-4" />
+                Re-generate Timetable
+            </Button>
+        </div>
+      {teachers.map(teacher => (
+        <div key={teacher.id}>
+            <h2 className="text-2xl font-bold font-headline mb-4">{teacher.name}'s Timetable</h2>
             <div className="rounded-lg border w-full">
             <Table>
                 <TableHeader>
@@ -122,7 +129,7 @@ export default function TimetableGrid() {
                             continue;
                         }
                         
-                        const session = timetable[day]?.[periodIndex];
+                        const sessions = timetable[day]?.[periodIndex] || [];
                         
                         rowCells.push(
                             <TableCell
@@ -131,7 +138,7 @@ export default function TimetableGrid() {
                                 onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                                 onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
                             >
-                                {!slot.isBreak && renderCellContent(session, day, periodIndex)}
+                                {!slot.isBreak && renderCellContent(sessions, day, periodIndex, teacher.name)}
                             </TableCell>
                         );
 
@@ -151,6 +158,7 @@ export default function TimetableGrid() {
             </Table>
             </div>
         </div>
+      ))}
     </div>
   );
 }

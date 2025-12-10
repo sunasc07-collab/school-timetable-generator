@@ -29,8 +29,11 @@ export type TimetableSession = {
   part?: 1 | 2;
 };
 
+// A slot in the timetable can now hold multiple sessions (to represent conflicts)
+export type TimetableSlot = TimetableSession[];
+
 export type TimetableData = {
-  [day: string]: (TimetableSession | null)[];
+  [day: string]: TimetableSlot[];
 };
 
 export type TimetableDragData = {

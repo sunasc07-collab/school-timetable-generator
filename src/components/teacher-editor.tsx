@@ -170,22 +170,22 @@ export default function TeacherEditor() {
             <Accordion type="single" collapsible className="w-full">
               {teachers.map((teacher) => (
                 <AccordionItem value={teacher.id} key={teacher.id}>
-                  <AccordionTrigger className="hover:no-underline px-2">
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-medium">{teacher.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeTeacher(teacher.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </AccordionTrigger>
+                  <div className="flex items-center w-full hover:bg-muted/50 rounded-md">
+                    <AccordionTrigger className="hover:no-underline px-2 flex-1">
+                        <span className="font-medium">{teacher.name}</span>
+                    </AccordionTrigger>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive mr-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeTeacher(teacher.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <AccordionContent className="px-2">
                     <ul className="space-y-1 text-sm text-muted-foreground pl-4">
                       {teacher.subjects.map((subject) => (

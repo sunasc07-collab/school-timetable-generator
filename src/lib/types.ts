@@ -1,7 +1,8 @@
+
 export type ClassArm = {
   id: string;
-  grade: string;
-  arm: string;
+  grades: string[];
+  arms: string[];
   periods: number;
 };
 
@@ -50,3 +51,5 @@ export type TimeSlot = {
   isBreak?: boolean;
   label?: string;
 };
+
+    

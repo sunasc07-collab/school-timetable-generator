@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFieldArray, useForm } from "react-hook-form";
@@ -35,16 +36,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, Check, ChevronsUpDown } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const classArmSchema = z.object({
   id: z.string().optional(),
-  grade: z.string().min(1, "Grade is required."),
-  arm: z.string().min(1, "Arm is required."),
+  grades: z.array(z.string()).min(1, "At least one grade is required."),
+  arms: z.array(z.string()).min(1, "At least one arm is required."),
   periods: z.coerce.number().min(1, "Periods must be at least 1."),
 });
 
@@ -99,47 +115,35 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                  <FormLabel className="text-sm">Classes & Periods</FormLabel>
                 {fields.map((field, classIndex) => (
                     <div key={field.id} className="p-2 border rounded-md bg-background/50 relative">
-                        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-4 items-end">
-                            <FormField
+                       <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => remove(classIndex)}
+                            disabled={fields.length <= 1}
+                            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive z-10"
+                        >
+                            <Minus className="h-4 w-4" />
+                        </Button>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                           <FormField
                                 control={control}
-                                name={`subjects.${subjectIndex}.classes.${classIndex}.grade`}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.grades`}
                                 render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs">Grade</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                        <SelectValue placeholder="Select a grade" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {GRADE_OPTIONS.map((grade) => (
-                                            <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                    </Select>
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Grades</FormLabel>
+                                     <MultiSelect options={GRADE_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select grades..." />
                                     <FormMessage />
                                 </FormItem>
                                 )}
                             />
                             <FormField
                                 control={control}
-                                name={`subjects.${subjectIndex}.classes.${classIndex}.arm`}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.arms`}
                                 render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs">Arm</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                        <SelectValue placeholder="Select an arm" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {ARM_OPTIONS.map((arm) => (
-                                            <SelectItem key={arm} value={arm}>{arm}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                    </Select>
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Arms</FormLabel>
+                                    <MultiSelect options={ARM_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select arms..." />
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -149,7 +153,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                                 name={`subjects.${subjectIndex}.classes.${classIndex}.periods`}
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-xs">Periods/Week</FormLabel>
+                                    <FormLabel>Periods/Week (each)</FormLabel>
                                     <FormControl>
                                         <Input type="number" placeholder="e.g., 5" {...field} min="1" />
                                     </FormControl>
@@ -157,16 +161,6 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                                 </FormItem>
                                 )}
                             />
-                             <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => remove(classIndex)}
-                                disabled={fields.length <= 1}
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
                         </div>
                     </div>
                 ))}
@@ -175,10 +169,10 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => append({ grade: "Grade 7", arm: "A", periods: 1 })}
+                    onClick={() => append({ grades: [], arms: [], periods: 1 })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Class
+                    Add Class Group
                 </Button>
             </div>
         </div>
@@ -195,7 +189,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", classes: [{ grade: "Grade 7", arm: "A", periods: 1 }] }],
+      subjects: [{ name: "", classes: [{ grades: [], arms: [], periods: 1 }] }],
     },
   });
 
@@ -218,7 +212,7 @@ export default function TeacherEditor() {
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", classes: [{ grade: "Grade 7", arm: "A", periods: 1 }] }],
+            subjects: [{ name: "", classes: [{ grades: [], arms: [], periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
@@ -253,7 +247,7 @@ export default function TeacherEditor() {
             Add Teacher
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
           </DialogHeader>
@@ -292,7 +286,7 @@ export default function TeacherEditor() {
                           variant="outline"
                           size="sm"
                           className="mt-2"
-                          onClick={() => appendSubject({ name: "", classes: [{grade: "Grade 7", arm: "A", periods: 1}] })}
+                          onClick={() => appendSubject({ name: "", classes: [{grades: [], arms: [], periods: 1}] })}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Subject
@@ -354,14 +348,21 @@ export default function TeacherEditor() {
                              <span>{subject.name}</span>
                            </div>
                            <ul className="mt-2 space-y-1 pl-1">
-                            {subject.classes.map(cls => (
-                                <li key={cls.id} className="flex items-center gap-4">
-                                     <div className="flex items-center text-xs">
-                                        <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                        <span>{cls.grade} {cls.arm} ({cls.periods} p/w)</span>
-                                    </div>
-                                </li>
-                            ))}
+                            {subject.classes.flatMap(classGroup => 
+                                classGroup.grades.flatMap(grade => 
+                                    classGroup.arms.map(arm => {
+                                        const uniqueKey = `${classGroup.id}-${grade}-${arm}`;
+                                        return (
+                                            <li key={uniqueKey} className="flex items-center gap-4">
+                                                <div className="flex items-center text-xs">
+                                                    <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
+                                                    <span>{grade} {arm} ({classGroup.periods} p/w)</span>
+                                                </div>
+                                            </li>
+                                        )
+                                    })
+                                )
+                            )}
                            </ul>
                         </div>
                       ))}
@@ -380,3 +381,62 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+// MultiSelect component for grades and arms
+function MultiSelect({ options, selected, onChange, placeholder }: { options: string[], selected: string[], onChange: (selected: string[]) => void, placeholder: string }) {
+    const [open, setOpen] = useState(false);
+
+    const handleSelect = (value: string) => {
+        const newSelected = selected.includes(value)
+            ? selected.filter(item => item !== value)
+            : [...selected, value];
+        onChange(newSelected);
+    }
+    
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between"
+                >
+                    <span className="truncate">
+                        {selected.length > 0 ? selected.join(", ") : placeholder}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+                <Command>
+                    <CommandInput placeholder="Search..." />
+                    <CommandEmpty>No options found.</CommandEmpty>
+                    <CommandGroup>
+                        <CommandList>
+                        {options.map((option) => (
+                            <CommandItem
+                                key={option}
+                                onSelect={() => {
+                                    handleSelect(option);
+                                    setOpen(true); // Keep popover open
+                                }}
+                            >
+                                <Check
+                                    className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selected.includes(option) ? "opacity-100" : "opacity-0"
+                                    )}
+                                />
+                                {option}
+                            </CommandItem>
+                        ))}
+                        </CommandList>
+                    </CommandGroup>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
@@ -24,24 +25,24 @@ const defaultTeachers: Teacher[] = [
         id: "t1",
         name: "Mr. Smith",
         subjects: [
-            { id: "s1-1", name: "Mathematics", classes: [{id: "c1-1-1", grade: "Grade 9", arm: "A", periods: 5}] },
-            { id: "s1-2", name: "Physics", classes: [{id: "c1-2-1", grade: "Grade 10", arm: "B", periods: 4}] },
+            { id: "s1-1", name: "Mathematics", classes: [{id: "c1-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5}] },
+            { id: "s1-2", name: "Physics", classes: [{id: "c1-2-1", grades: ["Grade 10"], arms: ["B"], periods: 4}] },
         ],
     },
     {
         id: "t2",
         name: "Ms. Jones",
         subjects: [
-            { id: "s2-1", name: "English", classes: [{id: "c2-1-1", grade: "Grade 9", arm: "A", periods: 5 }] },
-            { id: "s2-2", name: "History", classes: [{id: "c2-2-1", grade: "Grade 8", arm: "A", periods: 3 }] },
+            { id: "s2-1", name: "English", classes: [{id: "c2-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5 }] },
+            { id: "s2-2", name: "History", classes: [{id: "c2-2-1", grades: ["Grade 8"], arms: ["A"], periods: 3 }] },
         ],
     },
     {
         id: "t3",
         name: "Dr. Brown",
         subjects: [
-            { id: "s3-1", name: "Chemistry", classes: [{id: "c3-1-1", grade: "Grade 10", arm: "B", periods: 4 }] },
-            { id: "s3-2", name: "Biology", classes: [{id: "c3-2-1", grade: "Grade 9", arm: "A", periods: 4 }] },
+            { id: "s3-1", name: "Chemistry", classes: [{id: "c3-1-1", grades: ["Grade 10"], arms: ["B"], periods: 4 }] },
+            { id: "s3-2", name: "Biology", classes: [{id: "c3-2-1", grades: ["Grade 9"], arms: ["A"], periods: 4 }] },
         ],
     },
 ];
@@ -131,22 +132,27 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
 const generateLocalTimetable = () => {
-    // 1. Plan all sessions to be scheduled, including double periods
+    // 1. Plan all sessions to be scheduled
     const sessionPlans: { teacher: string; subject: string; className: string; periods: number; isDouble: boolean }[] = [];
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.classes.forEach(classGroup => {
-                const className = `${classGroup.grade} ${classGroup.arm}`;
-                let remainingPeriods = classGroup.periods;
+                classGroup.grades.forEach(grade => {
+                    classGroup.arms.forEach(arm => {
+                        const className = `${grade} ${arm}`;
+                        let remainingPeriods = classGroup.periods;
+                        
+                        // Rule: Only one double period is allowed for a week
+                        if (remainingPeriods >= 2) {
+                            sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 2, isDouble: true });
+                            remainingPeriods -= 2;
+                        }
 
-                if (remainingPeriods >= 2) {
-                    sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 2, isDouble: true });
-                    remainingPeriods -= 2;
-                }
-
-                for (let i = 0; i < remainingPeriods; i++) {
-                    sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 1, isDouble: false });
-                }
+                        for (let i = 0; i < remainingPeriods; i++) {
+                            sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 1, isDouble: false });
+                        }
+                    });
+                });
             });
         });
     });
@@ -362,50 +368,62 @@ const generateLocalTimetable = () => {
     const finalConflicts: Conflict[] = [];
     const slots: Record<string, {teachers: Set<string>, classes: Set<string>, sessions: TimetableSession[]}> = {};
 
+    // Populate slots with all sessions happening at a given time
+    for (const day of DAYS) {
+        for(let period = 0; period < PERIOD_COUNT; period++) {
+            const key = `${day}-${period}`;
+            if (!slots[key]) {
+                slots[key] = { teachers: new Set(), classes: new Set(), sessions: [] };
+            }
+            
+            // In the new structure, we have one grid per teacher. We need to check across all teachers.
+            for(const teacher of teachers) {
+                const session = timetable[day]?.find(s => s?.teacher === teacher.name && s.periods.includes(period));
+                
+                // This logic is flawed. The timetable structure is global.
+                const globalSession = timetable[day]?.[period];
+                if (globalSession) {
+                    slots[key].sessions.push(globalSession);
+                }
+            }
+        }
+    }
+
+    // A better approach for conflict detection with the current structure
+    const teacherSlotUsage = new Map<string, TimetableSession>(); // key: `day-period-teacher`
+    const classSlotUsage = new Map<string, TimetableSession>();   // key: `day-period-class`
+    const identifiedConflicts = new Map<string, Conflict>();
+
     for (const day of DAYS) {
         for (let period = 0; period < PERIOD_COUNT; period++) {
-             const key = `${day}-${period}`;
-             if (!slots[key]) {
-                slots[key] = { teachers: new Set(), classes: new Set(), sessions: [] };
-             }
-             const session = timetable[day]?.[period];
-             if(session) {
-                slots[key].sessions.push(session);
-             }
+            const session = timetable[day]?.[period];
+            if (!session) continue;
+
+            const teacherKey = `${day}-${period}-${session.teacher}`;
+            const classKey = `${day}-${period}-${session.className}`;
+
+            // Check for teacher conflict
+            if (teacherSlotUsage.has(teacherKey)) {
+                const conflictingSession = teacherSlotUsage.get(teacherKey)!;
+                identifiedConflicts.set(session.id, { id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double-booked.` });
+                identifiedConflicts.set(conflictingSession.id, { id: conflictingSession.id, type: 'teacher', message: `Teacher ${conflictingSession.teacher} is double-booked.` });
+            } else {
+                teacherSlotUsage.set(teacherKey, session);
+            }
+
+            // Check for class conflict
+            if (classSlotUsage.has(classKey)) {
+                 const conflictingSession = classSlotUsage.get(classKey)!;
+                 identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Class ${session.className} is double-booked.` });
+                 identifiedConflicts.set(conflictingSession.id, { id: conflictingSession.id, type: 'class', message: `Class ${conflictingSession.className} is double-booked.` });
+            } else {
+                classSlotUsage.set(classKey, session);
+            }
         }
     }
 
-    for (const key in slots) {
-        const slot = slots[key];
-        const teachersInSlot = new Set<string>();
-        const classesInSlot = new Set<string>();
 
-        for(const session of slot.sessions) {
-            // Teacher Conflict
-            if (teachersInSlot.has(session.teacher)) {
-                // Find all sessions in this slot with this teacher and mark them
-                slot.sessions.forEach(s => {
-                    if (s.teacher === session.teacher) {
-                        finalConflicts.push({ id: s.id, type: 'teacher', message: `Teacher ${s.teacher} is double-booked.` });
-                    }
-                });
-            }
-            teachersInSlot.add(session.teacher);
-
-            // Class Conflict
-            if (classesInSlot.has(session.className)) {
-                 // Find all sessions in this slot with this class and mark them
-                 slot.sessions.forEach(s => {
-                    if (s.className === session.className) {
-                        finalConflicts.push({ id: s.id, type: 'class', message: `Class ${s.className} is double-booked.` });
-                    }
-                });
-            }
-            classesInSlot.add(session.className);
-        }
-    }
-
-    setConflicts(finalConflicts.filter((c, i, a) => a.findIndex(t => t.id === c.id) === i));
+    setConflicts(Array.from(identifiedConflicts.values()));
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timetable, teachers]);
@@ -442,3 +460,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

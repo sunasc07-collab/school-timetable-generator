@@ -76,7 +76,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                   assignment.grades.forEach(grade => {
                       assignment.arms.forEach(arm => {
                           const className = `${grade} ${arm}`;
-                          for (let i = 0; i < assignment.periods; i++) {
+                          for (let j = 0; j < assignment.periods; j++) {
                               allSessions.push({
                                   id: crypto.randomUUID(),
                                   subject: subject.name,

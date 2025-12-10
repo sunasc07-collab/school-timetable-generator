@@ -60,17 +60,12 @@ export default function Header() {
       }
       doc.text(teacher.name, 14, startY - 5);
 
-      const head = [["Day", ...timeSlots.map(slot => {
-          if (slot.isBreak) return slot.label || "Break";
-          return `${slot.time}\nPeriod ${slot.period}`
-      })]];
+      const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
 
       const body: (string | null)[][] = [];
 
       days.forEach(day => {
           const row: (string | null)[] = [day];
-          const periods = timetable[day] || [];
-          
           let periodIndex = 0;
           timeSlots.forEach(slot => {
             if (slot.isBreak) {
@@ -78,29 +73,17 @@ export default function Header() {
               return;
             }
 
-            const session = periods[periodIndex];
+            const session = (timetable[day] || [])[periodIndex];
             if (session && session.teacher === teacher.name) {
               row.push(session.subject);
             } else {
-              // Look for any session at that slot to respect potential swaps,
-              // but only show it if it belongs to the current teacher.
-              let found = false;
-              for(const t of teachers) {
-                  const s = (timetable[day] || [])[periodIndex];
-                  if(s && s.teacher === t.name && s.teacher === teacher.name) {
-                      row.push(s.subject);
-                      found = true;
-                      break;
-                  }
-              }
-              if(!found) row.push("");
+               row.push("");
             }
             periodIndex++;
           });
           body.push(row);
       });
       
-       const timeSlotCount = timeSlots.length;
        const columnStyles: { [key: number]: any } = {};
        timeSlots.forEach((slot, index) => {
          if (slot.isBreak) {

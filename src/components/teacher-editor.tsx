@@ -31,7 +31,7 @@ import {
 import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, BookOpen, Users, Minus, Pencil } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
 
 const subjectSchema = z.object({
@@ -61,7 +61,7 @@ export default function TeacherEditor() {
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "subjects",
   });
@@ -128,7 +128,7 @@ export default function TeacherEditor() {
               />
 
               <div>
-                <FormLabel>Subjects</FormLabel>
+                <FormLabel>Subjects & Weekly Periods</FormLabel>
                 <div className="space-y-2 mt-2">
                   {fields.map((field, index) => (
                     <div key={field.id} className="flex gap-2 items-start">
@@ -139,7 +139,7 @@ export default function TeacherEditor() {
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input placeholder="Subject" {...field} />
+                                <Input placeholder="Subject Name" {...field} />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
@@ -151,7 +151,7 @@ export default function TeacherEditor() {
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input type="number" placeholder="Periods" {...field} min="1" />
+                                <Input type="number" placeholder="Periods/Week" {...field} min="1" />
                               </FormControl>
                                <FormMessage />
                             </FormItem>

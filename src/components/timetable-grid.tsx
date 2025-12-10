@@ -39,8 +39,8 @@ export default function TimetableGrid() {
     }
   };
   
-  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterKey: 'className' | 'teacherName', filterValue: string) => {
-     const relevantSessions = sessions.filter(s => filterKey === 'className' ? s.className === filterValue : s.teacher === filterValue);
+  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterValue: string) => {
+     const relevantSessions = sessions.filter(s => viewMode === 'class' ? s.className === filterValue : s.teacher === filterValue);
      
      if (relevantSessions.length > 0) {
       return (
@@ -89,7 +89,7 @@ export default function TimetableGrid() {
     );
   }
 
-  const renderTimetableFor = (title: string, filterKey: 'className' | 'teacherName', filterValue: string) => (
+  const renderTimetableFor = (title: string, filterValue: string) => (
     <div key={filterValue}>
         <h2 className="text-2xl font-bold font-headline mb-4">{title}</h2>
         <div className="rounded-lg border w-full">
@@ -130,7 +130,7 @@ export default function TimetableGrid() {
                             onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                             onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
                         >
-                            {!slot.isBreak && renderCellContent(sessions, day, periodIndex, filterKey, filterValue)}
+                            {!slot.isBreak && renderCellContent(sessions, day, periodIndex, filterValue)}
                         </TableCell>
                     );
 
@@ -152,6 +152,10 @@ export default function TimetableGrid() {
     </div>
   );
   
+  const itemsToRender = viewMode === 'class' 
+    ? classes.map(className => ({ title: `${className}'s Timetable`, filterValue: className }))
+    : teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.name }));
+
   return (
     <div className="space-y-8">
        <div className="flex justify-end items-center mb-4">
@@ -160,8 +164,7 @@ export default function TimetableGrid() {
                 Re-generate Timetable
             </Button>
         </div>
-        {viewMode === 'class' && classes.map(className => renderTimetableFor(`${className}'s Timetable`, 'className', className))}
-        {viewMode === 'teacher' && teachers.map(teacher => renderTimetableFor(`${teacher.name}'s Timetable`, 'teacherName', teacher.name))}
+        {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
     </div>
   );
 }

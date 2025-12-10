@@ -56,3 +56,5 @@ export type TimeSlot = {
   isBreak?: boolean;
   label?: string;
 };
+
+export type ViewMode = 'class' | 'teacher';

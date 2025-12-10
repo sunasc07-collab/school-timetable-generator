@@ -37,7 +37,7 @@ import { Checkbox } from "./ui/checkbox";
 
 const classArmSchema = z.object({
     id: z.string().optional(),
-    grade: z.string().min(1, "Grade is required."),
+    grade: z.string().min(1, "At least one grade is required."),
     arms: z.array(z.string()).refine(value => value.some(item => item), {
       message: "You have to select at least one arm.",
     }),
@@ -100,9 +100,9 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                                 name={`subjects.${subjectIndex}.classes.${classIndex}.grade`}
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-xs">Grade/Level</FormLabel>
+                                    <FormLabel className="text-xs">Grade(s)</FormLabel>
                                     <FormControl>
-                                    <Input placeholder="e.g., Grade 9" {...field} />
+                                    <Input placeholder="e.g., Grade 9, Grade 10" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

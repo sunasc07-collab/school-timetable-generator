@@ -98,11 +98,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.classes.forEach(classGroup => {
-                classGroup.arms.forEach(arm => {
-                    for (let i = 0; i < classGroup.periods; i++) {
-                        allSessions.push({ teacher: teacher.name, subject: subject.name, className: `${classGroup.grade} ${arm}` });
-                    }
-                })
+                const grades = classGroup.grade.split(',').map(g => g.trim()).filter(g => g);
+                grades.forEach(grade => {
+                    classGroup.arms.forEach(arm => {
+                        for (let i = 0; i < classGroup.periods; i++) {
+                            allSessions.push({ teacher: teacher.name, subject: subject.name, className: `${grade} ${arm}` });
+                        }
+                    });
+                });
             });
         });
     });

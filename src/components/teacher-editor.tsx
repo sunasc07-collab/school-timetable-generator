@@ -212,54 +212,57 @@ export default function TeacherEditor() {
           <DialogHeader>
             <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teacher Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Mr. Smith" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="space-y-4">
-                <FormLabel>Subjects</FormLabel>
-                <div className="space-y-3">
-                  {subjectFields.map((field, index) => (
-                    <SubjectForm 
-                        key={field.id} 
-                        subjectIndex={index} 
-                        control={form.control} 
-                        removeSubject={() => subjectFields.length > 1 && removeSubject(index)}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)}>
+                <ScrollArea className="h-[60vh] p-4">
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Teacher Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Mr. Smith" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  ))}
-                </div>
-                 <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => appendSubject({ name: "", classes: [{name: "", periods: 1}] })}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Subject
-                  </Button>
-              </div>
 
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="ghost">Cancel</Button>
-                </DialogClose>
-                <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">Save Teacher</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+                    <div className="space-y-4">
+                      <FormLabel>Subjects</FormLabel>
+                      <div className="space-y-3">
+                        {subjectFields.map((field, index) => (
+                          <SubjectForm 
+                              key={field.id} 
+                              subjectIndex={index} 
+                              control={form.control} 
+                              removeSubject={() => subjectFields.length > 1 && removeSubject(index)}
+                          />
+                        ))}
+                      </div>
+                      <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => appendSubject({ name: "", classes: [{name: "", periods: 1}] })}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Subject
+                        </Button>
+                    </div>
+                  </div>
+                </ScrollArea>
+                <DialogFooter className="pt-4">
+                  <DialogClose asChild>
+                    <Button type="button" variant="ghost">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">Save Teacher</Button>
+                </DialogFooter>
+              </form>
+            </Form>
         </DialogContent>
       </Dialog>
       

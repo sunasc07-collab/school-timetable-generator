@@ -354,21 +354,23 @@ export default function TeacherEditor() {
             id: teacher.id,
             name: teacher.name,
             subjects: teacher.subjects.length > 0 ? teacher.subjects.map(s => ({
-                ...s,
+                id: s.id || crypto.randomUUID(),
+                name: s.name,
                 assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
-                    ...a,
                     id: a.id || crypto.randomUUID(),
+                    grades: a.grades,
                     armGroups: a.armGroups.length > 0 ? a.armGroups.map(ag => ({
-                        ...ag,
-                        id: ag.id || crypto.randomUUID()
+                        id: ag.id || crypto.randomUUID(),
+                        arms: ag.arms,
+                        periods: ag.periods
                     })) : [{ id: crypto.randomUUID(), arms: [], periods: 1 }]
                 })) : [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }],
-            })) : [{ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
+            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
         });
     }
     setIsDialogOpen(true);
@@ -554,3 +556,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

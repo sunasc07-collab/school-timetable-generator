@@ -24,24 +24,24 @@ const defaultTeachers: Teacher[] = [
         id: "t1",
         name: "Mr. Smith",
         subjects: [
-            { id: "s1-1", name: "Mathematics", classes: [{id: "c1-1-1", grade: "Grade 9", arms: ["A"], periods: 5}] },
-            { id: "s1-2", name: "Physics", classes: [{id: "c1-2-1", grade: "Grade 10", arms: ["B"], periods: 4}] },
+            { id: "s1-1", name: "Mathematics", classes: [{id: "c1-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5}] },
+            { id: "s1-2", name: "Physics", classes: [{id: "c1-2-1", grades: ["Grade 10"], arms: ["B"], periods: 4}] },
         ],
     },
     {
         id: "t2",
         name: "Ms. Jones",
         subjects: [
-            { id: "s2-1", name: "English", classes: [{id: "c2-1-1", grade: "Grade 9", arms: ["A"], periods: 5 }] },
-            { id: "s2-2", name: "History", classes: [{id: "c2-2-1", grade: "Grade 8", arms: ["A"], periods: 3 }] },
+            { id: "s2-1", name: "English", classes: [{id: "c2-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5 }] },
+            { id: "s2-2", name: "History", classes: [{id: "c2-2-1", grades: ["Grade 8"], arms: ["A"], periods: 3 }] },
         ],
     },
     {
         id: "t3",
         name: "Dr. Brown",
         subjects: [
-            { id: "s3-1", name: "Chemistry", classes: [{id: "c3-1-1", grade: "Grade 10", arms: ["B"], periods: 4 }] },
-            { id: "s3-2", name: "Biology", classes: [{id: "c3-2-1", grade: "Grade 9", arms: ["A"], periods: 4 }] },
+            { id: "s3-1", name: "Chemistry", classes: [{id: "c3-1-1", grades: ["Grade 10"], arms: ["B"], periods: 4 }] },
+            { id: "s3-2", name: "Biology", classes: [{id: "c3-2-1", grades: ["Grade 9"], arms: ["A"], periods: 4 }] },
         ],
     },
 ];
@@ -98,8 +98,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.classes.forEach(classGroup => {
-                const grades = classGroup.grade.split(',').map(g => g.trim()).filter(g => g);
-                grades.forEach(grade => {
+                classGroup.grades.forEach(grade => {
                     classGroup.arms.forEach(arm => {
                         for (let i = 0; i < classGroup.periods; i++) {
                             allSessions.push({ teacher: teacher.name, subject: subject.name, className: `${grade} ${arm}` });

@@ -1,6 +1,6 @@
 export type ClassArm = {
   id: string;
-  grade: string;
+  grades: string[];
   arms: string[];
   periods: number;
 };

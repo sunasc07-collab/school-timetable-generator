@@ -28,8 +28,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, ChevronDown } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
@@ -37,7 +45,9 @@ import { Checkbox } from "./ui/checkbox";
 
 const classArmSchema = z.object({
     id: z.string().optional(),
-    grade: z.string().min(1, "At least one grade is required."),
+    grades: z.array(z.string()).refine(value => value.length > 0, {
+      message: "You have to select at least one grade.",
+    }),
     arms: z.array(z.string()).refine(value => value.some(item => item), {
       message: "You have to select at least one arm.",
     }),
@@ -59,6 +69,7 @@ const teacherSchema = z.object({
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 
 const ARM_OPTIONS = ["A", "B", "C"];
+const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 
 const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: number, control: any, removeSubject: (index: number) => void }) => {
     const { fields, append, remove } = useFieldArray({
@@ -95,15 +106,43 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                 {fields.map((field, classIndex) => (
                     <div key={field.id} className="p-2 border rounded-md bg-background/50 relative">
                         <div className="grid grid-cols-[1fr_1fr_auto] gap-4 items-start">
-                             <FormField
+                              <FormField
                                 control={control}
-                                name={`subjects.${subjectIndex}.classes.${classIndex}.grade`}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.grades`}
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs">Grade(s)</FormLabel>
-                                    <FormControl>
-                                    <Input placeholder="e.g., Grade 9, Grade 10" {...field} />
-                                    </FormControl>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <FormControl>
+                                            <Button variant="outline" className="w-full justify-between font-normal">
+                                                <span className="truncate">
+                                                    {(field.value && field.value.length > 0) ? field.value.join(', ') : "Select grades"}
+                                                </span>
+                                                <ChevronDown className="h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent className="w-56">
+                                        <DropdownMenuLabel>Available Grades</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {GRADE_OPTIONS.map((grade) => (
+                                          <DropdownMenuCheckboxItem
+                                            key={grade}
+                                            checked={field.value?.includes(grade)}
+                                            onCheckedChange={(checked) => {
+                                                const newValue = checked
+                                                    ? [...(field.value || []), grade]
+                                                    : field.value?.filter((value) => value !== grade);
+                                                field.onChange(newValue);
+                                            }}
+                                            onSelect={(e) => e.preventDefault()} // Prevent closing on select
+                                          >
+                                            {grade}
+                                          </DropdownMenuCheckboxItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -185,7 +224,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => append({ grade: "", arms: ["A"], periods: 1 })}
+                    onClick={() => append({ grades: [], arms: ["A"], periods: 1 })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Class Group
@@ -205,7 +244,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", classes: [{ grade: "", arms: ["A"], periods: 1 }] }],
+      subjects: [{ name: "", classes: [{ grades: [], arms: ["A"], periods: 1 }] }],
     },
   });
 
@@ -228,7 +267,7 @@ export default function TeacherEditor() {
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", classes: [{ grade: "", arms: ["A"], periods: 1 }] }],
+            subjects: [{ name: "", classes: [{ grades: [], arms: ["A"], periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
@@ -302,7 +341,7 @@ export default function TeacherEditor() {
                           variant="outline"
                           size="sm"
                           className="mt-2"
-                          onClick={() => appendSubject({ name: "", classes: [{grade: "", arms: ["A"], periods: 1}] })}
+                          onClick={() => appendSubject({ name: "", classes: [{grades: [], arms: ["A"], periods: 1}] })}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Subject
@@ -368,7 +407,7 @@ export default function TeacherEditor() {
                                 <li key={cls.id} className="flex items-center gap-4">
                                      <div className="flex items-center text-xs">
                                         <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                        <span>{cls.grade} {cls.arms.join(', ')} ({cls.periods} p/w)</span>
+                                        <span>{cls.grades.join(', ')} {cls.arms.join(', ')} ({cls.periods} p/w)</span>
                                     </div>
                                 </li>
                             ))}

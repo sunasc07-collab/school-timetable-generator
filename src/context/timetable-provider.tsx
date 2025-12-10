@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, ClassAssignment } from "@/lib/types";
+import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, ClassAssignment, ArmPeriod } from "@/lib/types";
 
 type TimetableContextType = {
   teachers: Teacher[];
@@ -25,24 +25,24 @@ const defaultTeachers: Teacher[] = [
         id: "t1",
         name: "Mr. Smith",
         subjects: [
-            { id: "s1-1", name: "Mathematics", assignments: [{id: "ca1-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5 }] },
-            { id: "s1-2", name: "Physics", assignments: [{id: "ca1-2-1", grades: ["Grade 10"], arms: ["B"], periods: 4 }] },
+            { id: "s1-1", name: "Mathematics", assignment: {id: "ca1-1-1", grades: ["Grade 9"], armPeriods: [{arm: "A", periods: 5 }] }},
+            { id: "s1-2", name: "Physics", assignment: {id: "ca1-2-1", grades: ["Grade 10"], armPeriods: [{arm: "B", periods: 4 }] }},
         ],
     },
     {
         id: "t2",
         name: "Ms. Jones",
         subjects: [
-            { id: "s2-1", name: "English", assignments: [{id: "ca2-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5 }] },
-            { id: "s2-2", name: "History", assignments: [{id: "ca2-2-1", grades: ["Grade 8"], arms: ["A"], periods: 3 }] },
+            { id: "s2-1", name: "English", assignment: {id: "ca2-1-1", grades: ["Grade 9"], armPeriods: [{arm: "A", periods: 5 }] }},
+            { id: "s2-2", name: "History", assignment: {id: "ca2-2-1", grades: ["Grade 8"], armPeriods: [{arm: "A", periods: 3 }] }},
         ],
     },
     {
         id: "t3",
         name: "Dr. Brown",
         subjects: [
-            { id: "s3-1", name: "Chemistry", assignments: [{id: "ca3-1-1", grades: ["Grade 10"], arms: ["B"], periods: 4 }] },
-            { id: "s3-2", name: "Biology", assignments: [{id: "ca3-2-1", grades: ["Grade 9"], arms: ["A"], periods: 4 }] },
+            { id: "s3-1", name: "Chemistry", assignment: {id: "ca3-1-1", grades: ["Grade 10"], armPeriods: [{arm: "B", periods: 4 }] }},
+            { id: "s3-2", name: "Biology", assignment: {id: "ca3-2-1", grades: ["Grade 9"], armPeriods: [{arm: "A", periods: 4 }] }},
         ],
     },
 ];
@@ -88,10 +88,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       subjects: subjects.map(s => ({ 
           ...s, 
           id: crypto.randomUUID(),
-          assignments: s.assignments.map(a => ({
-            ...a, 
+          assignment: {
+            ...s.assignment,
             id: crypto.randomUUID()
-        }))
+          }
       })),
     };
     setTeachers((prev) => [...prev, newTeacher]);
@@ -139,22 +139,21 @@ const generateLocalTimetable = () => {
     const sessionPlans: { teacher: string; subject: string; className: string; periods: number; isDouble: boolean }[] = [];
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
-            subject.assignments.forEach(assignment => {
-                assignment.grades.forEach(grade => {
-                    assignment.arms.forEach(arm => {
-                        const className = `${grade} ${arm}`;
-                        let remainingPeriods = assignment.periods;
-                        
-                        // Rule: Only one double period is allowed for a week
-                        if (remainingPeriods >= 2) {
-                            sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 2, isDouble: true });
-                            remainingPeriods -= 2;
-                        }
+            const { grades, armPeriods } = subject.assignment;
+            grades.forEach(grade => {
+                armPeriods.forEach(ap => {
+                    const className = `${grade} ${ap.arm}`;
+                    let remainingPeriods = ap.periods;
+                    
+                    // Rule: Only one double period is allowed for a week
+                    if (remainingPeriods >= 2) {
+                        sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 2, isDouble: true });
+                        remainingPeriods -= 2;
+                    }
 
-                        for (let i = 0; i < remainingPeriods; i++) {
-                            sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 1, isDouble: false });
-                        }
-                    });
+                    for (let i = 0; i < remainingPeriods; i++) {
+                        sessionPlans.push({ teacher: teacher.name, subject: subject.name, className, periods: 1, isDouble: false });
+                    }
                 });
             });
         });

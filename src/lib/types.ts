@@ -1,15 +1,20 @@
 
+
+export type ArmPeriod = {
+  arm: string;
+  periods: number;
+}
+
 export type ClassAssignment = {
   id: string;
   grades: string[];
-  arms: string[];
-  periods: number;
+  armPeriods: ArmPeriod[];
 };
 
 export type Subject = {
   id: string;
   name: string;
-  assignments: ClassAssignment[];
+  assignment: ClassAssignment;
 };
 
 export type Teacher = {

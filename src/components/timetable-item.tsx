@@ -27,10 +27,13 @@ export default function TimetableItem({
       draggable
       onDragStart={handleDragStart}
       className={cn(
-        "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg h-20 w-full flex items-center justify-center",
-        isConflict ? "bg-destructive/10 border-destructive ring-2 ring-destructive" : "bg-card"
+        "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg h-20 w-full flex items-center justify-center relative",
+        isConflict ? "bg-destructive/10 border-destructive ring-2 ring-destructive" : "bg-card",
+        session.isDouble && session.part === 1 ? "rounded-b-none border-b-0" : "",
+        session.isDouble && session.part === 2 ? "rounded-t-none border-t-0" : ""
       )}
     >
+       {session.isDouble && <div className="absolute top-0 right-1 text-xs text-muted-foreground opacity-70">D</div>}
       <CardContent className="p-2 text-center space-y-1">
         <div className="flex items-center justify-center gap-2 text-sm font-medium">
           <BookOpen className="h-4 w-4 text-primary shrink-0"/>

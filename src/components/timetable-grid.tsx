@@ -42,6 +42,13 @@ export default function TimetableGrid() {
 
   const renderCellContent = (session: TimetableSession | null, day: string, period: number) => {
      if (session) {
+       // Hide the second part of a double period if it's being rendered separately
+      if (session.isDouble && session.part === 2) {
+        const prevPeriodSession = timetable[day]?.[period - 1];
+        if (prevPeriodSession && prevPeriodSession.isDouble && prevPeriodSession.subject === session.subject && prevPeriodSession.className === session.className) {
+            return null;
+        }
+      }
       return (
         <TimetableItem
           session={session}
@@ -102,9 +109,12 @@ export default function TimetableGrid() {
                                 const periodIndex = timeSlots.slice(0, slotIndex + 1).filter(s => !s.isBreak).length - 1;
                                 const session = getSessionForTeacher(teacher.name, day, periodIndex);
 
+                                const isDoublePart1 = session?.isDouble && session.part === 1;
+
                                 return (
                                 <TableCell
                                     key={slotIndex}
+                                    colSpan={isDoublePart1 ? 2 : 1}
                                     className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "")}
                                     onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                                     onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
@@ -112,6 +122,25 @@ export default function TimetableGrid() {
                                     {!slot.isBreak && renderCellContent(session, day, periodIndex)}
                                 </TableCell>
                                 );
+                            }).filter((cell, i) => {
+                                // Filter out the cell for the second part of a double period
+                                if (!timeSlots[i].isBreak) {
+                                    const periodIndex = timeSlots.slice(0, i + 1).filter(s => !s.isBreak).length - 1;
+                                    if (periodIndex > 0) {
+                                        const prevPeriodIndex = periodIndex - 1;
+                                        const prevDay = days[days.indexOf(day)];
+                                        const prevSession = getSessionForTeacher(teacher.name, prevDay, prevPeriodIndex);
+
+                                        if (prevSession && prevSession.isDouble && prevSession.part === 1) {
+                                            // check if it crosses a break
+                                            const prevSlotIndex = timeSlots.findIndex(s => s.period === prevSession.periods);
+                                            if (prevSlotIndex + 1 === i) {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                }
+                                return true;
                             })}
                         </TableRow>
                         );

@@ -22,6 +22,8 @@ export type TimetableSession = {
   subject: string;
   className: string;
   teacher: string;
+  isDouble: boolean;
+  part?: 1 | 2;
 };
 
 export type TimetableData = {

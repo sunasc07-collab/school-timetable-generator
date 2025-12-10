@@ -1,20 +1,10 @@
 
 
-export type ArmPeriod = {
-  arm: string;
-  periods: number;
-}
-
-export type ClassAssignment = {
-  id: string;
-  grades: string[];
-  armPeriods: ArmPeriod[];
-};
-
 export type Subject = {
   id: string;
   name: string;
-  assignment: ClassAssignment;
+  grades: string[];
+  arms: string[];
 };
 
 export type Teacher = {
@@ -30,7 +20,7 @@ export type TimetableSession = {
   teacher: string;
   isDouble: boolean;
   part?: 1 | 2;
-  periods: number;
+  periods: number; // This can be removed or repurposed if not used.
 };
 
 export type TimetableData = {

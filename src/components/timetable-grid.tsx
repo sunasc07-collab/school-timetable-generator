@@ -72,13 +72,13 @@ export default function TimetableGrid() {
     return <div className="h-20 w-full" />; // Placeholder for empty slot
   }
 
-  if (Object.keys(timetable).length === 0) {
+  if (teachers.length === 0) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
         <div>
-          <h3 className="text-lg font-semibold font-headline">No Timetable Generated</h3>
+          <h3 className="text-lg font-semibold font-headline">No Teachers Added</h3>
           <p className="text-muted-foreground mt-2">
-            Add some teachers and click 'Generate Timetable' to get started.
+            Add some teachers to get started.
           </p>
         </div>
       </div>

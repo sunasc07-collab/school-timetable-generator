@@ -55,35 +55,39 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
-              assignment.grades.forEach(grade => {
-                if (assignment.groupArms) {
-                  // Group arms: create one set of sessions for the combined class
-                  const className = `${grade} ${assignment.arms.join(', ')}`;
-                  for (let i = 0; i < assignment.periods; i++) {
-                      allSessions.push({
-                          id: crypto.randomUUID(),
-                          subject: subject.name,
-                          teacher: teacher.name,
-                          className: className,
-                          isDouble: false,
+              if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+
+              if (assignment.groupArms) {
+                // Grouped Arms: Create one set of sessions for all grades and arms combined.
+                assignment.grades.forEach(grade => {
+                    const className = `${grade} ${assignment.arms.join(', ')}`;
+                    for (let i = 0; i < assignment.periods; i++) {
+                        allSessions.push({
+                            id: crypto.randomUUID(),
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: className,
+                            isDouble: false,
+                        });
+                    }
+                });
+              } else {
+                 // Individual Arms: Create sessions for each grade and arm pair separately.
+                  assignment.grades.forEach(grade => {
+                      assignment.arms.forEach(arm => {
+                          const className = `${grade} ${arm}`;
+                          for (let i = 0; i < assignment.periods; i++) {
+                              allSessions.push({
+                                  id: crypto.randomUUID(),
+                                  subject: subject.name,
+                                  teacher: teacher.name,
+                                  className: className,
+                                  isDouble: false,
+                              });
+                          }
                       });
-                  }
-                } else {
-                   // Individual arms: create sessions for each arm separately
-                    assignment.arms.forEach(arm => {
-                        const className = `${grade} ${arm}`;
-                        for (let i = 0; i < assignment.periods; i++) {
-                            allSessions.push({
-                                id: crypto.randomUUID(),
-                                subject: subject.name,
-                                teacher: teacher.name,
-                                className: className,
-                                isDouble: false,
-                            });
-                        }
-                    });
-                }
-              });
+                  });
+              }
             });
         });
     });

@@ -55,9 +55,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
-              
-              if (assignment.groupArms) {
-                assignment.grades.forEach(grade => {
+              assignment.grades.forEach(grade => {
+                if (assignment.groupArms) {
+                  // Group arms: create one set of sessions for the combined class
                   const className = `${grade} ${assignment.arms.join(', ')}`;
                   for (let i = 0; i < assignment.periods; i++) {
                       allSessions.push({
@@ -68,9 +68,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                           isDouble: false,
                       });
                   }
-                });
-              } else {
-                 assignment.grades.forEach(grade => {
+                } else {
+                   // Individual arms: create sessions for each arm separately
                     assignment.arms.forEach(arm => {
                         const className = `${grade} ${arm}`;
                         for (let i = 0; i < assignment.periods; i++) {
@@ -83,8 +82,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                             });
                         }
                     });
-                });
-              }
+                }
+              });
             });
         });
     });

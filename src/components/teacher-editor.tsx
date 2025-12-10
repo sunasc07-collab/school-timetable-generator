@@ -94,7 +94,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Grades</FormLabel>
-                    <MultiSelect options={GRADE_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select grades..." />
+                    <MultiSelect options={GRADE_OPTIONS} selected={field.value || []} onChange={field.onChange} placeholder="Select grades..." />
                     <FormMessage />
                 </FormItem>
                 )}
@@ -105,7 +105,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>Arms</FormLabel>
-                    <MultiSelect options={ARM_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select arms..." />
+                    <MultiSelect options={ARM_OPTIONS} selected={field.value || []} onChange={field.onChange} placeholder="Select arms..." />
                     <FormMessage />
                 </FormItem>
                 )}
@@ -399,15 +399,10 @@ export default function TeacherEditor() {
 }
 
 // MultiSelect component
-function MultiSelect({ options, selected, onChange, placeholder, singleSelect }: { options: string[], selected: string[], onChange: (selected: string[]) => void, placeholder: string, singleSelect?: boolean }) {
+function MultiSelect({ options, selected, onChange, placeholder }: { options: string[], selected: string[], onChange: (selected: string[]) => void, placeholder: string }) {
     const [open, setOpen] = useState(false);
 
     const handleSelect = (value: string) => {
-        if (singleSelect) {
-            onChange(selected && selected[0] === value ? [] : [value]);
-            setOpen(false);
-            return;
-        }
         const newSelected = selected?.includes(value)
             ? selected.filter(item => item !== value)
             : [...(selected || []), value];
@@ -442,9 +437,7 @@ function MultiSelect({ options, selected, onChange, placeholder, singleSelect }:
                                 key={option}
                                 onSelect={() => {
                                     handleSelect(option);
-                                    if (!singleSelect) {
-                                        setOpen(true); // Keep popover open for multi-select
-                                    }
+                                    setOpen(true); // Keep popover open for multi-select
                                 }}
                             >
                                 <Check
@@ -463,5 +456,3 @@ function MultiSelect({ options, selected, onChange, placeholder, singleSelect }:
         </Popover>
     );
 }
-
-    

@@ -32,13 +32,19 @@ import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher } from "@/lib/types";
+import type { Teacher, Subject } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const classArmSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(1, "Class name is required."),
+    periods: z.coerce.number().min(1, "Periods must be at least 1."),
+});
 
 const subjectSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Subject name is required."),
-  className: z.string().min(1, "Class name is required."),
-  periods: z.coerce.number().min(1, "Periods must be at least 1."),
+  classes: z.array(classArmSchema).min(1, "At least one class is required."),
 });
 
 const teacherSchema = z.object({
@@ -49,6 +55,96 @@ const teacherSchema = z.object({
 
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 
+const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: number, control: any, removeSubject: (index: number) => void }) => {
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: `subjects.${subjectIndex}.classes`,
+    });
+
+    return (
+        <div className="p-3 border rounded-md bg-muted/50 relative space-y-3">
+             <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => removeSubject(subjectIndex)}
+                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
+              >
+                <Minus className="h-4 w-4" />
+            </Button>
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.name`}
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Subject Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., Mathematics" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <div className="space-y-2">
+                 <FormLabel className="text-xs">Classes & Periods</FormLabel>
+                {fields.map((field, classIndex) => (
+                    <div key={field.id} className="flex gap-2 items-end p-2 border rounded-md bg-background/50 relative">
+                        <div className="grid grid-cols-2 gap-2 flex-grow">
+                             <FormField
+                                control={control}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.name`}
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs">Class Arm</FormLabel>
+                                    <FormControl>
+                                    <Input placeholder="e.g., Grade 9A" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.periods`}
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs">Periods/Week</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 5" {...field} min="1" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => remove(classIndex)}
+                            disabled={fields.length <= 1}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                            <Minus className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ))}
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => append({ name: "", periods: 1 })}
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Class Arm
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+
 export default function TeacherEditor() {
   const { teachers, addTeacher, removeTeacher, updateTeacher } = useTimetable();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,11 +154,11 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", className: "", periods: 1 }],
+      subjects: [{ name: "", classes: [{ name: "", periods: 1 }] }],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: subjectFields, append: appendSubject, remove: removeSubject } = useFieldArray({
     control: form.control,
     name: "subjects",
   });
@@ -78,7 +174,7 @@ export default function TeacherEditor() {
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", className: "", periods: 1 }],
+            subjects: [{ name: "", classes: [{ name: "", periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
@@ -86,10 +182,14 @@ export default function TeacherEditor() {
 
   function onSubmit(data: TeacherFormValues) {
     if (editingTeacher && data.id) {
-        const subjectsWithIds = data.subjects.map(s => ({ ...s, id: s.id || crypto.randomUUID() }));
+        const subjectsWithIds = data.subjects.map(s => ({ 
+            ...s, 
+            id: s.id || crypto.randomUUID(),
+            classes: s.classes.map(c => ({...c, id: c.id || crypto.randomUUID()}))
+        }));
         updateTeacher(data.id, data.name, subjectsWithIds);
     } else {
-        addTeacher(data.name, data.subjects);
+        addTeacher(data.name, data.subjects as Omit<Subject, 'id'>[]);
     }
     form.reset();
     setIsDialogOpen(false);
@@ -108,7 +208,7 @@ export default function TeacherEditor() {
             Add Teacher
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
           </DialogHeader>
@@ -128,65 +228,16 @@ export default function TeacherEditor() {
                 )}
               />
 
-              <div>
-                <FormLabel>Subjects & Weekly Periods</FormLabel>
-                <div className="space-y-2 mt-2">
-                  {fields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2 items-start p-3 border rounded-md bg-muted/50 relative">
-                       <div className="grid grid-cols-2 gap-2 flex-grow">
-                         <FormField
-                          control={form.control}
-                          name={`subjects.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Subject</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g., Math" {...field} />
-                              </FormControl>
-                               <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`subjects.${index}.className`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Class</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g., Grade 9" {...field} />
-                              </FormControl>
-                               <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`subjects.${index}.periods`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">Periods/Week</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="e.g., 5" {...field} min="1" />
-                              </FormControl>
-                               <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => remove(index)}
-                        disabled={fields.length <= 1}
-                        className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                    </div>
+              <div className="space-y-4">
+                <FormLabel>Subjects</FormLabel>
+                <div className="space-y-3">
+                  {subjectFields.map((field, index) => (
+                    <SubjectForm 
+                        key={field.id} 
+                        subjectIndex={index} 
+                        control={form.control} 
+                        removeSubject={() => subjectFields.length > 1 && removeSubject(index)}
+                    />
                   ))}
                 </div>
                  <Button
@@ -194,7 +245,7 @@ export default function TeacherEditor() {
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => append({ name: "", className: "", periods: 1 })}
+                    onClick={() => appendSubject({ name: "", classes: [{name: "", periods: 1}] })}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Subject
@@ -246,21 +297,27 @@ export default function TeacherEditor() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <AccordionContent className="px-2">
-                    <ul className="space-y-2 text-sm text-muted-foreground pl-4">
+                  <AccordionContent className="px-2 pb-4">
+                    <div className="space-y-3">
                       {teacher.subjects.map((subject) => (
-                        <li key={subject.id} className="flex items-center gap-4">
-                          <div className="flex items-center">
-                            <BookOpen className="mr-2 h-4 w-4 text-primary" />
-                            <span>{subject.name} - {subject.periods} p/w</span>
-                          </div>
-                          <div className="flex items-center">
-                            <GraduationCap className="mr-2 h-4 w-4 text-primary/80" />
-                            <span>{subject.className}</span>
-                          </div>
-                        </li>
+                        <div key={subject.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
+                           <div className="flex items-center gap-2 font-semibold text-foreground/90">
+                             <BookOpen className="mr-2 h-4 w-4 text-primary" />
+                             <span>{subject.name}</span>
+                           </div>
+                           <ul className="mt-2 space-y-1 pl-1">
+                            {subject.classes.map(cls => (
+                                <li key={cls.id} className="flex items-center gap-4">
+                                     <div className="flex items-center text-xs">
+                                        <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
+                                        <span>{cls.name} ({cls.periods} p/w)</span>
+                                    </div>
+                                </li>
+                            ))}
+                           </ul>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
               ))}

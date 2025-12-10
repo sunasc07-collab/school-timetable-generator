@@ -1,8 +1,13 @@
+export type ClassArm = {
+  id: string;
+  name: string;
+  periods: number;
+};
+
 export type Subject = {
   id: string;
   name: string;
-  className: string;
-  periods: number;
+  classes: ClassArm[];
 };
 
 export type Teacher = {
@@ -32,7 +37,7 @@ export type TimetableDragData = {
 
 export type Conflict = {
   id: string;
-  type: "teacher";
+  type: "teacher" | "class";
   message: string;
 };
 

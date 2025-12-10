@@ -56,18 +56,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
                 assignment.grades.forEach(grade => {
-                    assignment.armGroups.forEach(armGroup => {
-                        const className = `${grade} ${armGroup.arms.join(', ')}`;
-                        for (let i = 0; i < armGroup.periods; i++) {
-                            allSessions.push({
-                                id: crypto.randomUUID(),
-                                subject: subject.name,
-                                teacher: teacher.name,
-                                className: className,
-                                isDouble: false, // Doubles not handled in this basic generation
-                            });
-                        }
-                    });
+                    const className = `${grade} ${assignment.arms.join(', ')}`;
+                    for (let i = 0; i < assignment.periods; i++) {
+                        allSessions.push({
+                            id: crypto.randomUUID(),
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: className,
+                            isDouble: false, // Doubles not handled in this basic generation
+                        });
+                    }
                 });
             });
         });
@@ -135,10 +133,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           assignments: s.assignments.map(a => ({
             ...a,
             id: a.id || crypto.randomUUID(),
-            armGroups: a.armGroups.map(ag => ({
-                ...ag,
-                id: ag.id || crypto.randomUUID()
-            }))
           })),
       })),
     };
@@ -259,3 +253,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -1,15 +1,10 @@
 
 
-export type ArmGroup = {
-    id: string;
-    arms: string[];
-    periods: number;
-}
-
 export type SubjectAssignment = {
     id: string;
     grades: string[];
-    armGroups: ArmGroup[];
+    arms: string[];
+    periods: number;
 };
 
 export type Subject = {
@@ -57,3 +52,5 @@ export type TimeSlot = {
   isBreak?: boolean;
   label?: string;
 };
+
+    

@@ -30,27 +30,17 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, GripVertical } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher, Subject } from "@/lib/types";
+import type { Teacher, Subject, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Badge } from "./ui/badge";
-
-const armGroupSchema = z.object({
-    id: z.string().optional(),
-    arms: z.array(z.string()).min(1, "At least one arm is required."),
-    periods: z.number().min(1, "Periods must be > 0").default(1),
-});
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
   grades: z.array(z.string()).min(1, "At least one grade is required."),
-  armGroups: z.array(armGroupSchema).min(1, "At least one arm group is required."),
+  arms: z.array(z.string()).min(1, "At least one arm is required."),
+  periods: z.number().min(1, "Periods must be > 0").default(1),
 });
 
 const subjectSchema = z.object({
@@ -70,92 +60,106 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const ArmGroupForm = ({ subjectIndex, assignmentIndex, armGroupIndex, control, removeArmGroup, canRemoveArmGroup }: { subjectIndex: number; assignmentIndex: number; armGroupIndex: number; control: any; removeArmGroup: () => void; canRemoveArmGroup: boolean }) => {
+const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean }) => {
     return (
-        <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
+        <div className="p-3 border rounded-md bg-background/50 relative space-y-4">
              <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={removeArmGroup}
-                disabled={!canRemoveArmGroup}
+                onClick={removeAssignment}
+                disabled={!canRemoveAssignment}
                 className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
               >
                 <Minus className="h-4 w-4" />
             </Button>
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                render={() => (
+                <FormItem>
+                    <FormLabel>Grades</FormLabel>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 border rounded-md">
+                    {GRADE_OPTIONS.map((grade) => (
+                    <FormField
+                        key={grade}
+                        control={control}
+                        name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                        render={({ field }) => {
+                        return (
+                            <FormItem
+                            key={grade}
+                            className="flex flex-row items-center space-x-2 space-y-0"
+                            >
+                            <FormControl>
+                                <Checkbox
+                                checked={field.value?.includes(grade)}
+                                onCheckedChange={(checked) => {
+                                    const currentValue = field.value || [];
+                                    return checked
+                                    ? field.onChange([...currentValue, grade])
+                                    : field.onChange(currentValue.filter(value => value !== grade))
+                                }}
+                                />
+                            </FormControl>
+                            <FormLabel className="font-normal text-sm">
+                                {grade}
+                            </FormLabel>
+                            </FormItem>
+                        )
+                        }}
+                    />
+                    ))}
+                    </div>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            
             <div className="flex gap-4 items-end">
-                <FormField
+                 <FormField
                     control={control}
-                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.armGroups.${armGroupIndex}.arms`}
-                    render={({ field }) => (
-                        <FormItem className="flex-1">
-                            <FormLabel>Arms (grouped)</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className={cn(
-                                        "w-full justify-between",
-                                        !field.value?.length && "text-muted-foreground"
-                                    )}
-                                    >
-                                    <div className="flex gap-1 flex-wrap">
-                                        {field.value?.length > 0 ? (
-                                            field.value.map((arm: string) => (
-                                                <Badge
-                                                variant="secondary"
-                                                key={arm}
-                                                className="mr-1 mb-1"
-                                                >
-                                                {arm}
-                                                </Badge>
-                                            ))
-                                        ) : "Select Arms"}
-                                    </div>
-                                    <GripVertical className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[200px] p-0">
-                                <Command>
-                                    <CommandInput placeholder="Search arms..." />
-                                    <CommandEmpty>No arms found.</CommandEmpty>
-                                    <CommandGroup>
-                                    {ARM_OPTIONS.map((arm) => (
-                                        <CommandItem
-                                        value={arm}
-                                        key={arm}
-                                        onSelect={() => {
-                                            const currentValue = field.value || [];
-                                            const isSelected = currentValue.includes(arm);
-                                            field.onChange(isSelected ? currentValue.filter((a: string) => a !== arm) : [...currentValue, arm]);
-                                        }}
+                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
+                    render={() => (
+                    <FormItem className="flex-1">
+                        <FormLabel>Arms (grouped)</FormLabel>
+                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 border rounded-md">
+                            {ARM_OPTIONS.map((arm) => (
+                                <FormField
+                                    key={arm}
+                                    control={control}
+                                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
+                                    render={({ field }) => (
+                                        <FormItem
+                                            key={arm}
+                                            className="flex flex-row items-center space-x-2 space-y-0"
                                         >
-                                        <Check
-                                            className={cn(
-                                            "mr-2 h-4 w-4",
-                                            (field.value || []).includes(arm)
-                                                ? "opacity-100"
-                                                : "opacity-0"
-                                            )}
-                                        />
-                                        Arm {arm}
-                                        </CommandItem>
-                                    ))}
-                                    </CommandGroup>
-                                </Command>
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value?.includes(arm)}
+                                                    onCheckedChange={(checked) => {
+                                                        const currentValue = field.value || [];
+                                                        return checked
+                                                            ? field.onChange([...currentValue, arm])
+                                                            : field.onChange(currentValue.filter(value => value !== arm));
+                                                    }}
+                                                />
+                                            </FormControl>
+                                            <FormLabel className="font-normal text-sm">
+                                                Arm {arm}
+                                            </FormLabel>
+                                        </FormItem>
+                                    )}
+                                />
+                            ))}
+                        </div>
+                        <FormMessage />
+                    </FormItem>
                     )}
                 />
-
-                <FormField
+                 <FormField
                     control={control}
-                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.armGroups.${armGroupIndex}.periods`}
+                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Periods</FormLabel>
@@ -173,99 +177,6 @@ const ArmGroupForm = ({ subjectIndex, assignmentIndex, armGroupIndex, control, r
                     )}
                 />
             </div>
-        </div>
-    );
-};
-
-const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean }) => {
-    
-    const { fields: armGroupFields, append: appendArmGroup, remove: removeArmGroup } = useFieldArray({
-        control,
-        name: `subjects.${subjectIndex}.assignments.${assignmentIndex}.armGroups`,
-    });
-
-    return (
-        <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
-             <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={removeAssignment}
-                disabled={!canRemoveAssignment}
-                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
-              >
-                <Minus className="h-4 w-4" />
-            </Button>
-            <FormField
-                control={control}
-                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                render={() => (
-                <FormItem>
-                    <FormLabel>Grades</FormLabel>
-                    <div className="flex flex-wrap gap-4 p-2 border rounded-md">
-                    {GRADE_OPTIONS.map((grade) => (
-                    <FormField
-                        key={grade}
-                        control={control}
-                        name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                        render={({ field }) => {
-                        return (
-                            <FormItem
-                            key={grade}
-                            className="flex flex-row items-start space-x-2 space-y-0"
-                            >
-                            <FormControl>
-                                <Checkbox
-                                checked={field.value?.includes(grade)}
-                                onCheckedChange={(checked) => {
-                                    const currentValue = field.value || [];
-                                    return checked
-                                    ? field.onChange([...currentValue, grade])
-                                    : field.onChange(currentValue.filter(value => value !== grade))
-                                }}
-                                />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                                {grade}
-                            </FormLabel>
-                            </FormItem>
-                        )
-                        }}
-                    />
-                    ))}
-                    </div>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            
-            <FormItem>
-                <FormLabel>Arm Groups & Periods per week</FormLabel>
-                <div className="p-2 border rounded-md space-y-3">
-                    {armGroupFields.map((field, index) => (
-                        <ArmGroupForm
-                            key={field.id}
-                            subjectIndex={subjectIndex}
-                            assignmentIndex={assignmentIndex}
-                            armGroupIndex={index}
-                            control={control}
-                            removeArmGroup={() => removeArmGroup(index)}
-                            canRemoveArmGroup={armGroupFields.length > 1}
-                        />
-                    ))}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => appendArmGroup({ arms: [], periods: 1, id: crypto.randomUUID() })}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Arm Group
-                    </Button>
-                </div>
-            </FormItem>
-
         </div>
     )
 }
@@ -319,7 +230,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => appendAssignment({ grades: [], armGroups: [{arms: [], periods: 1, id: crypto.randomUUID()}], id: crypto.randomUUID() })}
+                    onClick={() => appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Assignment Group
@@ -338,7 +249,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", assignments: [{ grades: [], armGroups: [{id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
+      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1 }] }],
     },
   });
 
@@ -359,18 +270,15 @@ export default function TeacherEditor() {
                 assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
                     id: a.id || crypto.randomUUID(),
                     grades: a.grades,
-                    armGroups: a.armGroups.length > 0 ? a.armGroups.map(ag => ({
-                        id: ag.id || crypto.randomUUID(),
-                        arms: ag.arms,
-                        periods: ag.periods
-                    })) : [{ id: crypto.randomUUID(), arms: [], periods: 1 }]
-                })) : [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }],
-            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
+                    arms: a.arms,
+                    periods: a.periods,
+                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }],
+            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
@@ -386,10 +294,6 @@ export default function TeacherEditor() {
             assignments: s.assignments.map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
-                armGroups: a.armGroups.map(ag => ({
-                    ...ag,
-                    id: ag.id || crypto.randomUUID(),
-                }))
             }))
         }))
     }
@@ -457,7 +361,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], armGroups: [{ id: crypto.randomUUID(), arms: [], periods: 1 }] }] })}
+                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }] })}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subject
@@ -520,24 +424,23 @@ export default function TeacherEditor() {
                              <span>{subject.name}</span>
                            </div>
                            <div className="mt-2 space-y-2">
-                            {subject.assignments.map(assignment => (
-                                <div key={assignment.id} className="pl-2">
-                                    {assignment.grades.flatMap(grade => 
-                                        assignment.armGroups.map(ag => {
-                                            const className = `${grade} ${ag.arms.join(', ')}`;
-                                            const uniqueKey = `${assignment.id}-${grade}-${ag.id}`;
-                                            return (
-                                                <li key={uniqueKey} className="flex items-center gap-4 list-none">
-                                                    <div className="flex items-center text-xs">
-                                                        <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                                        <span>{className} ({ag.periods} periods)</span>
-                                                    </div>
-                                                </li>
-                                            )
-                                        })
-                                    )}
-                                </div>
-                            ))}
+                            {subject.assignments.map(assignment => {
+                                const key = `${assignment.id}-${assignment.grades.join('-')}-${assignment.arms.join('-')}`;
+                                return (
+                                    <div key={key} className="pl-2">
+                                        <div className="flex items-center gap-4 list-none">
+                                            <div className="flex items-center text-xs">
+                                                <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
+                                                <span>
+                                                    {assignment.grades.join(', ')} - 
+                                                    Arms {assignment.arms.join(', ')} 
+                                                    ({assignment.periods} periods)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
                            </div>
                         </div>
                       ))}

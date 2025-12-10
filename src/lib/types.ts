@@ -1,6 +1,7 @@
 export type Subject = {
   id: string;
   name: string;
+  className: string;
   periods: number;
 };
 
@@ -13,6 +14,7 @@ export type Teacher = {
 export type TimetableSession = {
   id: string;
   subject: string;
+  className: string;
   teacher: string;
 };
 
@@ -40,5 +42,3 @@ export type TimeSlot = {
   isBreak?: boolean;
   label?: string;
 };
-
-    

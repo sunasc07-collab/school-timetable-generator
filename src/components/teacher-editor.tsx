@@ -29,14 +29,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher, Subject } from "@/lib/types";
+import type { Teacher } from "@/lib/types";
 
 const subjectSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Subject name is required."),
+  className: z.string().min(1, "Class name is required."),
   periods: z.coerce.number().min(1, "Periods must be at least 1."),
 });
 
@@ -57,7 +58,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", periods: 1 }],
+      subjects: [{ name: "", className: "", periods: 1 }],
     },
   });
 
@@ -77,7 +78,7 @@ export default function TeacherEditor() {
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", periods: 1 }],
+            subjects: [{ name: "", className: "", periods: 1 }],
         });
     }
     setIsDialogOpen(true);
@@ -107,7 +108,7 @@ export default function TeacherEditor() {
             Add Teacher
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
           </DialogHeader>
@@ -131,32 +132,49 @@ export default function TeacherEditor() {
                 <FormLabel>Subjects & Weekly Periods</FormLabel>
                 <div className="space-y-2 mt-2">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2 items-start">
-                      <div className="grid grid-cols-2 gap-2 flex-grow">
-                        <FormField
+                    <div key={field.id} className="flex gap-2 items-start p-3 border rounded-md bg-muted/50 relative">
+                       <div className="grid grid-cols-2 gap-2 flex-grow">
+                         <FormField
                           control={form.control}
                           name={`subjects.${index}.name`}
                           render={({ field }) => (
                             <FormItem>
+                              <FormLabel className="text-xs">Subject</FormLabel>
                               <FormControl>
-                                <Input placeholder="Subject Name" {...field} />
+                                <Input placeholder="e.g., Math" {...field} />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
                           )}
                         />
+                         <FormField
+                          control={form.control}
+                          name={`subjects.${index}.className`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Class</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., Grade 9" {...field} />
+                              </FormControl>
+                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="col-span-2">
                         <FormField
                           control={form.control}
                           name={`subjects.${index}.periods`}
                           render={({ field }) => (
                             <FormItem>
+                              <FormLabel className="text-xs">Periods/Week</FormLabel>
                               <FormControl>
-                                <Input type="number" placeholder="Periods/Week" {...field} min="1" />
+                                <Input type="number" placeholder="e.g., 5" {...field} min="1" />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
                           )}
                         />
+                        </div>
                       </div>
                       <Button
                         type="button"
@@ -164,6 +182,7 @@ export default function TeacherEditor() {
                         size="icon"
                         onClick={() => remove(index)}
                         disabled={fields.length <= 1}
+                        className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
@@ -175,7 +194,7 @@ export default function TeacherEditor() {
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => append({ name: "", periods: 1 })}
+                    onClick={() => append({ name: "", className: "", periods: 1 })}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Subject
@@ -228,11 +247,17 @@ export default function TeacherEditor() {
                     </Button>
                   </div>
                   <AccordionContent className="px-2">
-                    <ul className="space-y-1 text-sm text-muted-foreground pl-4">
+                    <ul className="space-y-2 text-sm text-muted-foreground pl-4">
                       {teacher.subjects.map((subject) => (
-                        <li key={subject.id} className="flex items-center">
-                          <BookOpen className="mr-2 h-4 w-4 text-primary" />
-                          {subject.name} - {subject.periods} period(s)
+                        <li key={subject.id} className="flex items-center gap-4">
+                          <div className="flex items-center">
+                            <BookOpen className="mr-2 h-4 w-4 text-primary" />
+                            <span>{subject.name} - {subject.periods} p/w</span>
+                          </div>
+                          <div className="flex items-center">
+                            <GraduationCap className="mr-2 h-4 w-4 text-primary/80" />
+                            <span>{subject.className}</span>
+                          </div>
                         </li>
                       ))}
                     </ul>

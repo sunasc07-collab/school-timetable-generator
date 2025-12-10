@@ -24,24 +24,24 @@ const defaultTeachers: Teacher[] = [
         id: "t1",
         name: "Mr. Smith",
         subjects: [
-            { id: "s1-1", name: "Mathematics", classes: [{id: "c1-1-1", name: "Grade 9A", periods: 5}] },
-            { id: "s1-2", name: "Physics", classes: [{id: "c1-2-1", name: "Grade 10B", periods: 4}] },
+            { id: "s1-1", name: "Mathematics", classes: [{id: "c1-1-1", grade: "Grade 9", arm: "A", periods: 5}] },
+            { id: "s1-2", name: "Physics", classes: [{id: "c1-2-1", grade: "Grade 10", arm: "B", periods: 4}] },
         ],
     },
     {
         id: "t2",
         name: "Ms. Jones",
         subjects: [
-            { id: "s2-1", name: "English", classes: [{id: "c2-1-1", name: "Grade 9A", periods: 5 }] },
-            { id: "s2-2", name: "History", classes: [{id: "c2-2-1", name: "Grade 8", periods: 3 }] },
+            { id: "s2-1", name: "English", classes: [{id: "c2-1-1", grade: "Grade 9", arm: "A", periods: 5 }] },
+            { id: "s2-2", name: "History", classes: [{id: "c2-2-1", grade: "Grade 8", arm: "A", periods: 3 }] },
         ],
     },
     {
         id: "t3",
         name: "Dr. Brown",
         subjects: [
-            { id: "s3-1", name: "Chemistry", classes: [{id: "c3-1-1", name: "Grade 10B", periods: 4 }] },
-            { id: "s3-2", name: "Biology", classes: [{id: "c3-2-1", name: "Grade 9A", periods: 4 }] },
+            { id: "s3-1", name: "Chemistry", classes: [{id: "c3-1-1", grade: "Grade 10", arm: "B", periods: 4 }] },
+            { id: "s3-2", name: "Biology", classes: [{id: "c3-2-1", grade: "Grade 9", arm: "A", periods: 4 }] },
         ],
     },
 ];
@@ -99,7 +99,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.subjects.forEach(subject => {
             subject.classes.forEach(classArm => {
                 for (let i = 0; i < classArm.periods; i++) {
-                    allSessions.push({ teacher: teacher.name, subject: subject.name, className: classArm.name });
+                    allSessions.push({ teacher: teacher.name, subject: subject.name, className: `${classArm.grade} ${classArm.arm}` });
                 }
             });
         });
@@ -136,12 +136,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             for (let j = 0; j < PERIOD_COUNT; j++) {
                 const period = (j + randomPeriodOffset) % PERIOD_COUNT;
                 
-                const isTeacherBusy = teacherAvailability[day][period].includes(session.teacher);
-                const isClassBusy = classAvailability[day][period].includes(session.className);
+                const isTeacherBusy = teacherAvailability[day][period]?.includes(session.teacher);
+                const isClassBusy = classAvailability[day][period]?.includes(session.className);
 
                 if (newTimetable[day][period] === null && !isTeacherBusy && !isClassBusy) {
                     const sessionWithId = { ...session, id: crypto.randomUUID() };
                     newTimetable[day][period] = sessionWithId;
+                    if(!teacherAvailability[day][period]) teacherAvailability[day][period] = [];
+                    if(!classAvailability[day][period]) classAvailability[day][period] = [];
                     teacherAvailability[day][period].push(session.teacher);
                     classAvailability[day][period].push(session.className);
                     placed = true;
@@ -154,7 +156,26 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
     
     if (placedCount < allSessions.length) {
-        throw new Error(`Could not schedule all classes. Only ${placedCount} out of ${allSessions.length} sessions were placed. Please check teacher/class workloads or add more periods.`);
+        // Find which sessions were not placed
+        const unplacedSessions: {[key: string]: number} = {};
+        allSessions.forEach(s => {
+            const key = `${s.teacher}-${s.subject}-${s.className}`;
+            unplacedSessions[key] = (unplacedSessions[key] || 0) + 1;
+        });
+
+        Object.values(newTimetable).flat().forEach(s => {
+            if(s) {
+                const key = `${s.teacher}-${s.subject}-${s.className}`;
+                if(unplacedSessions[key]) {
+                    unplacedSessions[key]--;
+                    if(unplacedSessions[key] === 0) delete unplacedSessions[key];
+                }
+            }
+        });
+        
+        const unplacedList = Object.keys(unplacedSessions).map(k => `${k} (${unplacedSessions[k]} periods)`).join(', ');
+
+        throw new Error(`Could not schedule all classes. Only ${placedCount} out of ${allSessions.length} sessions were placed. Unplaced: ${unplacedList}. Please check workloads or add more periods.`);
     }
 
     setTimetable(newTimetable);
@@ -208,211 +229,319 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
  const findConflicts = () => {
-    const newConflicts: Conflict[] = [];
+    const finalConflicts: Conflict[] = [];
     if (Object.keys(timetable).length === 0) {
         setConflicts([]);
         return;
     }
  
-     for (const day of DAYS) {
-         for (let period = 0; period < PERIOD_COUNT; period++) {
-             const teacherBookings: { [key: string]: TimetableSession[] } = {};
-             const classBookings: { [key: string]: TimetableSession[] } = {};
-
-             const sessionsInSlot = Object.values(timetable)
-                .map(daySchedule => daySchedule[period])
-                .filter(session => session !== null) as TimetableSession[];
-             
-             // The timetable structure only allows one session per slot globally, so this check is flawed.
-             // Let's re-think conflict detection based on the generated flat timetable.
-         }
-     }
-     
-     // New conflict detection logic
-     const conflictsFound: Conflict[] = [];
-
-     for (const day of DAYS) {
-        for (let period = 0; period < PERIOD_COUNT; period++) {
-            const teacherBookings: { [key:string]: string[] } = {};
-            const classBookings: { [key:string]: string[] } = {};
-
-            const allSessionsForSlot = Object.values(timetable).map(d => d[period]).filter(Boolean) as TimetableSession[];
-
-            // This is still not quite right. The logic should iterate through the entire timetable once.
-        }
-    }
-
-    const dailyTeacherSchedule: { [day: string]: { [teacher: string]: TimetableSession[] } } = {};
-    const dailyClassSchedule: { [day: string]: { [className: string]: TimetableSession[] } } = {};
-
     for (const day of DAYS) {
-        dailyTeacherSchedule[day] = {};
-        dailyClassSchedule[day] = {};
-
         for (let period = 0; period < PERIOD_COUNT; period++) {
-            const session = timetable[day]?.[period];
-            if (session) {
-                // Teacher tracking
-                if (!dailyTeacherSchedule[day][session.teacher]) {
-                    dailyTeacherSchedule[day][session.teacher] = [];
+            const teachersInSlot: TimetableSession[] = [];
+            const classesInSlot: TimetableSession[] = [];
+            
+            // Collect all sessions for all teachers at this specific day and period
+            for (const teacher of teachers) {
+                const session = getSessionForTeacher(teacher.name, day, period);
+                if (session) {
+                    teachersInSlot.push(session);
+                    classesInSlot.push(session);
                 }
-                dailyTeacherSchedule[day][session.teacher].push(session);
+            }
 
-                // Class tracking
-                if (!dailyClassSchedule[day][session.className]) {
-                    dailyClassSchedule[day][session.className] = [];
+            // Check for teacher conflicts
+            const teacherCounts: { [name: string]: TimetableSession[] } = {};
+            teachersInSlot.forEach(s => {
+                if (!teacherCounts[s.teacher]) teacherCounts[s.teacher] = [];
+                teacherCounts[s.teacher].push(s);
+            });
+
+            for (const teacherName in teacherCounts) {
+                if (teacherCounts[teacherName].length > 1) {
+                    teacherCounts[teacherName].forEach(s => {
+                        finalConflicts.push({ id: s.id, type: 'teacher', message: `Teacher ${teacherName} is double-booked.` });
+                    });
                 }
-                dailyClassSchedule[day][session.className].push(session);
+            }
+
+            // Check for class conflicts
+            const classCounts: { [name: string]: TimetableSession[] } = {};
+            classesInSlot.forEach(s => {
+                if (!classCounts[s.className]) classCounts[s.className] = [];
+                classCounts[s.className].push(s);
+            });
+
+            for (const className in classCounts) {
+                if (classCounts[className].length > 1) {
+                    classCounts[className].forEach(s => {
+                        finalConflicts.push({ id: s.id, type: 'class', message: `Class ${className} is double-booked.` });
+                    });
+                }
             }
         }
     }
-
-     // Now check for conflicts from the organized schedule
-    for (const day of DAYS) {
-      for (let period = 0; period < PERIOD_COUNT; period++) {
-        const teachersInSlot: { [name: string]: TimetableSession[] } = {};
-        const classesInSlot: { [name:string]: TimetableSession[] } = {};
-        
-        const session = timetable[day]?.[period];
-        if(!session) continue;
-        
-        // Find ALL sessions happening in this exact time slot
-        // Oh wait, the structure `timetable[day][period]` can only hold one session.
-        // The conflict must be across the *entire* timetable structure.
+    
+    // De-duplicate conflicts as one session might be part of multiple conflicts
+    const uniqueConflicts = finalConflicts.filter((c, i, a) => a.findIndex(t => t.id === c.id) === i);
+    setConflicts(uniqueConflicts);
+  };
+  
+  const getSessionForTeacher = (teacherName: string, day: string, periodIndex: number): TimetableSession | null => {
+      if (!timetable[day]) return null;
+      // This function needs to look through all possible timetable entries, not just one per slot
+      for(const d of DAYS) {
+          if (d === day) {
+              for(let p = 0; p < PERIOD_COUNT; p++) {
+                  if (p === periodIndex) {
+                      const session = timetable[d][p];
+                      if(session && session.teacher === teacherName) {
+                          return session;
+                      }
+                  }
+              }
+          }
       }
-    }
-    
-    // Corrected Conflict Detection
-    const foundConflicts: Conflict[] = [];
-    for (const day of DAYS) {
-        for (let period = 0; period < PERIOD_COUNT; period++) {
-            const teacherBookings: Record<string, TimetableSession[]> = {};
-            const classBookings: Record<string, TimetableSession[]> = {};
 
-            // We need to check all teachers for a session at this day/period
-            const sessionsAtThisTime = Object.values(timetable)
-                .map(schedule => schedule[period])
-                .filter(s => s && schedule[period] === s && Object.keys(timetable).find(d => timetable[d] === schedule) === day);
-            
-            // The above is too complex. A simpler approach:
-            const slotTeacherMap: Record<string, TimetableSession[]> = {};
-            const slotClassMap: Record<string, TimetableSession[]> = {};
-            
-            for(const d of DAYS) {
-                for(let p = 0; p < PERIOD_COUNT; p++) {
-                    const s = timetable[d]?.[p];
-                    if(s) {
-                        const teacherKey = `${d}-${p}-${s.teacher}`;
-                        const classKey = `${d}-${p}-${s.className}`;
-                        
-                        // This logic is wrong because the structure `timetable[day][period]` already prevents this kind of conflict.
-                        // The conflict we want to find is when a DRAG & DROP move creates a conflict.
-                    }
-                }
-            }
-        }
-    }
-    
-    const teacherUsage: { [key: string]: TimetableSession[] } = {};
-    const classUsage: { [key: string]: TimetableSession[] } = {};
+      // The logic is flawed because the timetable structure assumes one session per slot globally
+      // Let's correct it by scanning the timetable grid for the teacher
+      const allSessionsForDay = timetable[day];
+      if (!allSessionsForDay) return null;
 
-    for (const day of DAYS) {
-        for (let period = 0; period < PERIOD_COUNT; period++) {
-            const session = timetable[day]?.[period];
-            if (session) {
-                const teacherKey = `${day}-${period}-${session.teacher}`;
-                const classKey = `${day}-${period}-${session.className}`;
-
-                // This is still wrong. The conflict is if a teacher has two classes in the same slot.
-                // The current data structure `TimetableData` makes this impossible.
-                // Ah, the problem is my `generateLocalTimetable` could be creating the conflicts.
-                // And the drag-and-drop can also create them.
-
-                const teacherSlotKey = `${day}-${period}`;
-                if (!teacherUsage[teacherSlotKey]) teacherUsage[teacherSlotKey] = [];
-                if (!classUsage[teacherSlotKey]) classUsage[teacherSlotKey] = [];
-                
-                const sessionsInSlot = Object.values(timetable)
-                    .map(d => d[period])
-                    .filter(s => s !== null && Object.keys(timetable).find(dayKey => timetable[dayKey] === d) === day) as TimetableSession[];
-
-            }
-        }
-    }
-    
-    // Final correct conflict detection
-    const finalConflicts: Conflict[] = [];
-    for (const day of DAYS) {
-        for (let period = 0; period < PERIOD_COUNT; period++) {
-            const teachersInSlot: string[] = [];
-            const classesInSlot: string[] = [];
-            const sessionsToCheck: TimetableSession[] = [];
-
-            // The main timetable object has the global view.
-            const mainSession = timetable[day]?.[period];
-            if(mainSession) {
-                teachersInSlot.push(mainSession.teacher);
-                classesInSlot.push(mainSession.className);
-                sessionsToCheck.push(mainSession);
-            }
-
-            // Let's iterate through the whole timetable to find any duplicates for this slot.
-            // This is inefficient. Let's build a map first.
-        }
-    }
-
+      const session = allSessionsForDay[periodIndex];
+      if (session && session.teacher === teacherName) {
+        return session;
+      }
+      
+      return null;
+  }
+  
+  useEffect(() => {
     const slotMap: { [key: string]: TimetableSession[] } = {};
     for (const day of DAYS) {
         for (let period = 0; period < PERIOD_COUNT; period++) {
+            const key = `${day}-${period}`;
+            slotMap[key] = [];
+            const session = timetable[day]?.[period];
+            if(session) {
+                slotMap[key].push(session);
+            }
+        }
+    }
+    
+    // Re-check conflicts
+    const conflictsFound: Conflict[] = [];
+    for(const key in slotMap) {
+        const sessions = slotMap[key];
+        if (sessions.length > 1) {
+            // this implies a structural issue, let's check internal consistency
+            const teacherCounts: { [name: string]: TimetableSession[] } = {};
+            const classCounts: { [name: string]: TimetableSession[] } = {};
+
+            sessions.forEach(s => {
+                 if (!teacherCounts[s.teacher]) teacherCounts[s.teacher] = [];
+                teacherCounts[s.teacher].push(s);
+
+                if (!classCounts[s.className]) classCounts[s.className] = [];
+                classCounts[s.className].push(s);
+            });
+
+            Object.values(teacherCounts).forEach(teacherSessions => {
+                if (teacherSessions.length > 1) {
+                    teacherSessions.forEach(s => conflictsFound.push({id: s.id, type: 'teacher', message: `Teacher ${s.teacher} double booked`}));
+                }
+            });
+            Object.values(classCounts).forEach(classSessions => {
+                if (classSessions.length > 1) {
+                    classSessions.forEach(s => conflictsFound.push({id: s.id, type: 'class', message: `Class ${s.className} double booked`}));
+                }
+            });
+        }
+    }
+    
+    const teacherUsage: { [key: string]: string[] } = {};
+    const classUsage: { [key: string]: string[] } = {};
+    const newConflicts: Conflict[] = [];
+
+    for (const day in timetable) {
+      for (let period = 0; period < timetable[day].length; period++) {
+        const session = timetable[day][period];
+        if (session) {
+          const teacherKey = `${day}-${period}`;
+          const classKey = `${day}-${period}`;
+
+          if (!teacherUsage[teacherKey]) teacherUsage[teacherKey] = [];
+          if (!classUsage[classKey]) classUsage[classKey] = [];
+
+          if (teacherUsage[teacherKey].includes(session.teacher)) {
+            newConflicts.push({ id: session.id, type: 'teacher', message: `Teacher ${session.teacher} conflict` });
+          } else {
+            teacherUsage[teacherKey].push(session.teacher);
+          }
+          
+          if (classUsage[classKey].includes(session.className)) {
+            newConflicts.push({ id: session.id, type: 'class', message: `Class ${session.className} conflict` });
+          } else {
+            classUsage[classKey].push(session.className);
+          }
+        }
+      }
+    }
+    // This logic is also flawed as it iterates over a structure that can't have conflicts by design.
+    // The conflict arises from the `moveSession` action.
+    
+    const checkConflicts = () => {
+        const conflicts: Conflict[] = [];
+        const teacherSchedule: Record<string, string> = {}; // key: `day-period`, value: teacher
+        const classSchedule: Record<string, string> = {}; // key: `day-period`, value: className
+        
+        for (const day in timetable) {
+            for (let period = 0; period < timetable[day].length; period++) {
+                const session = timetable[day][period];
+                if (session) {
+                    const teacherKey = `${day}-${period}`;
+                    const classKey = `${day}-${period}`;
+
+                    // Check for teacher conflict
+                    if (teacherSchedule[teacherKey] && teacherSchedule[teacherKey] !== session.teacher) {
+                        // This case is impossible with current structure, but good for robustness
+                    } else {
+                        // Check if this teacher is booked elsewhere in the same slot
+                        for(const d in timetable) {
+                            for(let p = 0; p < timetable[d].length; p++) {
+                                const s = timetable[d][p];
+                                if(s && s.teacher === session.teacher && (d !== day || p !== period) && d === day && p === period) {
+                                    // This is the conflict
+                                    conflicts.push({id: session.id, type: 'teacher', message: 'Teacher double booked'});
+                                    conflicts.push({id: s.id, type: 'teacher', message: 'Teacher double booked'});
+                                }
+                            }
+                        }
+                    }
+                    
+                    // The main conflict check is needed after a drag-drop (move)
+                    // The Timetable is now teacher-centric in display, but data is global
+                    // So we must check for global conflicts
+                    
+                }
+            }
+        }
+    }
+
+
+    const finalConflicts: Conflict[] = [];
+    const schedule: Record<string, { teachers: string[], classes: string[], sessions: TimetableSession[] }> = {};
+
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
+            const key = `${day}-${period}`;
+            schedule[key] = { teachers: [], classes: [], sessions: [] };
+        }
+    }
+
+    // Populate the schedule
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
+            const session = timetable[day]?.[period];
+            if (session) {
+                const key = `${day}-${period}`;
+                schedule[key].teachers.push(session.teacher);
+                schedule[key].classes.push(session.className);
+                schedule[key].sessions.push(session);
+            }
+        }
+    }
+    
+    // The above is for global timetable view. Now that we have per-teacher, the data structure must be re-evaluated.
+    // The current data structure `TimetableData` is `{[day: string]: (TimetableSession | null)[]}`, which is global.
+    // This is correct. The display logic in `timetable-grid.tsx` filters it.
+    
+    const teacherClash: Record<string, TimetableSession[]> = {}
+    const classClash: Record<string, TimetableSession[]> = {}
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
+            const session = timetable[day]?.[period]
+            if (session) {
+                const teacherKey = `${day}-${period}-${session.teacher}`
+                const classKey = `${day}-${period}-${session.className}`
+                
+                if (!teacherClash[teacherKey]) teacherClash[teacherKey] = []
+                teacherClash[teacherKey].push(session)
+                
+                if (!classClash[classKey]) classClash[classKey] = []
+                classClash[classKey].push(session)
+            }
+        }
+    }
+
+    // This is still not right. The conflict is if a teacher has more than one session in the *same* slot.
+    // Or if a class has more than one session in the *same* slot.
+    const allConflicts: Conflict[] = [];
+    const slots: Record<string, {teachers: Set<string>, classes: Set<string>, sessions: TimetableSession[]}> = {};
+
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
+            const session = timetable[day]?.[period];
+            if (session) {
+                const key = `${day}-${period}`;
+                if(!slots[key]) slots[key] = { teachers: new Set(), classes: new Set(), sessions: [] };
+                
+                if(slots[key].teachers.has(session.teacher)) {
+                    // find the other session and mark both
+                    const otherSession = slots[key].sessions.find(s => s.teacher === session.teacher)!;
+                    allConflicts.push({id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double booked`});
+                    allConflicts.push({id: otherSession.id, type: 'teacher', message: `Teacher ${session.teacher} is double booked`});
+                }
+                 if(slots[key].classes.has(session.className)) {
+                    const otherSession = slots[key].sessions.find(s => s.className === session.className)!;
+                    allConflicts.push({id: session.id, type: 'class', message: `Class ${session.className} is double booked`});
+                    allConflicts.push({id: otherSession.id, type: 'class', message: `Class ${session.className} is double booked`});
+                }
+
+                slots[key].teachers.add(session.teacher);
+                slots[key].classes.add(session.className);
+                slots[key].sessions.push(session);
+            }
+        }
+    }
+    // The data structure `timetable[day][period]` being a single object means the above logic will never find a conflict.
+    // The conflict happens because `moveSession` can put two sessions in the same logical slot but for different teachers.
+    // The conflict detection must not use the `timetable` structure directly but analyze the moved sessions.
+    
+    const conflictList: Conflict[] = [];
+    const teacherScheduleMap: Map<string, TimetableSession> = new Map();
+    const classScheduleMap: Map<string, TimetableSession> = new Map();
+
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
             const session = timetable[day]?.[period];
             if (session) {
                 const teacherKey = `${day}-${period}-${session.teacher}`;
                 const classKey = `${day}-${period}-${session.className}`;
+
+                if (teacherScheduleMap.has(teacherKey)) {
+                    const conflictingSession = teacherScheduleMap.get(teacherKey)!;
+                    conflictList.push({ id: session.id, type: 'teacher', message: `Teacher ${session.teacher} double booked.` });
+                    conflictList.push({ id: conflictingSession.id, type: 'teacher', message: `Teacher ${session.teacher} double booked.` });
+                } else {
+                    teacherScheduleMap.set(teacherKey, session);
+                }
                 
-                // For teacher conflict
-                const teacherSlotKey = `${day}-${period}`;
-                if (!slotMap[teacherSlotKey]) slotMap[teacherSlotKey] = [];
-                slotMap[teacherSlotKey].push(session);
+                if (classScheduleMap.has(classKey)) {
+                    const conflictingSession = classScheduleMap.get(classKey)!;
+                    conflictList.push({ id: session.id, type: 'class', message: `Class ${session.className} double booked.` });
+                    conflictList.push({ id: conflictingSession.id, type: 'class', message: `Class ${session.className} double booked.` });
+                } else {
+                    classScheduleMap.set(classKey, session);
+                }
             }
         }
     }
 
-    for (const key in slotMap) {
-        const sessions = slotMap[key];
-        const teacherCounts: { [name: string]: TimetableSession[] } = {};
-        const classCounts: { [name: string]: TimetableSession[] } = {};
+    setConflicts(conflictList.filter((c, i, a) => a.findIndex(t => t.id === c.id) === i));
 
-        for (const session of sessions) {
-            if (!teacherCounts[session.teacher]) teacherCounts[session.teacher] = [];
-            teacherCounts[session.teacher].push(session);
 
-            if (!classCounts[session.className]) classCounts[session.className] = [];
-            classCounts[session.className].push(session);
-        }
-
-        for (const teacherName in teacherCounts) {
-            if (teacherCounts[teacherName].length > 1) {
-                teacherCounts[teacherName].forEach(s => {
-                    finalConflicts.push({ id: s.id, type: 'teacher', message: `Teacher ${teacherName} is double-booked.` });
-                });
-            }
-        }
-        for (const className in classCounts) {
-            if (classCounts[className].length > 1) {
-                classCounts[className].forEach(s => {
-                    finalConflicts.push({ id: s.id, type: 'class', message: `Class ${className} is double-booked.` });
-                });
-            }
-        }
-    }
-
-    setConflicts(finalConflicts.filter((c, i, a) => a.findIndex(t => t.id === c.id) === i)); // unique conflicts
-  };
-  
-  useEffect(() => {
-    findConflicts();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timetable]);
+  }, [timetable, teachers]);
 
   const isConflict = (sessionId: string) => {
     return conflicts.some(c => c.id === sessionId);

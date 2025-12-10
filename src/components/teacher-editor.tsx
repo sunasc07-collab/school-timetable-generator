@@ -34,10 +34,12 @@ import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const classArmSchema = z.object({
     id: z.string().optional(),
-    name: z.string().min(1, "Class name is required."),
+    grade: z.string().min(1, "Grade is required."),
+    arm: z.string().min(1, "Arm is required."),
     periods: z.coerce.number().min(1, "Periods must be at least 1."),
 });
 
@@ -89,16 +91,38 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                  <FormLabel className="text-xs">Classes & Periods</FormLabel>
                 {fields.map((field, classIndex) => (
                     <div key={field.id} className="flex gap-2 items-end p-2 border rounded-md bg-background/50 relative">
-                        <div className="grid grid-cols-2 gap-2 flex-grow">
+                        <div className="grid grid-cols-3 gap-2 flex-grow">
                              <FormField
                                 control={control}
-                                name={`subjects.${subjectIndex}.classes.${classIndex}.name`}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.grade`}
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-xs">Class Arm</FormLabel>
+                                    <FormLabel className="text-xs">Grade/Level</FormLabel>
                                     <FormControl>
-                                    <Input placeholder="e.g., Grade 9A" {...field} />
+                                    <Input placeholder="e.g., Grade 9" {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control}
+                                name={`subjects.${subjectIndex}.classes.${classIndex}.arm`}
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs">Arm</FormLabel>
+                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select an arm" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="A">A</SelectItem>
+                                            <SelectItem value="B">B</SelectItem>
+                                            <SelectItem value="C">C</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -134,7 +158,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => append({ name: "", periods: 1 })}
+                    onClick={() => append({ grade: "", arm: "A", periods: 1 })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Class Arm
@@ -154,7 +178,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", classes: [{ name: "", periods: 1 }] }],
+      subjects: [{ name: "", classes: [{ grade: "", arm: "A", periods: 1 }] }],
     },
   });
 
@@ -169,27 +193,31 @@ export default function TeacherEditor() {
         form.reset({
             id: teacher.id,
             name: teacher.name,
-            subjects: teacher.subjects,
+            subjects: teacher.subjects.map(s => ({
+                ...s,
+                classes: s.classes.map(c => ({...c}))
+            })),
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", classes: [{ name: "", periods: 1 }] }],
+            subjects: [{ name: "", classes: [{ grade: "", arm: "A", periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
   }
 
   function onSubmit(data: TeacherFormValues) {
+    const subjectsWithIds = data.subjects.map(s => ({ 
+        ...s, 
+        id: s.id || crypto.randomUUID(),
+        classes: s.classes.map(c => ({...c, id: c.id || crypto.randomUUID()}))
+    }));
+
     if (editingTeacher && data.id) {
-        const subjectsWithIds = data.subjects.map(s => ({ 
-            ...s, 
-            id: s.id || crypto.randomUUID(),
-            classes: s.classes.map(c => ({...c, id: c.id || crypto.randomUUID()}))
-        }));
         updateTeacher(data.id, data.name, subjectsWithIds);
     } else {
-        addTeacher(data.name, data.subjects as Omit<Subject, 'id'>[]);
+        addTeacher(data.name, subjectsWithIds as Omit<Subject, 'id'>[]);
     }
     form.reset();
     setIsDialogOpen(false);
@@ -247,7 +275,7 @@ export default function TeacherEditor() {
                           variant="outline"
                           size="sm"
                           className="mt-2"
-                          onClick={() => appendSubject({ name: "", classes: [{name: "", periods: 1}] })}
+                          onClick={() => appendSubject({ name: "", classes: [{grade: "", arm: "A", periods: 1}] })}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Subject
@@ -313,7 +341,7 @@ export default function TeacherEditor() {
                                 <li key={cls.id} className="flex items-center gap-4">
                                      <div className="flex items-center text-xs">
                                         <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                        <span>{cls.name} ({cls.periods} p/w)</span>
+                                        <span>{cls.grade} {cls.arm} ({cls.periods} p/w)</span>
                                     </div>
                                 </li>
                             ))}

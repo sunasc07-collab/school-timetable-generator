@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, ClassAssignment, ArmPeriod } from "@/lib/types";
+import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, ClassAssignment } from "@/lib/types";
 
 type TimetableContextType = {
   teachers: Teacher[];
@@ -25,24 +25,24 @@ const defaultTeachers: Teacher[] = [
         id: "t1",
         name: "Mr. Smith",
         subjects: [
-            { id: "s1-1", name: "Mathematics", assignments: [{id: "ca1-1-1", grades: ["Grade 9"], armPeriods: [{ id: 'ap1-1-1', arm: "A", periods: 5}] }] },
-            { id: "s1-2", name: "Physics", assignments: [{id: "ca1-2-1", grades: ["Grade 10"], armPeriods: [{ id: 'ap1-2-1', arm: "B", periods: 4}] }] },
+            { id: "s1-1", name: "Mathematics", assignments: [{id: "ca1-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5 }] },
+            { id: "s1-2", name: "Physics", assignments: [{id: "ca1-2-1", grades: ["Grade 10"], arms: ["B"], periods: 4 }] },
         ],
     },
     {
         id: "t2",
         name: "Ms. Jones",
         subjects: [
-            { id: "s2-1", name: "English", assignments: [{id: "ca2-1-1", grades: ["Grade 9"], armPeriods: [{ id: 'ap2-1-1', arm: "A", periods: 5 }] }] },
-            { id: "s2-2", name: "History", assignments: [{id: "ca2-2-1", grades: ["Grade 8"], armPeriods: [{ id: 'ap2-2-1', arm: "A", periods: 3 }] }] },
+            { id: "s2-1", name: "English", assignments: [{id: "ca2-1-1", grades: ["Grade 9"], arms: ["A"], periods: 5 }] },
+            { id: "s2-2", name: "History", assignments: [{id: "ca2-2-1", grades: ["Grade 8"], arms: ["A"], periods: 3 }] },
         ],
     },
     {
         id: "t3",
         name: "Dr. Brown",
         subjects: [
-            { id: "s3-1", name: "Chemistry", assignments: [{id: "ca3-1-1", grades: ["Grade 10"], armPeriods: [{ id: 'ap3-1-1', arm: "B", periods: 4 }] }] },
-            { id: "s3-2", name: "Biology", assignments: [{id: "ca3-2-1", grades: ["Grade 9"], armPeriods: [{ id: 'ap3-2-1', arm: "A", periods: 4 }] }] },
+            { id: "s3-1", name: "Chemistry", assignments: [{id: "ca3-1-1", grades: ["Grade 10"], arms: ["B"], periods: 4 }] },
+            { id: "s3-2", name: "Biology", assignments: [{id: "ca3-2-1", grades: ["Grade 9"], arms: ["A"], periods: 4 }] },
         ],
     },
 ];
@@ -90,8 +90,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           id: crypto.randomUUID(),
           assignments: s.assignments.map(a => ({
             ...a, 
-            id: crypto.randomUUID(),
-            armPeriods: a.armPeriods.map(ap => ({...ap, id: crypto.randomUUID()}))
+            id: crypto.randomUUID()
         }))
       })),
     };
@@ -142,9 +141,9 @@ const generateLocalTimetable = () => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
                 assignment.grades.forEach(grade => {
-                    assignment.armPeriods.forEach(armPeriod => {
-                        const className = `${grade} ${armPeriod.arm}`;
-                        let remainingPeriods = armPeriod.periods;
+                    assignment.arms.forEach(arm => {
+                        const className = `${grade} ${arm}`;
+                        let remainingPeriods = assignment.periods;
                         
                         // Rule: Only one double period is allowed for a week
                         if (remainingPeriods >= 2) {
@@ -366,8 +365,7 @@ const generateLocalTimetable = () => {
             const teacherKey = `${day}-${period}-${session.teacher}`;
             const classKey = `${day}-${period}-${session.className}`;
 
-            // Check for teacher conflict - this is inherently prevented by the teacher-centric grid, but good to have
-            // The real conflict is class conflict
+            // Check for class conflict
             if (classSlotUsage.has(classKey)) {
                  const conflictingSession = classSlotUsage.get(classKey)!;
                  if (conflictingSession.teacher !== session.teacher) {
@@ -376,6 +374,17 @@ const generateLocalTimetable = () => {
                  }
             } else {
                 classSlotUsage.set(classKey, session);
+            }
+
+             // Check for teacher conflict
+             if (teacherSlotUsage.has(teacherKey)) {
+                const conflictingSession = teacherSlotUsage.get(teacherKey)!;
+                if (conflictingSession.className !== session.className) {
+                    identifiedConflicts.set(session.id, { id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double-booked.` });
+                    identifiedConflicts.set(conflictingSession.id, { id: conflictingSession.id, type: 'teacher', message: `Teacher ${conflictingSession.teacher} is double-booked.` });
+                }
+            } else {
+                teacherSlotUsage.set(teacherKey, session);
             }
         }
     }

@@ -50,17 +50,17 @@ import { useState } from "react";
 import type { Teacher, Subject, ClassAssignment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const armPeriodsSchema = z.object({
-    id: z.string().optional(),
-    arm: z.string().min(1, "Arm is required."),
-    periods: z.coerce.number().min(1, "Periods must be at least 1."),
+const classAssignmentSchema = z.object({
+  id: z.string().optional(),
+  grades: z.array(z.string()).min(1, "At least one grade is required."),
+  arms: z.array(z.string()).min(1, "At least one arm is required."),
+  periods: z.coerce.number().min(1, "Periods must be at least 1."),
 });
 
 const subjectSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Subject name is required."),
-  grades: z.array(z.string()).min(1, "At least one grade is required."),
-  armPeriods: z.array(armPeriodsSchema).min(1, "At least one arm configuration is required."),
+  assignments: z.array(classAssignmentSchema).min(1, "At least one assignment is required."),
 });
 
 const teacherSchema = z.object({
@@ -74,10 +74,64 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const ARM_OPTIONS = ["A", "B", "C"];
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 
-const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: number, control: any, removeSubject: (index: number) => void }) => {
-    const { fields: armPeriodFields, append: appendArmPeriod, remove: removeArmPeriod } = useFieldArray({
+const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemove }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemove: boolean }) => {
+    return (
+        <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
+             <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={removeAssignment}
+                disabled={!canRemove}
+                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
+              >
+                <Minus className="h-4 w-4" />
+            </Button>
+            
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Grades</FormLabel>
+                    <MultiSelect options={GRADE_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select grades..." />
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Arms</FormLabel>
+                    <MultiSelect options={ARM_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select arms..." />
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Periods/Week</FormLabel>
+                    <FormControl>
+                        <Input type="number" placeholder="e.g., 5" {...field} min="1" />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        </div>
+    )
+}
+
+
+const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean }) => {
+    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment } = useFieldArray({
         control,
-        name: `subjects.${subjectIndex}.armPeriods`,
+        name: `subjects.${subjectIndex}.assignments`,
     });
 
     return (
@@ -86,7 +140,8 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => removeSubject(subjectIndex)}
+                onClick={removeSubject}
+                disabled={!canRemove}
                 className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
               >
                 <Minus className="h-4 w-4" />
@@ -104,71 +159,28 @@ const SubjectForm = ({ subjectIndex, control, removeSubject }: { subjectIndex: n
                     </FormItem>
                 )}
             />
-            <div className="p-2 border rounded-md bg-background/50 relative">
-                <div className="space-y-4">
-                    <FormField
+            <div className="p-2 border rounded-md bg-background/50 relative space-y-2">
+                <FormLabel>Class Assignments</FormLabel>
+                 {assignmentFields.map((field, index) => (
+                    <AssignmentForm
+                        key={field.id}
+                        subjectIndex={subjectIndex}
+                        assignmentIndex={index}
                         control={control}
-                        name={`subjects.${subjectIndex}.grades`}
-                        render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>Grades</FormLabel>
-                                <MultiSelect options={GRADE_OPTIONS} selected={field.value} onChange={field.onChange} placeholder="Select grades..." />
-                            <FormMessage />
-                        </FormItem>
-                        )}
+                        removeAssignment={() => removeAssignment(index)}
+                        canRemove={assignmentFields.length > 1}
                     />
-                    <div className="space-y-2">
-                        <FormLabel>Arms & Periods</FormLabel>
-                        {armPeriodFields.map((armPeriod, armPeriodIndex) => (
-                            <div key={armPeriod.id} className="grid grid-cols-3 gap-4 items-center p-2 border rounded-md relative">
-                                <FormField
-                                    control={control}
-                                    name={`subjects.${subjectIndex}.armPeriods.${armPeriodIndex}.arm`}
-                                    render={({ field }) => (
-                                    <FormItem className="col-span-1">
-                                        <FormLabel>Arm</FormLabel>
-                                        <MultiSelect options={ARM_OPTIONS} selected={field.value ? [field.value] : []} onChange={(val) => field.onChange(val[0] || '')} placeholder="Arm..." singleSelect />
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={control}
-                                    name={`subjects.${subjectIndex}.armPeriods.${armPeriodIndex}.periods`}
-                                    render={({ field }) => (
-                                    <FormItem className="col-span-1">
-                                        <FormLabel>Periods/Week</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" placeholder="e.g., 5" {...field} min="1" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                 <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeArmPeriod(armPeriodIndex)}
-                                    disabled={armPeriodFields.length <= 1}
-                                    className="h-6 w-6 text-muted-foreground hover:text-destructive place-self-end mb-1"
-                                >
-                                    <Minus className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                         <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => appendArmPeriod({ arm: 'A', periods: 1 })}
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Arm
-                        </Button>
-                    </div>
-                </div>
+                ))}
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => appendAssignment({ grades: [], arms: [], periods: 1 })}
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Assignment
+                </Button>
             </div>
         </div>
     )
@@ -183,7 +195,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", grades: [], armPeriods: [{arm: 'A', periods: 1}] }],
+      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1 }] }],
     },
   });
 
@@ -195,72 +207,42 @@ export default function TeacherEditor() {
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
     if (teacher) {
-        // We need to convert the old data structure to the new one for editing.
-        // Old: subjects -> assignments -> {grades, armPeriods}
-        // New: subjects -> {grades, armPeriods}
-        // For simplicity, we'll create a new subject for each old assignment.
-        const newSubjects = teacher.subjects.flatMap(s => 
-            s.assignments.map(a => ({
-                id: a.id, // a subject can now use an assignment ID
-                name: s.name,
-                grades: a.grades,
-                armPeriods: a.armPeriods.map(ap => ({...ap}))
-            }))
-        );
-
         form.reset({
             id: teacher.id,
             name: teacher.name,
-            subjects: newSubjects.length > 0 ? newSubjects : [{ name: "", grades: [], armPeriods: [{arm: 'A', periods: 1}] }],
+            subjects: teacher.subjects.length > 0 ? teacher.subjects.map(s => ({
+                ...s,
+                assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
+                    ...a
+                })) : [{ grades: [], arms: [], periods: 1 }]
+            })) : [{ name: "", assignments: [{ grades: [], arms: [], periods: 1 }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", grades: [], armPeriods: [{arm: 'A', periods: 1}] }],
+            subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1 }] }],
         });
     }
     setIsDialogOpen(true);
   }
 
   function onSubmit(data: TeacherFormValues) {
-    // Convert back to the structure expected by the context
-    // This involves grouping subjects by name
-    const subjectMap = new Map<string, {grades: string[], armPeriods: any[]}[]>();
-    data.subjects.forEach(s => {
-        if (!subjectMap.has(s.name)) {
-            subjectMap.set(s.name, []);
-        }
-        subjectMap.get(s.name)!.push({
-            grades: s.grades,
-            armPeriods: s.armPeriods.map(ap => ({...ap, id: ap.id || crypto.randomUUID()}))
-        });
-    });
-
-    const subjectsForContext: Omit<Subject, 'id'>[] = [];
-    subjectMap.forEach((assignmentsData, name) => {
-        subjectsForContext.push({
-            name,
-            assignments: assignmentsData.map(a => ({
-                id: crypto.randomUUID(),
-                ...a
+    const finalData = {
+        ...data,
+        subjects: data.subjects.map(s => ({
+            ...s,
+            id: s.id || crypto.randomUUID(),
+            assignments: s.assignments.map(a => ({
+                ...a,
+                id: a.id || crypto.randomUUID()
             }))
-        });
-    });
-    
-    const finalSubjects = subjectsForContext.map(s => ({
-        ...s,
-        id: crypto.randomUUID(),
-        assignments: s.assignments.map(a => ({
-            ...a,
-            id: a.id || crypto.randomUUID()
         }))
-    })) as Subject[];
+    }
 
-
-    if (editingTeacher && data.id) {
-        updateTeacher(data.id, data.name, finalSubjects);
+    if (editingTeacher && finalData.id) {
+        updateTeacher(finalData.id, finalData.name, finalData.subjects as Subject[]);
     } else {
-        addTeacher(data.name, finalSubjects);
+        addTeacher(finalData.name, finalData.subjects);
     }
     form.reset();
     setIsDialogOpen(false);
@@ -309,7 +291,8 @@ export default function TeacherEditor() {
                               key={field.id} 
                               subjectIndex={index} 
                               control={form.control} 
-                              removeSubject={() => subjectFields.length > 1 && removeSubject(index)}
+                              removeSubject={() => removeSubject(index)}
+                              canRemove={subjectFields.length > 1}
                           />
                         ))}
                       </div>
@@ -318,7 +301,7 @@ export default function TeacherEditor() {
                           variant="outline"
                           size="sm"
                           className="mt-2"
-                          onClick={() => appendSubject({ name: "", grades: [], armPeriods: [{ arm: 'A', periods: 1 }] })}
+                          onClick={() => appendSubject({ name: "", assignments: [{ grades: [], arms: [], periods: 1 }] })}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Subject
@@ -382,13 +365,13 @@ export default function TeacherEditor() {
                            <ul className="mt-2 space-y-1 pl-1">
                             {subject.assignments.flatMap(assignment => 
                                 assignment.grades.flatMap(grade => 
-                                    assignment.armPeriods.map(ap => {
-                                        const uniqueKey = `${assignment.id}-${grade}-${ap.arm}`;
+                                    assignment.arms.map(arm => {
+                                        const uniqueKey = `${assignment.id}-${grade}-${arm}`;
                                         return (
                                             <li key={uniqueKey} className="flex items-center gap-4">
                                                 <div className="flex items-center text-xs">
                                                     <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
-                                                    <span>{grade} {ap.arm} ({ap.periods} p/w)</span>
+                                                    <span>{grade} {arm} ({assignment.periods} p/w)</span>
                                                 </div>
                                             </li>
                                         )
@@ -430,6 +413,8 @@ function MultiSelect({ options, selected, onChange, placeholder, singleSelect }:
         onChange(newSelected);
     }
     
+    const displayValue = selected?.length > 0 ? selected.join(", ") : placeholder;
+
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -440,7 +425,7 @@ function MultiSelect({ options, selected, onChange, placeholder, singleSelect }:
                     className="w-full justify-between"
                 >
                     <span className="truncate">
-                        {selected.length > 0 ? selected.join(", ") : placeholder}
+                        {displayValue}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -464,7 +449,7 @@ function MultiSelect({ options, selected, onChange, placeholder, singleSelect }:
                                 <Check
                                     className={cn(
                                         "mr-2 h-4 w-4",
-                                        selected.includes(option) ? "opacity-100" : "opacity-0"
+                                        selected?.includes(option) ? "opacity-100" : "opacity-0"
                                     )}
                                 />
                                 {option}

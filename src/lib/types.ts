@@ -33,3 +33,12 @@ export type Conflict = {
   type: "teacher";
   message: string;
 };
+
+export type TimeSlot = {
+  period: number | null;
+  time: string;
+  isBreak?: boolean;
+  label?: string;
+};
+
+    

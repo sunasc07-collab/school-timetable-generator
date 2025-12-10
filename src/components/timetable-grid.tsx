@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/table";
 import TimetableItem from "./timetable-item";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export default function TimetableGrid() {
-  const { timetable, days, periods, moveSession, isConflict } = useTimetable();
+  const { timetable, days, timeSlots, moveSession, isConflict } = useTimetable();
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
     e.preventDefault();
@@ -62,30 +63,55 @@ export default function TimetableGrid() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-24">Period</TableHead>
+            <TableHead className="w-32">Time</TableHead>
             {days.map((day) => (
               <TableHead key={day} className="font-headline">{day}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {periods.map((period) => (
-            <TableRow key={period}>
-              <TableCell className="font-medium">Period {period}</TableCell>
-              {days.map((day) => (
-                <TableCell
-                  key={day}
-                  className="p-1 align-top"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, day, period - 1)}
-                >
-                  {renderCellContent(timetable[day]?.[period - 1], day, period - 1)}
+          {timeSlots.map((slot, index) => {
+            if (slot.isBreak) {
+              return (
+                <TableRow key={`break-${index}`}>
+                  <TableCell className="font-medium text-muted-foreground">
+                    {slot.time}
+                  </TableCell>
+                  <TableCell
+                    colSpan={days.length}
+                    className="text-center font-semibold bg-muted/50 text-muted-foreground"
+                  >
+                    {slot.label}
+                  </TableCell>
+                </TableRow>
+              );
+            }
+            // We need to map the slot index to the timetable data index, accounting for breaks
+            const periodIndex = timeSlots.slice(0, index + 1).filter(s => !s.isBreak).length - 1;
+
+            return (
+              <TableRow key={slot.period}>
+                <TableCell className="font-medium text-muted-foreground align-top pt-3">
+                   <div className="font-bold">{slot.time}</div>
+                   <div className="text-xs">Period {slot.period}</div>
                 </TableCell>
-              ))}
-            </TableRow>
-          ))}
+                {days.map((day) => (
+                  <TableCell
+                    key={day}
+                    className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "")}
+                    onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
+                    onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
+                  >
+                    {!slot.isBreak && renderCellContent(timetable[day]?.[periodIndex], day, periodIndex)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
   );
 }
+
+    

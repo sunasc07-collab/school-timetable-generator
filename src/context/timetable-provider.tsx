@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import type { Teacher, Subject, TimetableData, TimetableSession, Conflict } from "@/lib/types";
+import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot } from "@/lib/types";
 
 type TimetableContextType = {
   teachers: Teacher[];
@@ -10,7 +10,7 @@ type TimetableContextType = {
   updateTeacher: (id: string, name: string, subjects: Subject[]) => void;
   timetable: TimetableData;
   days: string[];
-  periods: number[];
+  timeSlots: TimeSlot[];
   generateTimetable: () => Promise<void>;
   moveSession: (session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
   conflicts: Conflict[];
@@ -47,7 +47,22 @@ const defaultTeachers: Teacher[] = [
 ];
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-const PERIOD_COUNT = 8;
+
+const TIME_SLOTS: TimeSlot[] = [
+  { period: 1, time: "8:00 - 8:40" },
+  { period: 2, time: "8:40 - 9:20" },
+  { period: 3, time: "9:20 - 10:00" },
+  { period: null, time: "10:00 - 10:30", isBreak: true, label: "Short Break" },
+  { period: 4, time: "10:30 - 11:10" },
+  { period: 5, time: "11:10 - 11:50" },
+  { period: 6, time: "11:50 - 12:30" },
+  { period: 7, time: "12:30 - 1:10" },
+  { period: null, time: "1:10 - 1:40", isBreak: true, label: "Lunch Break" },
+  { period: 8, time: "1:40 - 2:20" },
+  { period: 9, time: "2:20 - 3:00" },
+];
+const PERIOD_COUNT = TIME_SLOTS.filter(ts => !ts.isBreak).length;
+
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
   const [teachers, setTeachers] = useState<Teacher[]>(defaultTeachers);
@@ -55,7 +70,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
   const days = Object.keys(timetable).length > 0 ? DAYS : [];
-  const periods = Object.keys(timetable).length > 0 ? Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1) : [];
+  const timeSlots = Object.keys(timetable).length > 0 ? TIME_SLOTS : [];
 
   const addTeacher = (name: string, subjects: Omit<Subject, "id">[]) => {
     const newTeacher: Teacher = {
@@ -107,11 +122,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     let placedCount = 0;
     for (const session of allSessions) {
         let placed = false;
-        for (const day of DAYS) {
-            for (let period = 0; period < PERIOD_COUNT; period++) {
+        // Find a random starting point to vary the schedule
+        const randomDayOffset = Math.floor(Math.random() * DAYS.length);
+        const randomPeriodOffset = Math.floor(Math.random() * PERIOD_COUNT);
+
+        for (let i = 0; i < DAYS.length; i++) {
+            const day = DAYS[(i + randomDayOffset) % DAYS.length];
+            for (let j = 0; j < PERIOD_COUNT; j++) {
+                const period = (j + randomPeriodOffset) % PERIOD_COUNT;
                 // Check if slot is empty AND teacher is available
-                if (!newTimetable[day][period] && !teacherAvailability[day][period].includes(session.teacher)) {
+                if (!newTimetable[day][period] && !teacherAvailability[day][period]?.includes(session.teacher)) {
                     newTimetable[day][period] = { ...session, id: crypto.randomUUID() };
+                    if (!teacherAvailability[day][period]) {
+                         teacherAvailability[day][period] = [];
+                    }
                     teacherAvailability[day][period].push(session.teacher);
                     placed = true;
                     placedCount++;
@@ -166,48 +190,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     if (Object.keys(timetable).length === 0) {
         setConflicts([]);
         return;
-    }
-
-    // Check for teacher conflicts (double booking)
-    for (const day of DAYS) {
-        for (let period = 0; period < PERIOD_COUNT; period++) {
-            const teachersInSlot: { [teacherName: string]: string[] } = {};
-            
-            const currentSession = timetable[day]?.[period];
-            if (currentSession) {
-                if (!teachersInSlot[currentSession.teacher]) {
-                    teachersInSlot[currentSession.teacher] = [];
-                }
-                teachersInSlot[currentSession.teacher].push(currentSession.id);
-            }
-
-            // This check is slightly inefficient as it re-checks slots, but it's simpler.
-            // A better way would be to iterate through all sessions once and build a teacher schedule map.
-             Object.values(timetable).flat().forEach(s => {
-                if(s && timetable[day][period] !== s && s.teacher === currentSession?.teacher) {
-                    let s_day: string | undefined;
-                    let s_period: number | undefined;
-
-                    for(const d of DAYS) {
-                        const p_idx = timetable[d].findIndex(p => p?.id === s.id);
-                        if (p_idx !== -1) {
-                            s_day = d;
-                            s_period = p_idx;
-                            break;
-                        }
-                    }
-
-                    if (s_day === day && s_period === period) {
-                         if (!newConflicts.some(c => c.id === s.id)) {
-                            newConflicts.push({ id: s.id, type: "teacher", message: `Teacher ${s.teacher} is double-booked.` });
-                         }
-                         if (currentSession && !newConflicts.some(c => c.id === currentSession.id)) {
-                            newConflicts.push({ id: currentSession.id, type: "teacher", message: `Teacher ${currentSession.teacher} is double-booked.` });
-                         }
-                    }
-                }
-             })
-        }
     }
     
     // Check conflicts after a move operation
@@ -275,7 +257,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         updateTeacher,
         timetable,
         days,
-        periods,
+        timeSlots,
         generateTimetable,
         moveSession,
         conflicts,
@@ -294,3 +276,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -6,11 +6,11 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import Header from "@/components/header";
 import TeacherEditor from "@/components/teacher-editor";
-import TimetableGrid from "@/components/timetable-grid";
+import ClientOnly from "./client-only";
+import TimetableGrid from "./timetable-grid";
 
 export default function AppLayout() {
   return (
@@ -38,7 +38,9 @@ export default function AppLayout() {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <TeacherEditor />
+          <ClientOnly>
+            <TeacherEditor />
+          </ClientOnly>
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col">

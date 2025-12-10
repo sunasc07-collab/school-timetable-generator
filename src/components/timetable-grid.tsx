@@ -11,13 +11,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TimetableItem from "./timetable-item";
-import type { TimetableDragData, TimetableSession } from "@/lib/types";
+import type { TimetableDragData, TimetableSession, Teacher } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Zap } from "lucide-react";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable } = useTimetable();
+  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode } = useTimetable();
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
     e.preventDefault();
@@ -39,8 +39,8 @@ export default function TimetableGrid() {
     }
   };
   
-  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, className?: string) => {
-     const relevantSessions = className ? sessions.filter(s => s.className === className) : sessions;
+  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterKey: 'className' | 'teacherName', filterValue: string) => {
+     const relevantSessions = sessions.filter(s => filterKey === 'className' ? s.className === filterValue : s.teacher === filterValue);
      
      if (relevantSessions.length > 0) {
       return (
@@ -88,6 +88,69 @@ export default function TimetableGrid() {
       </div>
     );
   }
+
+  const renderTimetableFor = (title: string, filterKey: 'className' | 'teacherName', filterValue: string) => (
+    <div key={filterValue}>
+        <h2 className="text-2xl font-bold font-headline mb-4">{title}</h2>
+        <div className="rounded-lg border w-full">
+        <Table>
+            <TableHeader>
+            <TableRow>
+                <TableHead className="w-28">Day</TableHead>
+                {timeSlots.map((slot, index) => (
+                <TableHead key={index} className="font-headline text-center">
+                    {slot.isBreak ? slot.label : (
+                        <>
+                            <div>{slot.time}</div>
+                            <div className="text-xs font-normal">Period {slot.period}</div>
+                        </>
+                    )}
+                </TableHead>
+                ))}
+            </TableRow>
+            </TableHeader>
+            <TableBody>
+            {days.map((day) => {
+                const rowCells = [];
+                let periodIndex = 0;
+                for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
+                    const slot = timeSlots[slotIndex];
+
+                    if (slot.isBreak) {
+                        rowCells.push(<TableCell key={`break-${slotIndex}`} className="bg-muted/50" />);
+                        continue;
+                    }
+                    
+                    const sessions = timetable[day]?.[periodIndex] || [];
+                    
+                    rowCells.push(
+                        <TableCell
+                            key={slotIndex}
+                            className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "hover:bg-muted/50 transition-colors")}
+                            onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
+                            onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
+                        >
+                            {!slot.isBreak && renderCellContent(sessions, day, periodIndex, filterKey, filterValue)}
+                        </TableCell>
+                    );
+
+                    periodIndex++;
+                }
+
+                return (
+                    <TableRow key={day}>
+                        <TableCell className="font-medium text-muted-foreground align-top pt-3">
+                            <div className="font-bold">{day}</div>
+                        </TableCell>
+                        {rowCells}
+                    </TableRow>
+                );
+            })}
+            </TableBody>
+        </Table>
+        </div>
+    </div>
+  );
   
   return (
     <div className="space-y-8">
@@ -97,68 +160,8 @@ export default function TimetableGrid() {
                 Re-generate Timetable
             </Button>
         </div>
-      {classes.map(className => (
-        <div key={className}>
-            <h2 className="text-2xl font-bold font-headline mb-4">{className}'s Timetable</h2>
-            <div className="rounded-lg border w-full">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead className="w-28">Day</TableHead>
-                    {timeSlots.map((slot, index) => (
-                    <TableHead key={index} className="font-headline text-center">
-                        {slot.isBreak ? slot.label : (
-                            <>
-                                <div>{slot.time}</div>
-                                <div className="text-xs font-normal">Period {slot.period}</div>
-                            </>
-                        )}
-                    </TableHead>
-                    ))}
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {days.map((day) => {
-                    const rowCells = [];
-                    let periodIndex = 0;
-                    for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
-                        const slot = timeSlots[slotIndex];
-
-                        if (slot.isBreak) {
-                            rowCells.push(<TableCell key={`break-${slotIndex}`} className="bg-muted/50" />);
-                            continue;
-                        }
-                        
-                        const sessions = timetable[day]?.[periodIndex] || [];
-                        
-                        rowCells.push(
-                            <TableCell
-                                key={slotIndex}
-                                className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "hover:bg-muted/50 transition-colors")}
-                                onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
-                                onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
-                            >
-                                {!slot.isBreak && renderCellContent(sessions, day, periodIndex, className)}
-                            </TableCell>
-                        );
-
-                        periodIndex++;
-                    }
-
-                    return (
-                        <TableRow key={day}>
-                            <TableCell className="font-medium text-muted-foreground align-top pt-3">
-                                <div className="font-bold">{day}</div>
-                            </TableCell>
-                            {rowCells}
-                        </TableRow>
-                    );
-                })}
-                </TableBody>
-            </Table>
-            </div>
-        </div>
-      ))}
+        {viewMode === 'class' && classes.map(className => renderTimetableFor(`${className}'s Timetable`, 'className', className))}
+        {viewMode === 'teacher' && teachers.map(teacher => renderTimetableFor(`${teacher.name}'s Timetable`, 'teacherName', teacher.name))}
     </div>
   );
 }

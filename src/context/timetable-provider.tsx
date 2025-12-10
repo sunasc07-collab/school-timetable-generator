@@ -4,6 +4,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, TimetableSlot } from "@/lib/types";
 
+type ViewMode = 'class' | 'teacher';
+
 type TimetableContextType = {
   teachers: Teacher[];
   addTeacher: (name: string, subjects: Omit<Subject, "id">[]) => void;
@@ -17,6 +19,8 @@ type TimetableContextType = {
   moveSession: (session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
   conflicts: Conflict[];
   isConflict: (sessionId: string) => boolean;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
 };
 
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
@@ -46,6 +50,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [timetable, setTimetable] = useState<TimetableData>({});
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('class');
 
   const generateTimetable = useCallback(() => {
     const newTimetable: TimetableData = {};
@@ -97,32 +102,36 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
     
     allSessions.sort(() => Math.random() - 0.5);
-
-    let sessionIndex = 0;
-    for (const day of DAYS) {
-        for (let period = 0; period < PERIOD_COUNT; period++) {
-            if(sessionIndex < allSessions.length) {
-                newTimetable[day][period].push(allSessions[sessionIndex]);
-                sessionIndex++;
-            } else {
-                break;
-            }
-        }
-        if (sessionIndex >= allSessions.length) {
-            break;
-        }
-    }
     
-    let dayIndex = 0;
-    let periodIndex = 0;
-    while(sessionIndex < allSessions.length) {
-        newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
-        sessionIndex++;
-        periodIndex++;
-        if (periodIndex >= PERIOD_COUNT) {
-            periodIndex = 0;
-            dayIndex = (dayIndex + 1) % DAYS.length;
+    let sessionIndex = 0;
+    for (const session of allSessions) {
+      let placed = false;
+      while (!placed) {
+        for (const day of DAYS) {
+          for (let period = 0; period < PERIOD_COUNT; period++) {
+            if (newTimetable[day][period].length === 0) { // simplistic check, can be improved
+              newTimetable[day][period].push(session);
+              placed = true;
+              break;
+            }
+          }
+          if (placed) break;
         }
+        if (!placed) { // If all slots are full, start doubling up
+            let dayIndex = 0;
+            let periodIndex = 0;
+            while(sessionIndex < allSessions.length) {
+                newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
+                sessionIndex++;
+                periodIndex++;
+                if (periodIndex >= PERIOD_COUNT) {
+                    periodIndex = 0;
+                    dayIndex = (dayIndex + 1) % DAYS.length;
+                }
+            }
+            break; 
+        }
+      }
     }
     
     setClasses(Array.from(classSet).sort());
@@ -247,6 +256,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         moveSession,
         conflicts,
         isConflict,
+        viewMode,
+        setViewMode,
       }}
     >
       {children}

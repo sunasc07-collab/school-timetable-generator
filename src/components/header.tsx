@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, View } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import {
@@ -12,10 +12,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const { classes, timetable, timeSlots, days, teachers } = useTimetable();
+  const { classes, timetable, timeSlots, days, teachers, viewMode, setViewMode } = useTimetable();
   
   const handlePrint = () => {
     window.print();
@@ -28,7 +32,10 @@ export default function Header() {
 
     classes.forEach((className, classIndex) => {
       if (classIndex > 0) {
-          startY = (doc as any).lastAutoTable.finalY + 15;
+          const lastTable = (doc as any).lastAutoTable;
+          if (lastTable) {
+            startY = lastTable.finalY + 15;
+          }
           if (startY > 180) { // Check if new page is needed
               doc.addPage();
               startY = 20;
@@ -101,7 +108,10 @@ export default function Header() {
 
     teachers.forEach((teacher, teacherIndex) => {
       if (teacherIndex > 0) {
-          startY = (doc as any).lastAutoTable.finalY + 15;
+           const lastTable = (doc as any).lastAutoTable;
+          if (lastTable) {
+            startY = lastTable.finalY + 15;
+          }
           if (startY > 180) { // Check if new page is needed
               doc.addPage();
               startY = 20;
@@ -175,6 +185,23 @@ export default function Header() {
         </h1>
       </div>
       <div className="ml-auto flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <View className="mr-2 h-4 w-4" />
+              View
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Timetable View</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as 'class' | 'teacher')}>
+              <DropdownMenuRadioItem value="class">By Class</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="teacher">By Teacher</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button onClick={handlePrint} variant="outline">
           <Printer className="mr-2 h-4 w-4" />
           Print

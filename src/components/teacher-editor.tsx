@@ -47,7 +47,7 @@ import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, Check, ChevronsUpDown } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher, Subject, ClassAssignment } from "@/lib/types";
+import type { Teacher, Subject } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const classAssignmentSchema = z.object({
@@ -229,6 +229,7 @@ export default function TeacherEditor() {
   function onSubmit(data: TeacherFormValues) {
     const finalData = {
         ...data,
+        id: editingTeacher?.id,
         subjects: data.subjects.map(s => ({
             ...s,
             id: s.id || crypto.randomUUID(),
@@ -403,13 +404,13 @@ function MultiSelect({ options, selected, onChange, placeholder, singleSelect }:
 
     const handleSelect = (value: string) => {
         if (singleSelect) {
-            onChange(selected[0] === value ? [] : [value]);
+            onChange(selected && selected[0] === value ? [] : [value]);
             setOpen(false);
             return;
         }
-        const newSelected = selected.includes(value)
+        const newSelected = selected?.includes(value)
             ? selected.filter(item => item !== value)
-            : [...selected, value];
+            : [...(selected || []), value];
         onChange(newSelected);
     }
     

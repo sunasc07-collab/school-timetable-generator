@@ -74,20 +74,9 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const ARM_OPTIONS = ["A", "B", "C"];
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 
-const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemove }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemove: boolean }) => {
+const AssignmentForm = ({ subjectIndex, assignmentIndex, control }: { subjectIndex: number, assignmentIndex: number, control: any }) => {
     return (
         <div className="p-3 border rounded-md bg-background/50 relative space-y-3">
-             <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={removeAssignment}
-                disabled={!canRemove}
-                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive"
-              >
-                <Minus className="h-4 w-4" />
-            </Button>
-            
             <FormField
                 control={control}
                 name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
@@ -129,7 +118,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
 
 
 const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean }) => {
-    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment } = useFieldArray({
+    const { fields: assignmentFields } = useFieldArray({
         control,
         name: `subjects.${subjectIndex}.assignments`,
     });
@@ -167,20 +156,8 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                         subjectIndex={subjectIndex}
                         assignmentIndex={index}
                         control={control}
-                        removeAssignment={() => removeAssignment(index)}
-                        canRemove={assignmentFields.length > 1}
                     />
                 ))}
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => appendAssignment({ grades: [], arms: [], periods: 1 })}
-                >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Assignment
-                </Button>
             </div>
         </div>
     )

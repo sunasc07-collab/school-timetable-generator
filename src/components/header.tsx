@@ -9,7 +9,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 
 export default function Header() {
-  const { teachers, timetable, timeSlots, days } = useTimetable();
+  const { classes, timetable, timeSlots, days } = useTimetable();
   
   const handlePrint = () => {
     window.print();
@@ -20,15 +20,15 @@ export default function Header() {
     doc.text("School Timetable", 14, 10);
     let startY = 20;
 
-    teachers.forEach((teacher, teacherIndex) => {
-      if (teacherIndex > 0) {
+    classes.forEach((className, classIndex) => {
+      if (classIndex > 0) {
           startY = (doc as any).lastAutoTable.finalY + 15;
           if (startY > 180) { // Check if new page is needed
               doc.addPage();
               startY = 20;
           }
       }
-      doc.text(teacher.name, 14, startY - 5);
+      doc.text(className, 14, startY - 5);
 
       const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
 
@@ -37,23 +37,20 @@ export default function Header() {
 
       days.forEach(day => {
           const row: (string | null)[] = [day];
-          const teacherSessionsForDay = (timetable[day] || []).map((session, period) => ({ session, period }))
-            .filter(({session}) => session?.teacher === teacher.name);
+          let periodIndex = 0;
           
-          let periodSlots = new Array(periodCount).fill(null);
-          teacherSessionsForDay.forEach(({ session, period }) => {
-            if (session && period < periodCount) {
-              periodSlots[period] = `${session.subject}\n${session.className}`;
-            }
-          });
-
-          let sessionIndex = 0;
           timeSlots.forEach(slot => {
             if (slot.isBreak) {
               row.push(null);
             } else {
-              row.push(periodSlots[sessionIndex] || "");
-              sessionIndex++;
+              const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+              const classSession = sessionsInSlot.find(s => s.className === className);
+              if (classSession) {
+                row.push(`${classSession.subject}\n${classSession.teacher}`);
+              } else {
+                row.push("");
+              }
+              periodIndex++;
             }
           });
           body.push(row);

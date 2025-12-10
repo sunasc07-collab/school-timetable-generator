@@ -10,6 +10,7 @@ type TimetableContextType = {
   removeTeacher: (id: string) => void;
   updateTeacher: (id: string, name: string, subjects: Subject[]) => void;
   timetable: TimetableData;
+  classes: string[];
   days: string[];
   timeSlots: TimeSlot[];
   generateTimetable: () => void;
@@ -44,88 +45,89 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [teachers, setTeachers] = useState<Teacher[]>(defaultTeachers);
   const [timetable, setTimetable] = useState<TimetableData>({});
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
 
-   const generateTimetable = useCallback(() => {
-    setTeachers(currentTeachers => {
-        const newTimetable: TimetableData = {};
-        for (const day of DAYS) {
-            newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
-        }
+  const generateTimetable = useCallback(() => {
+    const newTimetable: TimetableData = {};
+    for (const day of DAYS) {
+        newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
+    }
 
-        const allSessions: TimetableSession[] = [];
-        currentTeachers.forEach(teacher => {
-            teacher.subjects.forEach(subject => {
-                subject.assignments.forEach(assignment => {
-                  if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+    const allSessions: TimetableSession[] = [];
+    const classSet = new Set<string>();
 
-                  if (assignment.groupArms) {
-                    assignment.grades.forEach(grade => {
-                        const className = `${grade} ${assignment.arms.join(', ')}`;
-                        for (let i = 0; i < assignment.periods; i++) {
-                            allSessions.push({
-                                id: crypto.randomUUID(),
-                                subject: subject.name,
-                                teacher: teacher.name,
-                                className: className,
-                                isDouble: false,
-                            });
-                        }
-                    });
-                  } else {
-                      assignment.grades.forEach(grade => {
-                          assignment.arms.forEach(arm => {
-                              const className = `${grade} ${arm}`;
-                              for (let j = 0; j < assignment.periods; j++) {
-                                  allSessions.push({
-                                      id: crypto.randomUUID(),
-                                      subject: subject.name,
-                                      teacher: teacher.name,
-                                      className: className,
-                                      isDouble: false,
-                                  });
-                              }
-                          });
-                      });
-                  }
+    teachers.forEach(teacher => {
+        teacher.subjects.forEach(subject => {
+            subject.assignments.forEach(assignment => {
+              if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+
+              if (assignment.groupArms) {
+                assignment.grades.forEach(grade => {
+                    const className = `${grade} ${assignment.arms.join(', ')}`;
+                    classSet.add(className);
+                    for (let i = 0; i < assignment.periods; i++) {
+                        allSessions.push({
+                            id: crypto.randomUUID(),
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: className,
+                            isDouble: false,
+                        });
+                    }
                 });
+              } else {
+                  assignment.grades.forEach(grade => {
+                      assignment.arms.forEach(arm => {
+                          const className = `${grade} ${arm}`;
+                          classSet.add(className);
+                          for (let j = 0; j < assignment.periods; j++) {
+                              allSessions.push({
+                                  id: crypto.randomUUID(),
+                                  subject: subject.name,
+                                  teacher: teacher.name,
+                                  className: className,
+                                  isDouble: false,
+                              });
+                          }
+                      });
+                  });
+              }
             });
         });
-        
-        allSessions.sort(() => Math.random() - 0.5);
+    });
+    
+    allSessions.sort(() => Math.random() - 0.5);
 
-        let sessionIndex = 0;
-        for (const day of DAYS) {
-            for (let period = 0; period < PERIOD_COUNT; period++) {
-                if(sessionIndex < allSessions.length) {
-                    newTimetable[day][period].push(allSessions[sessionIndex]);
-                    sessionIndex++;
-                } else {
-                    break;
-                }
-            }
-            if (sessionIndex >= allSessions.length) {
+    let sessionIndex = 0;
+    for (const day of DAYS) {
+        for (let period = 0; period < PERIOD_COUNT; period++) {
+            if(sessionIndex < allSessions.length) {
+                newTimetable[day][period].push(allSessions[sessionIndex]);
+                sessionIndex++;
+            } else {
                 break;
             }
         }
-        
-        // If there are still sessions left (unlikely with this logic, but for safety)
-        // distribute remaining sessions, one per slot
-        let dayIndex = 0;
-        let periodIndex = 0;
-        while(sessionIndex < allSessions.length) {
-            newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
-            sessionIndex++;
-            periodIndex++;
-            if (periodIndex >= PERIOD_COUNT) {
-                periodIndex = 0;
-                dayIndex = (dayIndex + 1) % DAYS.length;
-            }
+        if (sessionIndex >= allSessions.length) {
+            break;
         }
-        
-        setTimetable(newTimetable);
-        return currentTeachers; 
-    });
-  }, []);
+    }
+    
+    let dayIndex = 0;
+    let periodIndex = 0;
+    while(sessionIndex < allSessions.length) {
+        newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
+        sessionIndex++;
+        periodIndex++;
+        if (periodIndex >= PERIOD_COUNT) {
+            periodIndex = 0;
+            dayIndex = (dayIndex + 1) % DAYS.length;
+        }
+    }
+    
+    setClasses(Array.from(classSet).sort());
+    setTimetable(newTimetable);
+  }, [teachers]);
 
 
   const days = Object.keys(timetable).length > 0 ? DAYS : [];
@@ -149,10 +151,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const removeTeacher = (id: string) => {
     setTeachers((prev) => prev.filter((teacher) => teacher.id !== id));
+    setTimetable({});
+    setClasses([]);
   };
   
   const updateTeacher = (id: string, name: string, subjects: Subject[]) => {
     setTeachers(prev => prev.map(t => t.id === id ? { id, name, subjects } : t));
+    setTimetable({});
+    setClasses([]);
   };
   
   const moveSession = (
@@ -163,22 +169,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setTimetable(prev => {
         const newTimetable = JSON.parse(JSON.stringify(prev));
         
-        // Find and remove the session from its original slot
-        let found = false;
-        for (const day of DAYS) {
-            for (let p = 0; p < PERIOD_COUNT; p++) {
-                const index = (newTimetable[day][p] as TimetableSlot).findIndex(s => s.id === session.id);
-                if (index !== -1) {
-                    newTimetable[day][p].splice(index, 1);
-                    found = true;
-                    break;
-                }
+        const fromSlot = newTimetable[from.day]?.[from.period];
+        if (fromSlot) {
+            const sessionIndex = fromSlot.findIndex((s: TimetableSession) => s.id === session.id);
+            if (sessionIndex > -1) {
+                fromSlot.splice(sessionIndex, 1);
             }
-            if (found) break;
         }
 
-        // Add the session to the new slot
-        newTimetable[to.day][to.period].push(session);
+        const toSlot = newTimetable[to.day]?.[to.period];
+        if (toSlot) {
+            toSlot.push(session);
+        }
 
         return newTimetable;
     });
@@ -201,9 +203,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const classesInSlot = new Set<string>();
         
         for (const session of slotSessions) {
-            // Check for teacher conflict
             if (teachersInSlot.has(session.teacher)) {
-                // Find all sessions with this teacher in this slot and mark them
                 slotSessions.forEach(s => {
                     if (s.teacher === session.teacher) {
                         identifiedConflicts.set(s.id, { id: s.id, type: 'teacher', message: `Teacher ${s.teacher} is double-booked.` });
@@ -212,9 +212,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
             teachersInSlot.add(session.teacher);
 
-            // Check for class conflict
             if (classesInSlot.has(session.className)) {
-                // Find all sessions with this class in this slot and mark them
                 slotSessions.forEach(s => {
                     if (s.className === session.className) {
                         identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} is double-booked.` });
@@ -242,6 +240,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         removeTeacher,
         updateTeacher,
         timetable,
+        classes,
         days,
         timeSlots,
         generateTimetable,

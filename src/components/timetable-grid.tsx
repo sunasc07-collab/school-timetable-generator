@@ -17,7 +17,7 @@ import { Button } from "./ui/button";
 import { Zap } from "lucide-react";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict, teachers, generateTimetable } = useTimetable();
+  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable } = useTimetable();
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
     e.preventDefault();
@@ -39,8 +39,8 @@ export default function TimetableGrid() {
     }
   };
   
-  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, teacherName?: string) => {
-     const relevantSessions = teacherName ? sessions.filter(s => s.teacher === teacherName) : sessions;
+  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, className?: string) => {
+     const relevantSessions = className ? sessions.filter(s => s.className === className) : sessions;
      
      if (relevantSessions.length > 0) {
       return (
@@ -97,9 +97,9 @@ export default function TimetableGrid() {
                 Re-generate Timetable
             </Button>
         </div>
-      {teachers.map(teacher => (
-        <div key={teacher.id}>
-            <h2 className="text-2xl font-bold font-headline mb-4">{teacher.name}'s Timetable</h2>
+      {classes.map(className => (
+        <div key={className}>
+            <h2 className="text-2xl font-bold font-headline mb-4">{className}'s Timetable</h2>
             <div className="rounded-lg border w-full">
             <Table>
                 <TableHeader>
@@ -138,7 +138,7 @@ export default function TimetableGrid() {
                                 onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                                 onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
                             >
-                                {!slot.isBreak && renderCellContent(sessions, day, periodIndex, teacher.name)}
+                                {!slot.isBreak && renderCellContent(sessions, day, periodIndex, className)}
                             </TableCell>
                         );
 

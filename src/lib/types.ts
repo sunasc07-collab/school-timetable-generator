@@ -56,5 +56,3 @@ export type TimeSlot = {
   isBreak?: boolean;
   label?: string;
 };
-
-    

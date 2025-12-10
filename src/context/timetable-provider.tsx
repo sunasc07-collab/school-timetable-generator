@@ -55,10 +55,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
-                assignment.grades.forEach(grade => {
-                    if (assignment.groupArms) {
-                        const className = `${grade} ${assignment.arms.join(', ')}`;
-                        for (let i = 0; i < assignment.periods; i++) {
+              const processAssignment = (grade: string, arms: string[], periods: number, group: boolean) => {
+                if (group) {
+                    const className = `${grade} ${arms.join(', ')}`;
+                    for (let i = 0; i < periods; i++) {
+                        allSessions.push({
+                            id: crypto.randomUUID(),
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: className,
+                            isDouble: false,
+                        });
+                    }
+                } else {
+                    arms.forEach(arm => {
+                        const className = `${grade} ${arm}`;
+                        for (let i = 0; i < periods; i++) {
                             allSessions.push({
                                 id: crypto.randomUUID(),
                                 subject: subject.name,
@@ -67,21 +79,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                                 isDouble: false,
                             });
                         }
-                    } else {
-                        assignment.arms.forEach(arm => {
-                            const className = `${grade} ${arm}`;
-                            for (let i = 0; i < assignment.periods; i++) {
-                                allSessions.push({
-                                    id: crypto.randomUUID(),
-                                    subject: subject.name,
-                                    teacher: teacher.name,
-                                    className: className,
-                                    isDouble: false,
-                                });
-                            }
-                        });
-                    }
-                });
+                    });
+                }
+              };
+
+              assignment.grades.forEach(grade => {
+                processAssignment(grade, assignment.arms, assignment.periods, assignment.groupArms);
+              });
             });
         });
     });

@@ -46,82 +46,79 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
   const generateTimetable = useCallback(() => {
-    const newTimetable: TimetableData = {};
-    for (const day of DAYS) {
-        newTimetable[day] = new Array(PERIOD_COUNT).fill(null);
-    }
+    setTeachers(currentTeachers => {
+        const newTimetable: TimetableData = {};
+        for (const day of DAYS) {
+            newTimetable[day] = new Array(PERIOD_COUNT).fill(null);
+        }
 
-    const allSessions: TimetableSession[] = [];
-    teachers.forEach(teacher => {
-        teacher.subjects.forEach(subject => {
-            subject.assignments.forEach(assignment => {
-              if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+        const allSessions: TimetableSession[] = [];
+        currentTeachers.forEach(teacher => {
+            teacher.subjects.forEach(subject => {
+                subject.assignments.forEach(assignment => {
+                  if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
 
-              if (assignment.groupArms) {
-                // Grouped Arms: Create one set of sessions for all grades and arms combined.
-                assignment.grades.forEach(grade => {
-                    const className = `${grade} ${assignment.arms.join(', ')}`;
-                    for (let i = 0; i < assignment.periods; i++) {
-                        allSessions.push({
-                            id: crypto.randomUUID(),
-                            subject: subject.name,
-                            teacher: teacher.name,
-                            className: className,
-                            isDouble: false,
-                        });
-                    }
-                });
-              } else {
-                 // Individual Arms: Create sessions for each grade and arm pair separately.
-                  assignment.grades.forEach(grade => {
-                      assignment.arms.forEach(arm => {
-                          const className = `${grade} ${arm}`;
-                          for (let j = 0; j < assignment.periods; j++) {
-                              allSessions.push({
-                                  id: crypto.randomUUID(),
-                                  subject: subject.name,
-                                  teacher: teacher.name,
-                                  className: className,
-                                  isDouble: false,
-                              });
-                          }
+                  if (assignment.groupArms) {
+                    assignment.grades.forEach(grade => {
+                        const className = `${grade} ${assignment.arms.join(', ')}`;
+                        for (let i = 0; i < assignment.periods; i++) {
+                            allSessions.push({
+                                id: crypto.randomUUID(),
+                                subject: subject.name,
+                                teacher: teacher.name,
+                                className: className,
+                                isDouble: false,
+                            });
+                        }
+                    });
+                  } else {
+                      assignment.grades.forEach(grade => {
+                          assignment.arms.forEach(arm => {
+                              const className = `${grade} ${arm}`;
+                              for (let j = 0; j < assignment.periods; j++) {
+                                  allSessions.push({
+                                      id: crypto.randomUUID(),
+                                      subject: subject.name,
+                                      teacher: teacher.name,
+                                      className: className,
+                                      isDouble: false,
+                                  });
+                              }
+                          });
                       });
-                  });
-              }
+                  }
+                });
             });
         });
-    });
-
-    // Shuffle sessions for random placement
-    allSessions.sort(() => Math.random() - 0.5);
-
-    for (const session of allSessions) {
-        let placed = false;
         
-        // Fallback: Find the very first empty slot.
-        // Conflicts will be flagged later.
-        for (const day of DAYS) {
-            for(let period = 0; period < PERIOD_COUNT; period++) {
-                if(!newTimetable[day][period]) {
-                    newTimetable[day][period] = session;
-                    placed = true;
-                    break;
-                }
-            }
-            if (placed) break;
-        }
-    }
+        allSessions.sort(() => Math.random() - 0.5);
 
-    setTimetable(newTimetable);
-  }, [teachers]);
+        for (const session of allSessions) {
+            let placed = false;
+            for (const day of DAYS) {
+                for(let period = 0; period < PERIOD_COUNT; period++) {
+                    if(!newTimetable[day][period]) {
+                        newTimetable[day][period] = session;
+                        placed = true;
+                        break;
+                    }
+                }
+                if (placed) break;
+            }
+        }
+        
+        setTimetable(newTimetable);
+
+        // This is important to trigger re-render if teachers state is what generateTimetable depends on
+        return currentTeachers; 
+    });
+  }, []); // No dependencies, it will get the current `teachers` from the `setTeachers` updater function.
 
 
   useEffect(() => {
-    // Auto-generate timetable when teachers change and there are teachers
     if (teachers.length > 0) {
       generateTimetable();
     } else {
-      // Clear timetable if there are no teachers
       setTimetable({});
     }
   }, [teachers, generateTimetable]);
@@ -277,5 +274,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

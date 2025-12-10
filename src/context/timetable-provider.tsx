@@ -93,18 +93,32 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         
         allSessions.sort(() => Math.random() - 0.5);
 
-        for (const session of allSessions) {
-            let placed = false;
-            // Try to place randomly first
-            const shuffledDays = DAYS.sort(() => Math.random() - 0.5);
-            for (const day of shuffledDays) {
-                const shuffledPeriods = Array.from({length: PERIOD_COUNT}, (_, i) => i).sort(() => Math.random() - 0.5);
-                for(const period of shuffledPeriods) {
-                    newTimetable[day][period].push(session);
-                    placed = true;
+        let sessionIndex = 0;
+        for (const day of DAYS) {
+            for (let period = 0; period < PERIOD_COUNT; period++) {
+                if(sessionIndex < allSessions.length) {
+                    newTimetable[day][period].push(allSessions[sessionIndex]);
+                    sessionIndex++;
+                } else {
                     break;
                 }
-                if (placed) break;
+            }
+            if (sessionIndex >= allSessions.length) {
+                break;
+            }
+        }
+        
+        // If there are still sessions left (unlikely with this logic, but for safety)
+        // distribute remaining sessions, one per slot
+        let dayIndex = 0;
+        let periodIndex = 0;
+        while(sessionIndex < allSessions.length) {
+            newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
+            sessionIndex++;
+            periodIndex++;
+            if (periodIndex >= PERIOD_COUNT) {
+                periodIndex = 0;
+                dayIndex = (dayIndex + 1) % DAYS.length;
             }
         }
         

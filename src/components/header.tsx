@@ -47,58 +47,91 @@ export default function Header() {
 
   const handleDownloadPdf = () => {
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.text("School Timetable", 14, 16);
+    doc.text("School Timetable", 14, 10);
+    let startY = 20;
 
-    const head = [["Time", ...days]];
-    const body: (string | null)[][] = [];
-
-    timeSlots.forEach((slot) => {
-      const row: (string | null)[] = [];
-      if (slot.isBreak) {
-        row.push(slot.time);
-        row.push({
-          content: slot.label || "Break",
-          colSpan: days.length,
-          styles: { halign: "center", fontStyle: "bold", fillColor: [230, 230, 230] },
-        });
-        // This is a bit of a hack to make the colSpan work with autotable
-        for (let i = 1; i < days.length; i++) {
-          row.push(null);
-        }
-      } else {
-        row.push(`${slot.time}\nPeriod ${slot.period}`);
-        const periodIndex = timeSlots.filter(s => !s.isBreak && s.period! <= slot.period!).length - 1;
-        days.forEach(day => {
-          const session = timetable[day]?.[periodIndex];
-          if (session) {
-            row.push(`${session.subject}\n(${session.teacher})`);
-          } else {
-            row.push("");
+    teachers.forEach((teacher, teacherIndex) => {
+      if (teacherIndex > 0) {
+          startY = (doc as any).lastAutoTable.finalY + 15;
+          if (startY > 180) { // Check if new page is needed
+              doc.addPage();
+              startY = 20;
           }
-        });
       }
-      body.push(row.filter(c => c !== null));
+      doc.text(teacher.name, 14, startY - 5);
+
+      const head = [["Day", ...timeSlots.map(slot => {
+          if (slot.isBreak) return slot.label || "Break";
+          return `${slot.time}\nPeriod ${slot.period}`
+      })]];
+
+      const body: (string | null)[][] = [];
+
+      days.forEach(day => {
+          const row: (string | null)[] = [day];
+          const periods = timetable[day] || [];
+          
+          let periodIndex = 0;
+          timeSlots.forEach(slot => {
+            if (slot.isBreak) {
+              row.push(""); // Empty cell for break
+              return;
+            }
+
+            const session = periods[periodIndex];
+            if (session && session.teacher === teacher.name) {
+              row.push(session.subject);
+            } else {
+              // Look for any session at that slot to respect potential swaps,
+              // but only show it if it belongs to the current teacher.
+              let found = false;
+              for(const t of teachers) {
+                  const s = (timetable[day] || [])[periodIndex];
+                  if(s && s.teacher === t.name && s.teacher === teacher.name) {
+                      row.push(s.subject);
+                      found = true;
+                      break;
+                  }
+              }
+              if(!found) row.push("");
+            }
+            periodIndex++;
+          });
+          body.push(row);
+      });
+      
+       const timeSlotCount = timeSlots.length;
+       const columnStyles: { [key: number]: any } = {};
+       timeSlots.forEach((slot, index) => {
+         if (slot.isBreak) {
+           columnStyles[index + 1] = {
+             fillColor: [230, 230, 230]
+           };
+         }
+       });
+
+      (doc as any).autoTable({
+        head: head,
+        body: body,
+        startY: startY,
+        theme: "grid",
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          valign: "middle",
+          halign: "center",
+        },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        columnStyles: columnStyles,
+      });
+
     });
 
-    (doc as any).autoTable({
-      head: head,
-      body: body,
-      startY: 20,
-      theme: "grid",
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        valign: "middle",
-        halign: "center",
-      },
-      headStyles: {
-        fillColor: [41, 128, 185],
-        textColor: 255,
-        fontStyle: "bold",
-      },
-    });
-
-    doc.save("timetable.pdf");
+    doc.save("timetables.pdf");
   };
 
 
@@ -131,5 +164,3 @@ export default function Header() {
     </header>
   );
 }
-
-    

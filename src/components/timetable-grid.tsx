@@ -14,7 +14,7 @@ import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict } = useTimetable();
+  const { timetable, days, timeSlots, moveSession, isConflict, teachers } = useTimetable();
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
     e.preventDefault();
@@ -32,6 +32,14 @@ export default function TimetableGrid() {
     moveSession(data.session, data.from, { day, period });
   };
   
+  const getSessionForTeacher = (teacherName: string, day: string, periodIndex: number): TimetableSession | null => {
+      const session = timetable[day]?.[periodIndex];
+      if (session && session.teacher === teacherName) {
+          return session;
+      }
+      return null;
+  }
+
   const renderCellContent = (session: TimetableSession | null, day: string, period: number) => {
      if (session) {
       return (
@@ -59,59 +67,60 @@ export default function TimetableGrid() {
   }
 
   return (
-    <div className="rounded-lg border w-full">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-32">Time</TableHead>
-            {days.map((day) => (
-              <TableHead key={day} className="font-headline">{day}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {timeSlots.map((slot, index) => {
-            if (slot.isBreak) {
-              return (
-                <TableRow key={`break-${index}`}>
-                  <TableCell className="font-medium text-muted-foreground">
-                    {slot.time}
-                  </TableCell>
-                  <TableCell
-                    colSpan={days.length}
-                    className="text-center font-semibold bg-muted/50 text-muted-foreground"
-                  >
-                    {slot.label}
-                  </TableCell>
-                </TableRow>
-              );
-            }
-            // We need to map the slot index to the timetable data index, accounting for breaks
-            const periodIndex = timeSlots.slice(0, index + 1).filter(s => !s.isBreak).length - 1;
+    <div className="space-y-8">
+        {teachers.map(teacher => (
+             <div key={teacher.id}>
+                <h2 className="text-2xl font-bold font-headline mb-4">{teacher.name}</h2>
+                <div className="rounded-lg border w-full">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-28">Day</TableHead>
+                        {timeSlots.map((slot, index) => (
+                        <TableHead key={index} className="font-headline text-center">
+                            {slot.isBreak ? slot.label : (
+                                <>
+                                    <div>{slot.time}</div>
+                                    <div className="text-xs font-normal">Period {slot.period}</div>
+                                </>
+                            )}
+                        </TableHead>
+                        ))}
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {days.map((day) => {
+                        return (
+                        <TableRow key={day}>
+                            <TableCell className="font-medium text-muted-foreground align-top pt-3">
+                                <div className="font-bold">{day}</div>
+                            </TableCell>
+                            {timeSlots.map((slot, slotIndex) => {
+                                if (slot.isBreak) {
+                                    return <TableCell key={slotIndex} className="bg-muted/50" />
+                                }
+                                const periodIndex = timeSlots.slice(0, slotIndex + 1).filter(s => !s.isBreak).length - 1;
+                                const session = getSessionForTeacher(teacher.name, day, periodIndex);
 
-            return (
-              <TableRow key={slot.period}>
-                <TableCell className="font-medium text-muted-foreground align-top pt-3">
-                   <div className="font-bold">{slot.time}</div>
-                   <div className="text-xs">Period {slot.period}</div>
-                </TableCell>
-                {days.map((day) => (
-                  <TableCell
-                    key={day}
-                    className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "")}
-                    onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
-                    onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
-                  >
-                    {!slot.isBreak && renderCellContent(timetable[day]?.[periodIndex], day, periodIndex)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                                return (
+                                <TableCell
+                                    key={slotIndex}
+                                    className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "")}
+                                    onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
+                                    onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
+                                >
+                                    {!slot.isBreak && renderCellContent(session, day, periodIndex)}
+                                </TableCell>
+                                );
+                            })}
+                        </TableRow>
+                        );
+                    })}
+                    </TableBody>
+                </Table>
+                </div>
+            </div>
+        ))}
     </div>
   );
 }
-
-    

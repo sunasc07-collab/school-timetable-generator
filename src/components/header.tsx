@@ -7,17 +7,23 @@ import { useTimetable } from "@/context/timetable-provider";
 import { Download, Printer } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const { classes, timetable, timeSlots, days } = useTimetable();
+  const { classes, timetable, timeSlots, days, teachers } = useTimetable();
   
   const handlePrint = () => {
     window.print();
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadClassPdf = () => {
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.text("School Timetable", 14, 10);
+    doc.text("School Timetable - By Class", 14, 10);
     let startY = 20;
 
     classes.forEach((className, classIndex) => {
@@ -33,8 +39,7 @@ export default function Header() {
       const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
 
       const body: (string | null)[][] = [];
-      const periodCount = timeSlots.filter(s => !s.isBreak).length;
-
+      
       days.forEach(day => {
           const row: (string | null)[] = [day];
           let periodIndex = 0;
@@ -86,7 +91,78 @@ export default function Header() {
 
     });
 
-    doc.save("timetables.pdf");
+    doc.save("class-timetables.pdf");
+  };
+
+  const handleDownloadTeacherPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.text("School Timetable - By Teacher", 14, 10);
+    let startY = 20;
+
+    teachers.forEach((teacher, teacherIndex) => {
+      if (teacherIndex > 0) {
+          startY = (doc as any).lastAutoTable.finalY + 15;
+          if (startY > 180) { // Check if new page is needed
+              doc.addPage();
+              startY = 20;
+          }
+      }
+      doc.text(teacher.name, 14, startY - 5);
+
+      const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
+      const body: (string | null)[][] = [];
+      
+      days.forEach(day => {
+          const row: (string | null)[] = [day];
+          let periodIndex = 0;
+          
+          timeSlots.forEach(slot => {
+            if (slot.isBreak) {
+              row.push(null);
+            } else {
+              const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+              const teacherSession = sessionsInSlot.find(s => s.teacher === teacher.name);
+              if (teacherSession) {
+                row.push(`${teacherSession.subject}\n${teacherSession.className}`);
+              } else {
+                row.push("");
+              }
+              periodIndex++;
+            }
+          });
+          body.push(row);
+      });
+      
+      const columnStyles: { [key: number]: any } = {};
+      timeSlots.forEach((slot, index) => {
+        if (slot.isBreak) {
+          columnStyles[index + 1] = {
+            fillColor: [230, 230, 230]
+          };
+        }
+      });
+
+      (doc as any).autoTable({
+        head: head,
+        body: body,
+        startY: startY,
+        theme: "grid",
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          valign: "middle",
+          halign: "center",
+        },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        columnStyles: columnStyles,
+      });
+    });
+
+    doc.save("teacher-timetables.pdf");
   };
 
 
@@ -103,10 +179,22 @@ export default function Header() {
           <Printer className="mr-2 h-4 w-4" />
           Print
         </Button>
-        <Button onClick={handleDownloadPdf} variant="default" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={Object.keys(timetable).length === 0}>
-          <Download className="mr-2 h-4 w-4" />
-          Download PDF
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="default" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={Object.keys(timetable).length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDownloadClassPdf}>
+              Class Timetables
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDownloadTeacherPdf}>
+              Teacher Timetables
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useFieldArray, useForm, useFormContext } from "react-hook-form";
+import { useForm, useFormContext, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -47,8 +47,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const ARM_OPTIONS = ["A", "B", "C"];
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
-const PERIOD_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
-
 
 const armPeriodsSchema = z.object({
   arm: z.string(),
@@ -99,8 +97,6 @@ const AssignmentForm = ({ subjectIndex, control }: { subjectIndex: number, contr
     };
 
     const form = useFormContext<TeacherFormValues>();
-    const selectedArms = (form.watch(`subjects.${subjectIndex}.assignment.armPeriods`) || []).map(ap => ap.arm);
-
 
     return (
         <div className="p-3 border rounded-md bg-background/50 space-y-3">
@@ -172,18 +168,9 @@ const AssignmentForm = ({ subjectIndex, control }: { subjectIndex: number, contr
                                         name={`subjects.${subjectIndex}.assignment.armPeriods.${armIndex}.periods`}
                                         render={({ field }) => (
                                             <FormItem>
-                                                <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Periods/Week" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {PERIOD_OPTIONS.map(p => (
-                                                            <SelectItem key={p} value={String(p)}>{p} period{p > 1 ? 's' : ''}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="Periods/Week" {...field} className="w-32" />
+                                                </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -455,3 +442,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

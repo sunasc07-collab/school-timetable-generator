@@ -35,12 +35,14 @@ import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
   grades: z.array(z.string()).min(1, "At least one grade is required."),
   arms: z.array(z.string()).min(1, "At least one arm is required."),
   periods: z.number().min(1, "Periods must be > 0").default(1),
+  groupArms: z.boolean().default(true),
 });
 
 const subjectSchema = z.object({
@@ -116,67 +118,97 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                 )}
             />
             
-            <div className="flex gap-4 items-end">
-                 <FormField
-                    control={control}
-                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
-                    render={() => (
-                    <FormItem className="flex-1">
-                        <FormLabel>Arms (grouped)</FormLabel>
-                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 border rounded-md">
-                            {ARM_OPTIONS.map((arm) => (
-                                <FormField
-                                    key={arm}
-                                    control={control}
-                                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
-                                    render={({ field }) => (
-                                        <FormItem
-                                            key={arm}
-                                            className="flex flex-row items-center space-x-2 space-y-0"
-                                        >
-                                            <FormControl>
-                                                <Checkbox
-                                                    checked={field.value?.includes(arm)}
-                                                    onCheckedChange={(checked) => {
-                                                        const currentValue = field.value || [];
-                                                        return checked
-                                                            ? field.onChange([...currentValue, arm])
-                                                            : field.onChange(currentValue.filter(value => value !== arm));
-                                                    }}
-                                                />
-                                            </FormControl>
-                                            <FormLabel className="font-normal text-sm">
-                                                Arm {arm}
-                                            </FormLabel>
-                                        </FormItem>
-                                    )}
-                                />
-                            ))}
-                        </div>
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
+                render={() => (
+                <FormItem>
+                    <FormLabel>Arms</FormLabel>
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 border rounded-md">
+                        {ARM_OPTIONS.map((arm) => (
+                            <FormField
+                                key={arm}
+                                control={control}
+                                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.arms`}
+                                render={({ field }) => (
+                                    <FormItem
+                                        key={arm}
+                                        className="flex flex-row items-center space-x-2 space-y-0"
+                                    >
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value?.includes(arm)}
+                                                onCheckedChange={(checked) => {
+                                                    const currentValue = field.value || [];
+                                                    return checked
+                                                        ? field.onChange([...currentValue, arm])
+                                                        : field.onChange(currentValue.filter(value => value !== arm));
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-normal text-sm">
+                                            Arm {arm}
+                                        </FormLabel>
+                                    </FormItem>
+                                )}
+                            />
+                        ))}
+                    </div>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+
+            <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.groupArms`}
+                render={({ field }) => (
+                    <FormItem className="space-y-2">
+                        <FormLabel>Group selected arms into a single class?</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                            onValueChange={(value) => field.onChange(value === 'true')}
+                            defaultValue={String(field.value)}
+                            className="flex items-center space-x-4"
+                            >
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="true" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Yes</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="false" />
+                                </FormControl>
+                                <FormLabel className="font-normal">No</FormLabel>
+                            </FormItem>
+                            </RadioGroup>
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
-                    )}
+                )}
                 />
-                 <FormField
-                    control={control}
-                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Periods</FormLabel>
-                            <FormControl>
-                                <Input 
-                                    type="number" 
-                                    min="1" 
-                                    className="w-24"
-                                    {...field} 
-                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
-                                />
-                            </FormControl>
-                            <FormMessage/>
-                        </FormItem>
-                    )}
-                />
-            </div>
+
+             <FormField
+                control={control}
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Periods per week</FormLabel>
+                        <FormControl>
+                            <Input 
+                                type="number" 
+                                min="1" 
+                                className="w-24"
+                                {...field} 
+                                onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
+                            />
+                        </FormControl>
+                        <FormMessage/>
+                    </FormItem>
+                )}
+            />
         </div>
     )
 }
@@ -230,7 +262,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 })}
+                    onClick={() => appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Assignment Group
@@ -249,7 +281,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1 }] }],
+      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
     },
   });
 
@@ -272,13 +304,14 @@ export default function TeacherEditor() {
                     grades: a.grades,
                     arms: a.arms,
                     periods: a.periods,
-                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }],
-            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }] }],
+                    groupArms: a.groupArms,
+                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }],
+            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
         });
     }
     setIsDialogOpen(true);
@@ -361,7 +394,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1 }] })}
+                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] })}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subject
@@ -426,6 +459,7 @@ export default function TeacherEditor() {
                            <div className="mt-2 space-y-2">
                             {subject.assignments.map(assignment => {
                                 const key = `${assignment.id}-${assignment.grades.join('-')}-${assignment.arms.join('-')}`;
+                                const groupedText = assignment.groupArms ? `Arms ${assignment.arms.join(', ')} (Grouped)` : `Arms ${assignment.arms.join(', ')} (Individual)`;
                                 return (
                                     <div key={key} className="pl-2">
                                         <div className="flex items-center gap-4 list-none">
@@ -433,7 +467,7 @@ export default function TeacherEditor() {
                                                 <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
                                                 <span>
                                                     {assignment.grades.join(', ')} - 
-                                                    Arms {assignment.arms.join(', ')} 
+                                                    {groupedText}
                                                     ({assignment.periods} periods)
                                                 </span>
                                             </div>
@@ -459,5 +493,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

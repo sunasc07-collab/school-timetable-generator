@@ -5,6 +5,7 @@ export type SubjectAssignment = {
     grades: string[];
     arms: string[];
     periods: number;
+    groupArms: boolean;
 };
 
 export type Subject = {

@@ -145,6 +145,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           }
           return newTimetables;
       });
+      setAllTeachers(prev => prev.map(teacher => ({
+        ...teacher,
+        schoolSections: teacher.schoolSections.filter(id => id !== timetableId)
+      })));
   }
   
   const renameTimetable = (timetableId: string, newName: string) => {
@@ -175,8 +179,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
   
   const updateTeacher = (teacherData: Teacher) => {
+    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-    const allInvolvedSections = new Set([...(allTeachers.find(t => t.id === teacherData.id)?.schoolSections || []), ...teacherData.schoolSections]);
+    
+    const allInvolvedSections = new Set([...(oldTeacher?.schoolSections || []), ...teacherData.schoolSections]);
     
     allInvolvedSections.forEach(timetableId => {
         const timetable = timetables.find(t => t.id === timetableId);
@@ -200,12 +206,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             subject.assignments.forEach(assignment => {
                 if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
 
-                const processClass = (className: string) => {
+                const processClass = (className: string, periods: number) => {
                     classSet.add(className);
                     if (!requiredSessions[className]) {
                         requiredSessions[className] = [];
                     }
-                    for (let i = 0; i < assignment.periods; i++) {
+                    for (let i = 0; i < periods; i++) {
                         requiredSessions[className].push({ subject: subject.name, teacher: teacher.name });
                     }
                 };
@@ -213,13 +219,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (assignment.groupArms) {
                     assignment.grades.forEach(grade => {
                         const className = `${grade} ${assignment.arms.join(', ')}`;
-                        processClass(className);
+                        processClass(className, assignment.periods);
                     });
                 } else {
                     assignment.grades.forEach(grade => {
                         assignment.arms.forEach(arm => {
                             const className = `${grade} ${arm}`;
-                            processClass(className);
+                            processClass(className, assignment.periods);
                         });
                     });
                 }
@@ -607,3 +613,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

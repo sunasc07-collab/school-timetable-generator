@@ -59,5 +59,3 @@ export type TimeSlot = {
 };
 
 export type ViewMode = 'class' | 'teacher';
-
-    

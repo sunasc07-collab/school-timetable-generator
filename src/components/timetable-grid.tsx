@@ -14,7 +14,7 @@ import TimetableItem from "./timetable-item";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { Zap } from "lucide-react";
+import { Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -28,8 +28,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode } = useTimetable();
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable } = useTimetable();
+  const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
     e.preventDefault();
@@ -52,13 +54,22 @@ export default function TimetableGrid() {
   };
   
   const handleRegenerateClick = () => {
-    setIsConfirmOpen(true);
+    setIsRegenerateConfirmOpen(true);
   };
   
   const handleConfirmRegenerate = () => {
     generateTimetable();
-    setIsConfirmOpen(false);
+    setIsRegenerateConfirmOpen(false);
   };
+
+  const handleClearClick = () => {
+    setIsClearConfirmOpen(true);
+  };
+
+  const handleConfirmClear = () => {
+    clearTimetable();
+    setIsClearConfirmOpen(false);
+  }
 
 
   const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterValue: string) => {
@@ -69,7 +80,7 @@ export default function TimetableGrid() {
         <div className="space-y-1">
         {relevantSessions.map(session => (
             <TimetableItem
-              key={session.id}
+              key={`${session.id}-${session.part || ''}`}
               session={session}
               isConflict={isConflict(session.id)}
               from={{ day, period }}
@@ -180,7 +191,7 @@ export default function TimetableGrid() {
 
   return (
     <>
-       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+       <AlertDialog open={isRegenerateConfirmOpen} onOpenChange={setIsRegenerateConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -197,17 +208,36 @@ export default function TimetableGrid() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This will clear the entire timetable and all manual changes. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClear} variant="destructive">
+              Clear Timetable
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="space-y-8">
-        <div className="flex justify-end items-center mb-4">
-              <Button onClick={handleRegenerateClick} variant="outline">
-                  <Zap className="mr-2 h-4 w-4" />
-                  Re-generate Timetable
-              </Button>
-          </div>
+        <div className="flex justify-end items-center mb-4 gap-2">
+            <Button onClick={handleClearClick} variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Clear Timetable
+            </Button>
+            <Button onClick={handleRegenerateClick} variant="outline">
+                <Zap className="mr-2 h-4 w-4" />
+                Re-generate Timetable
+            </Button>
+        </div>
           {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
       </div>
     </>
   );
 }
-
-    

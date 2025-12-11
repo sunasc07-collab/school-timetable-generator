@@ -16,6 +16,7 @@ type TimetableContextType = {
   days: string[];
   timeSlots: TimeSlot[];
   generateTimetable: () => void;
+  clearTimetable: () => void;
   moveSession: (session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
   conflicts: Conflict[];
   isConflict: (sessionId: string) => boolean;
@@ -24,8 +25,6 @@ type TimetableContextType = {
 };
 
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
-
-const defaultTeachers: Teacher[] = [];
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
@@ -45,12 +44,38 @@ const TIME_SLOTS: TimeSlot[] = [
 const PERIOD_COUNT = TIME_SLOTS.filter(ts => !ts.isBreak).length;
 const CONSECUTIVE_PERIODS: number[][] = [[0,1], [1,2], [3,4], [4,5], [6,7], [7,8]];
 
+const usePersistentState = <T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
+    const [state, setState] = useState(() => {
+        if (typeof window === 'undefined') {
+            return defaultValue;
+        }
+        try {
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.warn(`Error reading localStorage key “${key}”:`, error);
+            return defaultValue;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(key, JSON.stringify(state));
+        } catch (error) {
+            console.warn(`Error setting localStorage key “${key}”:`, error);
+        }
+    }, [key, state]);
+
+    return [state, setState];
+};
+
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [teachers, setTeachers] = useState<Teacher[]>(defaultTeachers);
-  const [timetable, setTimetable] = useState<TimetableData>({});
+  const [teachers, setTeachers] = usePersistentState<Teacher[]>("timetable_teachers", []);
+  const [timetable, setTimetable] = usePersistentState<TimetableData>("timetable_data", {});
+  const [classes, setClasses] = usePersistentState<string[]>("timetable_classes", []);
+
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
-  const [classes, setClasses] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('class');
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode', 'class');
 
   const generateTimetable = useCallback(() => {
     const classSet = new Set<string>();
@@ -142,49 +167,53 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    // Force place unplaced doubles
+    // Brute force place any unplaced doubles
     doubleSessions.filter(s => s.part === 1 && !placedDoubleSessionIds.has(s.id)).forEach(sessionPart1 => {
         const sessionPart2 = doubleSessions.find(s => s.id === sessionPart1.id && s.part === 2)!;
         let placed = false;
         for (const day of DAYS) {
             for (const p of CONSECUTIVE_PERIODS) {
-                newTimetable[day][p[0]].push(sessionPart1);
-                newTimetable[day][p[1]].push(sessionPart2);
-                placed = true;
-                break;
-            }
-            if (placed) break;
-        }
-    });
-    
-    // 2. Place single sessions
-    singleSessions.forEach(session => {
-        let placed = false;
-        const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
-        const shuffledPeriods = Array.from({length: PERIOD_COUNT}, (_, i) => i).sort(() => Math.random() - 0.5);
-
-        for (const day of shuffledDays) {
-            for (const period of shuffledPeriods) {
-                const slot = newTimetable[day][period];
-                const teacherConflict = slot.some(s => s.teacher === session.teacher);
-                const classConflict = slot.some(s => s.className === session.className);
-
-                if (!teacherConflict && !classConflict) {
-                    slot.push(session);
+                if(newTimetable[day][p[0]].length === 0 && newTimetable[day][p[1]].length === 0) { // Simple check, can be improved
+                    newTimetable[day][p[0]].push(sessionPart1);
+                    newTimetable[day][p[1]].push(sessionPart2);
                     placed = true;
                     break;
                 }
             }
             if (placed) break;
         }
+    });
+    
+    // 2. Place single sessions
+    const allSessions = [...singleSessions];
+    const availableSlots: {day: string, period: number}[] = [];
+    DAYS.forEach(day => {
+        for(let period = 0; period < PERIOD_COUNT; period++) {
+            availableSlots.push({day, period});
+        }
+    });
+
+    allSessions.forEach(session => {
+        let placed = false;
+        for(let i=0; i<availableSlots.length; i++) {
+            const { day, period } = availableSlots[i];
+            const slot = newTimetable[day][period];
+            const teacherConflict = slot.some(s => s.teacher === session.teacher);
+            const classConflict = slot.some(s => s.className === session.className);
+            if (!teacherConflict && !classConflict) {
+                slot.push(session);
+                placed = true;
+                break;
+            }
+        }
 
         // Force place if no ideal spot was found
         if (!placed) {
             for (const day of DAYS) {
                 for (let period = 0; period < PERIOD_COUNT; period++) {
-                    newTimetable[day][period].push(session);
-                    placed = true;
-                    break;
+                     newTimetable[day][period].push(session);
+                     placed = true;
+                     break;
                 }
                 if (placed) break;
             }
@@ -193,7 +222,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     setClasses(Array.from(classSet).sort());
     setTimetable(newTimetable);
-  }, [teachers]);
+  }, [teachers, setClasses, setTimetable]);
 
 
   const days = Object.keys(timetable).length > 0 ? DAYS : [];
@@ -226,6 +255,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setTimetable({});
     setClasses([]);
   };
+
+  const clearTimetable = () => {
+    setTimetable({});
+    setClasses([]);
+  }
   
   const moveSession = (
     session: TimetableSession, 
@@ -338,6 +372,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days,
         timeSlots,
         generateTimetable,
+        clearTimetable,
         moveSession,
         conflicts,
         isConflict,
@@ -357,5 +392,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

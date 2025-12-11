@@ -203,17 +203,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     activeTeachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
-            const totalAssignments = subject.assignments.length;
-            if (totalAssignments === 0) return;
-            
-            const basePeriodsPerAssignment = Math.floor(subject.totalPeriods / totalAssignments);
-            const remainder = subject.totalPeriods % totalAssignments;
+            if (subject.assignments.length === 0) return;
 
-            subject.assignments.forEach((assignment, index) => {
+            subject.assignments.forEach(assignment => {
                 if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
                 
-                const periodsForThisAssignment = basePeriodsPerAssignment + (index < remainder ? 1 : 0);
-
                 const processClass = (className: string, periods: number) => {
                     classSet.add(className);
                     if (!requiredSessions[className]) {
@@ -223,17 +217,34 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         requiredSessions[className].push({ subject: subject.name, teacher: teacher.name });
                     }
                 };
+                
+                let numClassesInAssignment = 0;
+                if (assignment.groupArms) {
+                    numClassesInAssignment = assignment.grades.length;
+                } else {
+                    numClassesInAssignment = assignment.grades.length * assignment.arms.length;
+                }
+                if (numClassesInAssignment === 0) return;
+
+                const periodsPerClass = Math.floor(subject.totalPeriods / numClassesInAssignment);
+                const remainder = subject.totalPeriods % numClassesInAssignment;
+                
+                let classCounter = 0;
 
                 if (assignment.groupArms) {
                     assignment.grades.forEach(grade => {
+                        const periodsForThisClass = periodsPerClass + (classCounter < remainder ? 1 : 0);
                         const className = `${grade} ${assignment.arms.join(', ')}`;
-                        processClass(className, periodsForThisAssignment);
+                        processClass(className, periodsForThisClass);
+                        classCounter++;
                     });
                 } else {
                      assignment.grades.forEach(grade => {
                         assignment.arms.forEach(arm => {
+                            const periodsForThisClass = periodsPerClass + (classCounter < remainder ? 1 : 0);
                             const className = `${grade} ${arm}`;
-                            processClass(className, periodsForThisAssignment);
+                            processClass(className, periodsForThisClass);
+                            classCounter++;
                         });
                     });
                 }
@@ -662,5 +673,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

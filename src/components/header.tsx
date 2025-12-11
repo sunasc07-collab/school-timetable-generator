@@ -320,13 +320,13 @@ export default function Header() {
                 <DropdownMenuLabel>School Sections</DropdownMenuLabel>
                 <DropdownMenuRadioGroup value={activeTimetable?.id} onValueChange={(id) => id && setActiveTimetableId(id)}>
                     {timetables.map(t => (
-                        <DropdownMenuRadioItem key={t.id} value={t.id} className="flex justify-between items-center pr-1">
-                           <span>{t.name}</span>
-                            <div className="flex items-center">
-                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setTimetableToEdit(t.id); setRenameName(t.name); setIsRenameDialogOpen(true); }}>
+                        <DropdownMenuRadioItem key={t.id} value={t.id} className="flex justify-between items-center pr-1" onSelect={(e) => e.preventDefault()}>
+                           <span className="flex-1">{t.name}</span>
+                            <div className="flex items-center flex-shrink-0">
+                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTimetableToEdit(t.id); setRenameName(t.name); setIsRenameDialogOpen(true); }}>
                                     <Edit className="h-3 w-3" />
                                </Button>
-                               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setTimetableToEdit(t.id); setIsRemoveDialogOpen(true);}} disabled={timetables.length <= 1}>
+                               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive" onClick={() => { setTimetableToEdit(t.id); setIsRemoveDialogOpen(true);}} disabled={timetables.length <= 1}>
                                     <Trash2 className="h-3 w-3" />
                                </Button>
                            </div>

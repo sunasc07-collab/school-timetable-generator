@@ -59,13 +59,12 @@ const getConsecutivePeriods = (): number[][] => {
 
     for(let i = 0; i < teachingPeriods.length - 1; i++){
         const currentPeriodIndex = teachingPeriods[i];
-        const nextPeriodIndex = teachingPeriods[i+1];
         
         const currentSlotIndex = DEFAULT_TIME_SLOTS.findIndex(s => s.period === currentPeriodIndex + 1);
-        const nextSlotIndex = DEFAULT_TIME_SLOTS.findIndex(s => s.period === nextPeriodIndex + 1);
+        const nextSlot = DEFAULT_TIME_SLOTS[currentSlotIndex + 1];
 
-        if(nextSlotIndex === currentSlotIndex + 1) {
-            consecutive.push([currentPeriodIndex, nextPeriodIndex]);
+        if(nextSlot && nextSlot.period !== null) {
+             consecutive.push([currentPeriodIndex, nextSlot.period - 1]);
         }
     }
     return consecutive;
@@ -371,7 +370,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [activeTimetable, activeTeachers, timetables, setTimetables]);
+  }, [activeTimetable, activeTeachers]);
 
 
   const clearTimetable = () => {
@@ -499,8 +498,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     timetables.forEach(timetable => {
-        if (Object.keys(timetable.timetable).length === 0) {
-            if (timetable.conflicts.length > 0) updateTimetable(timetable.id, { conflicts: [] });
+        if (!timetable || !timetable.id || Object.keys(timetable.timetable).length === 0) {
+            if (timetable && timetable.id && timetable.conflicts.length > 0) updateTimetable(timetable.id, { conflicts: [] });
             return;
         }
 

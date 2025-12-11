@@ -79,7 +79,7 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment, unassignedPeriods, maxPeriodsForThisAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean, unassignedPeriods: number, maxPeriodsForThisAssignment: number }) => {
+const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean }) => {
     return (
         <div className="p-3 border rounded-md bg-background/50 relative space-y-4">
              <Button
@@ -208,30 +208,6 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                     </FormItem>
                 )}
                 />
-            <div className="flex gap-4">
-                <FormField
-                    control={control}
-                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Periods / week</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
-                                <FormControl>
-                                    <SelectTrigger className="w-24">
-                                        <SelectValue placeholder="Select periods" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {Array.from({ length: maxPeriodsForThisAssignment }, (_, i) => i + 1).map(p => (
-                                        <SelectItem key={p} value={String(p)}>{p}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage/>
-                        </FormItem>
-                    )}
-                />
-            </div>
         </div>
     )
 }
@@ -249,13 +225,32 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
     });
 
     const totalPeriods = subjectData.totalPeriods || 0;
+    
+    // Distribute periods among assignments
+    useEffect(() => {
+        if (subjectData.assignments.length > 0) {
+            const periodsPerAssignment = Math.floor(totalPeriods / subjectData.assignments.length);
+            const remainder = totalPeriods % subjectData.assignments.length;
+            
+            const newAssignments = subjectData.assignments.map((assignment: any, index: number) => {
+                const periods = periodsPerAssignment + (index < remainder ? 1 : 0);
+                return { ...assignment, periods };
+            }).filter((a: any) => a.periods > 0);
+
+            if(JSON.stringify(newAssignments) !== JSON.stringify(subjectData.assignments.filter((a:any) => a.periods > 0))) {
+                setValue(`subjects.${subjectIndex}.assignments`, newAssignments.length > 0 ? newAssignments : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: totalPeriods, groupArms: true }]);
+            }
+        } else if (totalPeriods > 0) {
+             setValue(`subjects.${subjectIndex}.assignments`, [{ id: crypto.randomUUID(), grades: [], arms: [], periods: totalPeriods, groupArms: true }]);
+        }
+    }, [totalPeriods, subjectData.assignments.length, setValue, subjectIndex]);
+
+
     const assignedPeriods = subjectData.assignments.reduce((acc: number, a: { periods: number; }) => acc + (a.periods || 0), 0);
     const unassignedPeriods = totalPeriods - assignedPeriods;
 
     const handleAppendAssignment = () => {
-        if (unassignedPeriods > 0) {
-            appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
-        }
+        appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
     };
     
     return (
@@ -293,25 +288,6 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
                              <Select onValueChange={(value) => {
                                 const newTotal = parseInt(value);
                                 field.onChange(newTotal);
-
-                                const currentAssignments = subjectData.assignments;
-                                let runningTotal = 0;
-                                const newAssignments = currentAssignments.map((a: any) => {
-                                    if (runningTotal + a.periods <= newTotal) {
-                                        runningTotal += a.periods;
-                                        return a;
-                                    }
-                                    const newPeriods = Math.max(0, newTotal - runningTotal);
-                                    runningTotal += newPeriods;
-                                    return { ...a, periods: newPeriods };
-                                }).filter((a: any) => a.periods > 0);
-
-                                if (newAssignments.length === 0 && newTotal > 0) {
-                                    newAssignments.push({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
-                                }
-                                
-                                setValue(`subjects.${subjectIndex}.assignments`, newAssignments);
-
                             }} value={String(field.value)}>
                                 <FormControl>
                                     <SelectTrigger className="w-28">
@@ -332,14 +308,11 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
             <div className="p-2 border rounded-md bg-background/50 relative space-y-2">
                 <div className="flex justify-between items-center">
                     <FormLabel>Class Assignments</FormLabel>
-                    <Badge variant={unassignedPeriods > 0 ? "secondary" : (unassignedPeriods === 0 ? "default" : "destructive")}>
+                     <Badge variant={unassignedPeriods > 0 ? "secondary" : (unassignedPeriods === 0 ? "default" : "destructive")}>
                       {unassignedPeriods} unassigned period{unassignedPeriods !== 1 ? 's' : ''}
                     </Badge>
                 </div>
                  {assignmentFields.map((field, index) => {
-                    const currentAssignmentPeriods = subjectData.assignments[index].periods || 0;
-                    const maxForThis = unassignedPeriods + currentAssignmentPeriods;
-
                     return (
                         <AssignmentForm
                             key={field.id}
@@ -348,8 +321,6 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
                             control={control}
                             removeAssignment={() => removeAssignment(index)}
                             canRemoveAssignment={assignmentFields.length > 1}
-                            unassignedPeriods={unassignedPeriods}
-                            maxPeriodsForThisAssignment={maxForThis}
                         />
                     )
                 })}
@@ -359,7 +330,6 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
                     size="sm"
                     className="mt-2"
                     onClick={handleAppendAssignment}
-                    disabled={unassignedPeriods <= 0}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Assignment Group
@@ -724,3 +694,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

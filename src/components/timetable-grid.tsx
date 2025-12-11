@@ -174,7 +174,10 @@ export default function TimetableGrid() {
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className="font-headline text-center align-middle">
                     {slot.isBreak ? (
-                        <div className="[writing-mode:vertical-lr] text-center mx-auto my-2 text-muted-foreground font-medium">
+                        <div className={cn(
+                            "text-center mx-auto my-2 text-muted-foreground font-medium",
+                            slot.label === "Assembly" ? "[writing-mode:vertical-rl] rotate-180" : "[writing-mode:vertical-lr]"
+                         )}>
                             {slot.label}
                         </div>
                     ) : (

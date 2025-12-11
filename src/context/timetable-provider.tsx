@@ -34,6 +34,7 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 const DEFAULT_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
+    { period: null, time: "7:45 - 8:10", isBreak: true, label: "Assembly" },
     { period: 1, time: "8:10 - 8:50" },
     { period: 2, time: "8:50 - 9:30" },
     { period: 3, time: "9:30 - 10:10" },
@@ -219,25 +220,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 };
                 
                 if (assignment.groupArms) {
-                    assignment.grades.forEach(grade => {
+                     assignment.grades.forEach(grade => {
                         const periodsForThisClass = subject.totalPeriods;
                         const className = `${grade} ${assignment.arms.join(', ')}`;
                         processClass(className, periodsForThisClass);
                     });
-                } else {
+                } else { // Individual arms
                      assignment.grades.forEach(grade => {
                         assignment.arms.forEach(arm => {
-                            const numClassesInAssignment = assignment.grades.length * assignment.arms.length;
-                            if (numClassesInAssignment === 0) return;
-                            const periodsPerClass = Math.floor(subject.totalPeriods / numClassesInAssignment);
-                            const remainder = subject.totalPeriods % numClassesInAssignment;
-                            
-                            // A bit tricky to distribute remainder evenly, simple approach:
-                            const gradeIndex = assignment.grades.indexOf(grade);
-                            const armIndex = assignment.arms.indexOf(arm);
-                            const classIndex = gradeIndex * assignment.arms.length + armIndex;
-
-                            const periodsForThisClass = periodsPerClass + (classIndex < remainder ? 1 : 0);
+                            const periodsForThisClass = subject.totalPeriods;
                             const className = `${grade} ${arm}`;
                             processClass(className, periodsForThisClass);
                         });

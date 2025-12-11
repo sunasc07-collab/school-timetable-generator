@@ -14,7 +14,7 @@ import TimetableItem from "./timetable-item";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { Trash2, Zap } from "lucide-react";
+import { Trash2, Zap, ZapOff } from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -31,7 +31,7 @@ import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable, conflicts } = useTimetable();
+  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable, conflicts, resolveConflicts } = useTimetable();
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
@@ -197,7 +197,7 @@ export default function TimetableGrid() {
     : teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.name }));
 
   return (
-    <>
+    <ClientOnly>
        <AlertDialog open={isRegenerateConfirmOpen} onOpenChange={setIsRegenerateConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -240,12 +240,18 @@ export default function TimetableGrid() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle> {conflicts.length} Conflict{conflicts.length > 1 ? 's' : ''} Detected!</AlertTitle>
                     <AlertDescription>
-                      {conflicts[0].message} {conflicts.length > 1 ? ` (and ${conflicts.length - 1} more)`: ''} Review the highlighted slots.
+                      {conflicts[0].message} {conflicts.length > 1 ? ` (and ${conflicts.length - 1} more)`: ''} Review the highlighted slots or click "Resolve Conflicts".
                     </AlertDescription>
                   </Alert>
               )}
             </div>
             <div className="flex gap-2">
+                {conflicts.length > 0 && (
+                  <Button onClick={resolveConflicts} variant="outline">
+                    <ZapOff className="mr-2 h-4 w-4" />
+                    Resolve Conflicts
+                  </Button>
+                )}
                 <Button onClick={handleClearClick} variant="destructive">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Clear Timetable
@@ -258,6 +264,6 @@ export default function TimetableGrid() {
         </div>
           {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
       </div>
-    </>
+    </ClientOnly>
   );
 }

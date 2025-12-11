@@ -44,9 +44,13 @@ export default function AppLayout() {
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <Header />
+        <ClientOnly>
+          <Header />
+        </ClientOnly>
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          <TimetableGrid />
+          <ClientOnly>
+            <TimetableGrid />
+          </ClientOnly>
         </main>
       </SidebarInset>
     </SidebarProvider>

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TimetableItem from "./timetable-item";
-import type { TimetableDragData, TimetableSession, Teacher } from "@/lib/types";
+import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Zap } from "lucide-react";

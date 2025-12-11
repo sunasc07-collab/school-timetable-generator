@@ -39,8 +39,8 @@ const TIME_SLOTS: TimeSlot[] = [
   { period: 6, time: "12:00 - 12:40" },
   { period: null, time: "12:40 - 1:30", isBreak: true, label: "Lunch Break" },
   { period: 7, time: "1:30 - 2:10" },
-  { period: 8, time: "2:10 - 2:45" },
-  { period: 9, time: "2:45 - 3:20" },
+  { period: 8, time: "2:10 - 2:40" },
+  { period: 9, time: "2:40 - 3:10" },
 ];
 const PERIOD_COUNT = TIME_SLOTS.filter(ts => !ts.isBreak).length;
 
@@ -568,3 +568,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

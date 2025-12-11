@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm, useFieldArray, FormProvider } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, Link } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Badge } from "./ui/badge";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -48,7 +50,14 @@ const assignmentSchema = z.object({
 const subjectSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Subject name is required."),
+  totalPeriods: z.number().min(1, "Total periods must be > 0").default(1),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
+}).refine(data => {
+    const totalAssigned = data.assignments.reduce((sum, a) => sum + a.periods, 0);
+    return totalAssigned <= data.totalPeriods;
+}, {
+    message: "Total assigned periods cannot exceed the subject's total periods.",
+    path: ["assignments"],
 });
 
 const teacherSchema = z.object({
@@ -62,7 +71,7 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean }) => {
+const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment, unassignedPeriods, maxPeriodsForThisAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean, unassignedPeriods: number, maxPeriodsForThisAssignment: number }) => {
     return (
         <div className="p-3 border rounded-md bg-background/50 relative space-y-4">
              <Button
@@ -196,15 +205,18 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Periods / week</FormLabel>
-                            <FormControl>
-                                <Input 
-                                    type="number" 
-                                    min="1" 
-                                    className="w-24"
-                                    {...field} 
-                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
-                                />
-                            </FormControl>
+                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
+                                <FormControl>
+                                    <SelectTrigger className="w-24">
+                                        <SelectValue placeholder="Select periods" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {Array.from({ length: maxPeriodsForThisAssignment }, (_, i) => i + 1).map(p => (
+                                        <SelectItem key={p} value={String(p)}>{p}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <FormMessage/>
                         </FormItem>
                     )}
@@ -216,10 +228,25 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
 
 const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean }) => {
     
-    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment } = useFieldArray({
+    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment, update } = useFieldArray({
         control,
         name: `subjects.${subjectIndex}.assignments`,
     });
+
+    const subjectData = useWatch({
+      control,
+      name: `subjects.${subjectIndex}`
+    });
+
+    const totalPeriods = subjectData.totalPeriods || 0;
+    const assignedPeriods = subjectData.assignments.reduce((acc: number, a: { periods: number; }) => acc + (a.periods || 0), 0);
+    const unassignedPeriods = totalPeriods - assignedPeriods;
+
+    const handleAppendAssignment = () => {
+        if (unassignedPeriods > 0) {
+            appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
+        }
+    };
     
     return (
         <div className="p-3 border rounded-md bg-muted/50 relative space-y-3">
@@ -233,41 +260,115 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
               >
                 <Minus className="h-4 w-4" />
             </Button>
-            <FormField
-                control={control}
-                name={`subjects.${subjectIndex}.name`}
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Subject Name</FormLabel>
-                        <FormControl>
-                            <Input placeholder="e.g., Mathematics" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.name`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Subject Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g., Mathematics" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.totalPeriods`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Total Periods / week</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    min="1" 
+                                    className="w-28"
+                                    {...field} 
+                                    onChange={e => {
+                                        const value = parseInt(e.target.value, 10) || 1;
+                                        field.onChange(value);
+                                        // Reset assignment periods if total is reduced
+                                        const currentAssignments = subjectData.assignments;
+                                        let runningTotal = 0;
+                                        const newAssignments = currentAssignments.map((a: any) => {
+                                            if (runningTotal + a.periods <= value) {
+                                                runningTotal += a.periods;
+                                                return a;
+                                            }
+                                            const newPeriods = Math.max(0, value - runningTotal);
+                                            runningTotal += newPeriods;
+                                            return { ...a, periods: newPeriods };
+                                        }).filter((a: any) => a.periods > 0);
+
+                                        if (newAssignments.length === 0 && value > 0) {
+                                            newAssignments.push({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
+                                        }
+
+                                        // Update the entire array of assignments
+                                        const subjectRoot = `subjects.${subjectIndex}.assignments`;
+                                        (control as any)._fields[subjectRoot] = [];
+                                        newAssignments.forEach((a: any, i: number) => {
+                                           update(i, a);
+                                        });
+                                        if (assignmentFields.length > newAssignments.length) {
+                                           for (let i = newAssignments.length; i < assignmentFields.length; i++) {
+                                             removeAssignment(i);
+                                           }
+                                        }
+
+
+                                    }}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
             <div className="p-2 border rounded-md bg-background/50 relative space-y-2">
-                <FormLabel>Class Assignments</FormLabel>
-                 {assignmentFields.map((field, index) => (
-                    <AssignmentForm
-                        key={field.id}
-                        subjectIndex={subjectIndex}
-                        assignmentIndex={index}
-                        control={control}
-                        removeAssignment={() => removeAssignment(index)}
-                        canRemoveAssignment={assignmentFields.length > 1}
-                    />
-                ))}
+                <div className="flex justify-between items-center">
+                    <FormLabel>Class Assignments</FormLabel>
+                    <Badge variant={unassignedPeriods > 0 ? "secondary" : (unassignedPeriods === 0 ? "default" : "destructive")}>
+                      {unassignedPeriods} unassigned period{unassignedPeriods !== 1 ? 's' : ''}
+                    </Badge>
+                </div>
+                 {assignmentFields.map((field, index) => {
+                    const currentAssignmentPeriods = subjectData.assignments[index].periods || 0;
+                    const maxForThis = unassignedPeriods + currentAssignmentPeriods;
+
+                    return (
+                        <AssignmentForm
+                            key={field.id}
+                            subjectIndex={subjectIndex}
+                            assignmentIndex={index}
+                            control={control}
+                            removeAssignment={() => removeAssignment(index)}
+                            canRemoveAssignment={assignmentFields.length > 1}
+                            unassignedPeriods={unassignedPeriods}
+                            maxPeriodsForThisAssignment={maxForThis}
+                        />
+                    )
+                })}
                 <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true })}
+                    onClick={handleAppendAssignment}
+                    disabled={unassignedPeriods <= 0}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Assignment Group
                 </Button>
+                <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.assignments`}
+                    render={({ fieldState }) => (
+                       fieldState.error && <p className="text-sm font-medium text-destructive">{fieldState.error.message}</p>
+                    )}
+                />
             </div>
         </div>
     )
@@ -282,7 +383,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
+      subjects: [{ name: "", totalPeriods: 1, assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
     },
   });
 
@@ -300,6 +401,7 @@ export default function TeacherEditor() {
             subjects: teacher.subjects.length > 0 ? teacher.subjects.map(s => ({
                 id: s.id || crypto.randomUUID(),
                 name: s.name,
+                totalPeriods: s.totalPeriods,
                 assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
                     id: a.id || crypto.randomUUID(),
                     grades: a.grades,
@@ -307,12 +409,12 @@ export default function TeacherEditor() {
                     periods: a.periods,
                     groupArms: a.groupArms,
                 })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }],
-            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+            })) : [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
         });
     }
     setIsDialogOpen(true);
@@ -395,7 +497,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] })}
+                            onClick={() => appendSubject({ name: "", totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] })}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subject
@@ -456,6 +558,7 @@ export default function TeacherEditor() {
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
                              <BookOpen className="mr-2 h-4 w-4 text-primary" />
                              <span>{subject.name}</span>
+                             <Badge variant="secondary">{subject.totalPeriods} period{subject.totalPeriods !== 1 ? 's' : ''}/week</Badge>
                            </div>
                            <div className="mt-2 space-y-2">
                             {subject.assignments.map(assignment => {
@@ -473,7 +576,7 @@ export default function TeacherEditor() {
                                             </div>
                                         </div>
                                          <div className="pl-5 text-xs mt-1 space-y-1">
-                                            <div>{assignment.periods} total periods</div>
+                                            <div>{assignment.periods} period{assignment.periods !== 1 ? 's' : ''}</div>
                                          </div>
                                     </div>
                                 )

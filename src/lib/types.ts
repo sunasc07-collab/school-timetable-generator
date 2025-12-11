@@ -11,6 +11,7 @@ export type SubjectAssignment = {
 export type Subject = {
   id: string;
   name: string;
+  totalPeriods: number;
   assignments: SubjectAssignment[];
 };
 
@@ -58,5 +59,3 @@ export type TimeSlot = {
 };
 
 export type ViewMode = 'class' | 'teacher';
-
-    

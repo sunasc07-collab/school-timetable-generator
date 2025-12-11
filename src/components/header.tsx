@@ -30,6 +30,8 @@ import {
 import { Input } from "./ui/input";
 import { useState } from "react";
 
+type DialogState = 'add' | 'rename' | 'remove' | null;
+
 export default function Header() {
   const { 
     activeTimetable, 
@@ -42,11 +44,8 @@ export default function Header() {
     setViewMode 
   } = useTimetable();
   
-  const [newTimetableName, setNewTimetableName] = useState("");
-  const [renameName, setRenameName] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState<DialogState>(null);
+  const [timetableName, setTimetableName] = useState("");
   const [timetableToEdit, setTimetableToEdit] = useState<string | null>(null);
 
   const currentTimetable = activeTimetable ? timetables.find(t => t.id === activeTimetable.id) : null;
@@ -60,28 +59,36 @@ export default function Header() {
     window.print();
   };
 
+  const openDialog = (type: DialogState, timetableId: string | null = null, currentName: string = "") => {
+    setDialogOpen(type);
+    setTimetableToEdit(timetableId);
+    setTimetableName(currentName);
+  };
+  
+  const closeDialog = () => {
+    setDialogOpen(null);
+    setTimetableToEdit(null);
+    setTimetableName("");
+  };
+
   const handleAddNewTimetable = () => {
-    if (newTimetableName.trim()) {
-      addTimetable(newTimetableName.trim());
-      setNewTimetableName("");
-      setIsAddDialogOpen(false);
+    if (timetableName.trim()) {
+      addTimetable(timetableName.trim());
+      closeDialog();
     }
   }
 
   const handleRenameTimetable = () => {
-    if (renameName.trim() && timetableToEdit) {
-      renameTimetable(timetableToEdit, renameName.trim());
-      setRenameName("");
-      setIsRenameDialogOpen(false);
-      setTimetableToEdit(null);
+    if (timetableName.trim() && timetableToEdit) {
+      renameTimetable(timetableToEdit, timetableName.trim());
+      closeDialog();
     }
   }
   
   const handleRemoveTimetable = () => {
     if (timetableToEdit) {
         removeTimetable(timetableToEdit);
-        setIsRemoveDialogOpen(false);
-        setTimetableToEdit(null);
+        closeDialog();
     }
   };
 
@@ -241,7 +248,7 @@ export default function Header() {
 
   return (
     <>
-      <AlertDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <AlertDialog open={dialogOpen === 'add'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Add New School Section</AlertDialogTitle>
@@ -251,18 +258,18 @@ export default function Header() {
           </AlertDialogHeader>
           <Input 
             placeholder="Timetable name"
-            value={newTimetableName}
-            onChange={(e) => setNewTimetableName(e.target.value)}
+            value={timetableName}
+            onChange={(e) => setTimetableName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddNewTimetable()}
           />
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={closeDialog}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleAddNewTimetable}>Add</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+      <AlertDialog open={dialogOpen === 'rename'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Rename Timetable</AlertDialogTitle>
@@ -272,18 +279,18 @@ export default function Header() {
           </AlertDialogHeader>
           <Input 
             placeholder="New timetable name"
-            value={renameName}
-            onChange={(e) => setRenameName(e.target.value)}
+            value={timetableName}
+            onChange={(e) => setTimetableName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleRenameTimetable()}
           />
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={closeDialog}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleRenameTimetable}>Rename</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       
-       <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+       <AlertDialog open={dialogOpen === 'remove'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -292,7 +299,7 @@ export default function Header() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={closeDialog}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleRemoveTimetable} variant="destructive">
               Delete
             </AlertDialogAction>
@@ -322,10 +329,10 @@ export default function Header() {
                         <DropdownMenuRadioItem key={t.id} value={t.id} className="flex justify-between items-center pr-1" onSelect={(e) => e.preventDefault()}>
                            <span className="flex-1">{t.name}</span>
                             <div className="flex items-center flex-shrink-0">
-                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setTimetableToEdit(t.id); setRenameName(t.name); setIsRenameDialogOpen(true); }}>
+                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); openDialog('rename', t.id, t.name); }}>
                                     <Edit className="h-3 w-3" />
                                </Button>
-                               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setTimetableToEdit(t.id); setIsRemoveDialogOpen(true);}} disabled={timetables.length <= 1}>
+                               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive" onClick={(e) => { e.stopPropagation(); openDialog('remove', t.id); }} disabled={timetables.length <= 1}>
                                     <Trash2 className="h-3 w-3" />
                                </Button>
                            </div>
@@ -333,7 +340,7 @@ export default function Header() {
                     ))}
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator/>
-                <DropdownMenuItem onSelect={() => { setNewTimetableName(""); setIsAddDialogOpen(true); }}>
+                <DropdownMenuItem onSelect={() => openDialog('add')}>
                     <Plus className="mr-2 h-4 w-4"/>
                     <span>Add New Section</span>
                 </DropdownMenuItem>

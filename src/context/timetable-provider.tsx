@@ -168,10 +168,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (placedDoubleIds.has(session.id)) continue;
 
         let placed = false;
-        for (const day of DAYS) {
-            for (const p of CONSECUTIVE_PERIODS) {
+        const shuffledDays = DAYS.slice().sort(() => Math.random() - 0.5);
+
+        for (const day of shuffledDays) {
+            const shuffledConsecutivePeriods = CONSECUTIVE_PERIODS.slice().sort(() => Math.random() - 0.5);
+            for (const p of shuffledConsecutivePeriods) {
                 const [p1, p2] = p;
-                if (newTimetable[day][p1].length === 0 && newTimetable[day][p2].length === 0) {
+
+                const teacherIsFree = !newTimetable[day][p1].some(s => s.teacher === session.teacher) && !newTimetable[day][p2].some(s => s.teacher === session.teacher);
+                const classIsFree = !newTimetable[day][p1].some(s => s.className === session.className) && !newTimetable[day][p2].some(s => s.className === session.className);
+                const classHasNoDoubleOfSubject = !newTimetable[day].flat().some(s => s.className === session.className && s.subject === session.subject && s.isDouble);
+                
+                if (teacherIsFree && classIsFree && classHasNoDoubleOfSubject) {
                     newTimetable[day][p1].push({ ...session, part: 1 });
                     newTimetable[day][p2].push({ ...session, part: 2 });
                     placedDoubleIds.add(session.id);
@@ -186,9 +194,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     // Place single periods
     for (const session of singlePeriods) {
         let placed = false;
-        for (const day of DAYS) {
-            for (let period = 0; period < PERIOD_COUNT; period++) {
-                if (newTimetable[day][period].length === 0) {
+        const shuffledDays = DAYS.slice().sort(() => Math.random() - 0.5);
+
+        for (const day of shuffledDays) {
+            const subjectPeriodsOnDay = newTimetable[day].flat().filter(s => s.className === session.className && s.subject === session.subject).length;
+            if (subjectPeriodsOnDay >= 2) continue;
+
+            const shuffledPeriods = Array.from({length: PERIOD_COUNT}, (_, i) => i).sort(() => Math.random() - 0.5);
+
+            for (const period of shuffledPeriods) {
+                const teacherIsFree = !newTimetable[day][period].some(s => s.teacher === session.teacher);
+                const classIsFree = !newTimetable[day][period].some(s => s.className === session.className);
+                
+                if (teacherIsFree && classIsFree) {
                     newTimetable[day][period].push(session);
                     placed = true;
                     break;
@@ -220,18 +238,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             // Force place
              for (const day of DAYS) {
                 for (let period = 0; period < PERIOD_COUNT; period++) {
-                    // Try to find an empty slot
-                    if (newTimetable[day][period].length === 0) {
-                        newTimetable[day][period].push(session);
-                        isPlaced = true;
-                        break;
-                    }
+                    newTimetable[day][period].push(session);
+                    if(session.isDouble) placedDoubleIds.add(session.id);
+                    isPlaced = true;
+                    break;
                 }
                 if(isPlaced) break;
-            }
-            // If still not placed, just add to the first slot, creating conflict
-            if(!isPlaced){
-                newTimetable[DAYS[0]][0].push(session);
             }
         }
     });
@@ -304,51 +316,53 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const resolveConflicts = () => {
     setTimetable(currentTimetable => {
         const newTimetable = JSON.parse(JSON.stringify(currentTimetable));
-        const conflictsToResolve = [...conflicts];
+        const allSessions: TimetableSession[] = [];
+        Object.values(newTimetable).forEach(day => day.forEach((slot: TimetableSession[]) => allSessions.push(...slot)));
 
-        conflictsToResolve.forEach(conflict => {
-            const sessionsInConflictSlot: {session: TimetableSession, day: string, period: number}[] = [];
+        const emptyTimetable: TimetableData = {};
+        DAYS.forEach(day => { emptyTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
+        
+        const placedSessionIds = new Set<string>();
+
+        allSessions.forEach(session => {
+            if (placedSessionIds.has(session.id)) return;
+
+            let moved = false;
             
-            // Find the location of all sessions involved in this conflict
-            Object.entries(newTimetable).forEach(([day, daySlots]) => {
-                (daySlots as TimetableSession[][]).forEach((slot, period) => {
-                    slot.forEach(session => {
-                        if (session.id === conflict.id) {
-                            sessionsInConflictSlot.push({session, day, period});
-                        }
-                    });
-                });
-            });
-            
-            if (sessionsInConflictSlot.length === 0) return;
-            const origin = sessionsInConflictSlot[0];
-            const originalSlot = newTimetable[origin.day][origin.period];
+            // Try to find a slot where both class and teacher are free
+            for (const day of DAYS) {
+                for (let period = 0; period < PERIOD_COUNT; period++) {
+                    const teacherIsFree = !emptyTimetable[day][period].some(s => s.teacher === session.teacher);
+                    const classIsFree = !emptyTimetable[day][period].some(s => s.className === session.className);
 
-            // Keep the first session, try to move the others
-            const sessionsToMove = originalSlot.slice(1);
-            newTimetable[origin.day][origin.period] = [originalSlot[0]]; // Keep only first session
+                    if (teacherIsFree && classIsFree) {
+                        emptyTimetable[day][period].push(session);
+                        placedSessionIds.add(session.id);
+                        moved = true;
+                        break;
+                    }
+                }
+                if (moved) break;
+            }
 
-            sessionsToMove.forEach((sessionToMove: TimetableSession) => {
-                let moved = false;
+            // If not moved, just place it anywhere to keep it on the board
+            if (!moved) {
                 for (const day of DAYS) {
                     for (let period = 0; period < PERIOD_COUNT; period++) {
-                         // Check if target slot is empty and suitable
-                        if (newTimetable[day][period].length === 0) {
-                            newTimetable[day][period].push(sessionToMove);
+                         if (emptyTimetable[day][period].length < 2) { // Try to limit pile-up
+                            emptyTimetable[day][period].push(session);
+                            placedSessionIds.add(session.id);
                             moved = true;
                             break;
-                        }
+                         }
                     }
                     if (moved) break;
                 }
-                 // If it couldn't be moved to an empty slot, put it back to create a different conflict.
-                 if (!moved) {
-                     newTimetable[origin.day][origin.period].push(sessionToMove);
-                 }
-            });
+            }
         });
 
-        return newTimetable;
+
+        return emptyTimetable;
     });
 };
 
@@ -393,24 +407,38 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
     
     // Check for broken double periods
-    const doublePeriodParts = new Map<string, TimetableSession>();
+    const doublePeriodParts = new Map<string, {session: TimetableSession, day: string, period: number}>();
     for (const day of DAYS) {
         for (let period = 0; period < PERIOD_COUNT; period++) {
             const slotSessions = timetable[day]?.[period] || [];
             for (const session of slotSessions) {
                 if (session.isDouble) {
-                    if(doublePeriodParts.has(session.id)) {
-                        doublePeriodParts.delete(session.id); // Found both parts
-                    } else {
-                        doublePeriodParts.set(session.id, session);
-                    }
+                    const key = `${session.id}-${session.part}`;
+                    doublePeriodParts.set(key, { session, day, period });
                 }
             }
         }
     }
 
-    doublePeriodParts.forEach(session => {
-        identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Broken double period for ${session.subject}.` });
+    const checkedDoubles = new Set<string>();
+    doublePeriodParts.forEach(({session}, key) => {
+        if(checkedDoubles.has(session.id)) return;
+        
+        const part1Key = `${session.id}-1`;
+        const part2Key = `${session.id}-2`;
+
+        if (doublePeriodParts.has(part1Key) && doublePeriodParts.has(part2Key)) {
+             const part1 = doublePeriodParts.get(part1Key)!;
+             const part2 = doublePeriodParts.get(part2Key)!;
+
+             if(part1.day !== part2.day || Math.abs(part1.period - part2.period) !== 1) {
+                 identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Broken double period for ${session.subject}.` });
+             }
+             checkedDoubles.add(session.id);
+        } else {
+            // Only one part exists
+            identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Incomplete double period for ${session.subject}.` });
+        }
     });
 
 
@@ -456,4 +484,5 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
 
+    
     

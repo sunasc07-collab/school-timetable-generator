@@ -46,7 +46,7 @@ export default function TimetableItem({
         </div>
         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
           <GraduationCap className="h-3 w-3 shrink-0"/>
-          <span className="truncate">{session.className}</span>
+          <span className="break-words">{session.className}</span>
         </div>
         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
           <User className="h-3 w-3 shrink-0"/>
@@ -57,4 +57,5 @@ export default function TimetableItem({
   );
 }
 
+    
     

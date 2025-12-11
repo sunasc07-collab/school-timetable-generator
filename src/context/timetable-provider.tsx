@@ -37,11 +37,11 @@ const DEFAULT_TIME_SLOTS: TimeSlot[] = [
     { period: 1, time: "8:10 - 8:50" },
     { period: 2, time: "8:50 - 9:30" },
     { period: 3, time: "9:30 - 10:10" },
-    { period: null, time: "10:10 - 10:40", isBreak: true, label: "Short Break" },
+    { period: null, time: "10:10 - 10:40", isBreak: true, label: "BREAK" },
     { period: 4, time: "10:40 - 11:20" },
     { period: 5, time: "11:20 - 12:00" },
     { period: 6, time: "12:00 - 12:40" },
-    { period: null, time: "12:40 - 1:30", isBreak: true, label: "Lunch Break" },
+    { period: null, time: "12:40 - 1:30", isBreak: true, label: "BREAK" },
     { period: 7, time: "1:30 - 2:10" },
     { period: 8, time: "2:10 - 2:40" },
     { period: 9, time: "2:40 - 3:10" },
@@ -218,33 +218,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     }
                 };
                 
-                let numClassesInAssignment = 0;
-                if (assignment.groupArms) {
-                    numClassesInAssignment = assignment.grades.length;
-                } else {
-                    numClassesInAssignment = assignment.grades.length * assignment.arms.length;
-                }
-                if (numClassesInAssignment === 0) return;
-
-                const periodsPerClass = Math.floor(subject.totalPeriods / numClassesInAssignment);
-                const remainder = subject.totalPeriods % numClassesInAssignment;
-                
-                let classCounter = 0;
-
                 if (assignment.groupArms) {
                     assignment.grades.forEach(grade => {
-                        const periodsForThisClass = periodsPerClass + (classCounter < remainder ? 1 : 0);
+                        const periodsForThisClass = subject.totalPeriods;
                         const className = `${grade} ${assignment.arms.join(', ')}`;
                         processClass(className, periodsForThisClass);
-                        classCounter++;
                     });
                 } else {
                      assignment.grades.forEach(grade => {
                         assignment.arms.forEach(arm => {
-                            const periodsForThisClass = periodsPerClass + (classCounter < remainder ? 1 : 0);
+                            const numClassesInAssignment = assignment.grades.length * assignment.arms.length;
+                            if (numClassesInAssignment === 0) return;
+                            const periodsPerClass = Math.floor(subject.totalPeriods / numClassesInAssignment);
+                            const remainder = subject.totalPeriods % numClassesInAssignment;
+                            
+                            // A bit tricky to distribute remainder evenly, simple approach:
+                            const gradeIndex = assignment.grades.indexOf(grade);
+                            const armIndex = assignment.arms.indexOf(arm);
+                            const classIndex = gradeIndex * assignment.arms.length + armIndex;
+
+                            const periodsForThisClass = periodsPerClass + (classIndex < remainder ? 1 : 0);
                             const className = `${grade} ${arm}`;
                             processClass(className, periodsForThisClass);
-                            classCounter++;
                         });
                     });
                 }

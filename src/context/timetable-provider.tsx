@@ -101,8 +101,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    allSessions.sort(() => Math.random() - 0.5);
-    
+    // Simple placement: fill slots one by one
     let sessionIndex = 0;
     for (const day of DAYS) {
         for (let period = 0; period < PERIOD_COUNT; period++) {
@@ -113,16 +112,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     }
     
-    // If there are still sessions left, distribute them (this will create conflicts)
-    let dayIndex = 0;
-    let periodIndex = 0;
-    while(sessionIndex < allSessions.length) {
-        newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
-        sessionIndex++;
-        periodIndex++;
-        if (periodIndex >= PERIOD_COUNT) {
-            periodIndex = 0;
-            dayIndex = (dayIndex + 1) % DAYS.length;
+    // If there are still sessions left (more sessions than slots), distribute them creating conflicts
+    if (sessionIndex < allSessions.length) {
+        let dayIndex = 0;
+        let periodIndex = 0;
+        while(sessionIndex < allSessions.length) {
+            newTimetable[DAYS[dayIndex]][periodIndex].push(allSessions[sessionIndex]);
+            sessionIndex++;
+            periodIndex++;
+            if (periodIndex >= PERIOD_COUNT) {
+                periodIndex = 0;
+                dayIndex = (dayIndex + 1) % DAYS.length;
+            }
         }
     }
 

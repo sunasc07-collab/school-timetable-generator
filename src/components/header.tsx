@@ -55,7 +55,7 @@ export default function Header() {
   const timetable = currentTimetable?.timetable || {};
   const timeSlots = currentTimetable?.timeSlots || [];
   const days = currentTimetable?.days || [];
-  const teachers = currentTimetable?.teachers || [];
+  const teachers = (currentTimetable as any)?.teachers || [];
   
   const handlePrint = () => {
     window.print();
@@ -170,7 +170,7 @@ export default function Header() {
     doc.text(`School Timetable - ${currentTimetable.name} - By Teacher`, 14, 10);
     let startY = 20;
 
-    teachers.forEach((teacher, teacherIndex) => {
+    teachers.forEach((teacher: any, teacherIndex: number) => {
       if (teacherIndex > 0) {
            const lastTable = (doc as any).lastAutoTable;
           if (lastTable) {
@@ -323,10 +323,10 @@ export default function Header() {
                         <DropdownMenuRadioItem key={t.id} value={t.id} className="flex justify-between items-center pr-1" onSelect={(e) => e.preventDefault()}>
                            <span className="flex-1">{t.name}</span>
                             <div className="flex items-center flex-shrink-0">
-                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTimetableToEdit(t.id); setRenameName(t.name); setIsRenameDialogOpen(true); }}>
+                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setTimetableToEdit(t.id); setRenameName(t.name); setIsRenameDialogOpen(true); }}>
                                     <Edit className="h-3 w-3" />
                                </Button>
-                               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive" onClick={() => { setTimetableToEdit(t.id); setIsRemoveDialogOpen(true);}} disabled={timetables.length <= 1}>
+                               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setTimetableToEdit(t.id); setIsRemoveDialogOpen(true);}} disabled={timetables.length <= 1}>
                                     <Trash2 className="h-3 w-3" />
                                </Button>
                            </div>

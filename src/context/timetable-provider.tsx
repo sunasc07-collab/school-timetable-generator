@@ -15,7 +15,7 @@ type TimetableContextType = {
   renameTimetable: (timetableId: string, newName: string) => void;
   setActiveTimetableId: (id: string | null) => void;
 
-  addTeacher: (teacherData: Omit<Teacher, 'id'>) => void;
+  addTeacher: (teacherData: Teacher) => void;
   removeTeacher: (teacherId: string) => void;
   updateTeacher: (teacherData: Teacher) => void;
   
@@ -34,23 +34,23 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 const DEFAULT_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-  { period: 1, time: "8:10 - 8:50" },
-  { period: 2, time: "8:50 - 9:30" },
-  { period: 3, time: "9:30 - 10:10" },
-  { period: null, time: "10:10 - 10:40", isBreak: true, label: "Short Break" },
-  { period: 4, time: "10:40 - 11:20" },
-  { period: 5, time: "11:20 - 12:00" },
-  { period: 6, time: "12:00 - 12:40" },
-  { period: null, time: "12:40 - 1:30", isBreak: true, label: "Lunch Break" },
-  { period: 7, time: "1:30 - 2:10" },
-  { period: 8, time: "2:10 - 2:40" },
-  { period: 9, time: "2:40 - 3:10" },
+    { period: 1, time: "8:10 - 8:50" },
+    { period: 2, time: "8:50 - 9:30" },
+    { period: 3, time: "9:30 - 10:10" },
+    { period: null, time: "10:10 - 10:40", isBreak: true, label: "Short Break" },
+    { period: 4, time: "10:40 - 11:20" },
+    { period: 5, time: "11:20 - 12:00" },
+    { period: 6, time: "12:00 - 12:40" },
+    { period: null, time: "12:40 - 1:30", isBreak: true, label: "Lunch Break" },
+    { period: 7, time: "1:30 - 2:10" },
+    { period: 8, time: "2:10 - 2:40" },
+    { period: 9, time: "2:40 - 3:10" },
 ];
 const PERIOD_COUNT = DEFAULT_TIME_SLOTS.filter(ts => !ts.isBreak).length;
 
 const getConsecutivePeriods = (): number[][] => {
     const consecutive: number[][] = [];
-    const teachingPeriods: number[] = [];
+    let teachingPeriods: number[] = [];
     DEFAULT_TIME_SLOTS.forEach(slot => {
         if(slot.period !== null) {
             teachingPeriods.push(slot.period - 1);
@@ -61,10 +61,13 @@ const getConsecutivePeriods = (): number[][] => {
         const currentPeriodIndex = teachingPeriods[i];
         
         const currentSlotIndex = DEFAULT_TIME_SLOTS.findIndex(s => s.period === currentPeriodIndex + 1);
+        if (currentSlotIndex === -1 || currentSlotIndex + 1 >= DEFAULT_TIME_SLOTS.length) continue;
+
         const nextSlot = DEFAULT_TIME_SLOTS[currentSlotIndex + 1];
 
         if(nextSlot && nextSlot.period !== null) {
-             consecutive.push([currentPeriodIndex, nextSlot.period - 1]);
+             const nextPeriodIndex = nextSlot.period -1;
+             consecutive.push([currentPeriodIndex, nextPeriodIndex]);
         }
     }
     return consecutive;
@@ -148,20 +151,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const addTeacher = (teacherData: Omit<Teacher, 'id'>) => {
-    const newTeacher: Teacher = {
-      id: crypto.randomUUID(),
-      ...teacherData,
-      subjects: teacherData.subjects.map(s => ({ 
-          ...s, 
-          id: s.id || crypto.randomUUID(),
-          assignments: s.assignments.map(a => ({
-            ...a,
-            id: a.id || crypto.randomUUID(),
-          })),
-      })),
-    };
-    setAllTeachers(prev => [...prev, newTeacher]);
+  const addTeacher = (teacherData: Teacher) => {
+    setAllTeachers(prev => [...prev, teacherData]);
     teacherData.schoolSections.forEach(timetableId => {
         const timetable = timetables.find(t => t.id === timetableId);
         if (timetable) {
@@ -616,5 +607,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

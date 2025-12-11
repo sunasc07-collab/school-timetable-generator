@@ -399,7 +399,7 @@ export default function TeacherEditor() {
 
   const teacherFormData = useWatch({ control: form.control });
   const teacherTotalPeriods = teacherFormData.totalPeriods || 0;
-  const subjectsTotalPeriods = teacherFormData.subjects.reduce((acc, s) => acc + (s.totalPeriods || 0), 0);
+  const subjectsTotalPeriods = (teacherFormData.subjects || []).reduce((acc, s) => acc + (s.totalPeriods || 0), 0);
   const unassignedTeacherPeriods = teacherTotalPeriods - subjectsTotalPeriods;
   
   const handleOpenDialog = (teacher: Teacher | null) => {
@@ -439,7 +439,7 @@ export default function TeacherEditor() {
 
     const finalData = {
         ...data,
-        id: editingTeacher?.id,
+        id: editingTeacher?.id || crypto.randomUUID(),
         totalPeriods: data.totalPeriods,
         subjects: data.subjects.map(s => ({
             ...s,
@@ -451,10 +451,10 @@ export default function TeacherEditor() {
         }))
     }
 
-    if (editingTeacher && finalData.id) {
+    if (editingTeacher) {
         updateTeacher(finalData as Teacher);
     } else {
-        addTeacher(finalData as Omit<Teacher, 'id'>);
+        addTeacher(finalData as Teacher);
     }
     form.reset();
     setIsDialogOpen(false);

@@ -43,7 +43,31 @@ const TIME_SLOTS: TimeSlot[] = [
   { period: 9, time: "2:50 - 3:30" },
 ];
 const PERIOD_COUNT = TIME_SLOTS.filter(ts => !ts.isBreak).length;
-const CONSECUTIVE_PERIODS: number[][] = [[0,1], [1,2], [3,4], [4,5], [6,7], [7,8]];
+
+const getConsecutivePeriods = (): number[][] => {
+    const consecutive: number[][] = [];
+    const teachingPeriods: number[] = [];
+    TIME_SLOTS.forEach(slot => {
+        if(slot.period !== null) {
+            teachingPeriods.push(slot.period - 1);
+        }
+    });
+
+    for(let i = 0; i < teachingPeriods.length - 1; i++){
+        // This check assumes teachingPeriods are sorted, which they are from TIME_SLOTS
+        const currentPeriodIndex = teachingPeriods[i];
+        const nextPeriodIndex = teachingPeriods[i+1];
+        
+        // Find original slot indices to check if they are visually consecutive
+        const currentSlotIndex = TIME_SLOTS.findIndex(s => s.period === currentPeriodIndex + 1);
+        const nextSlotIndex = TIME_SLOTS.findIndex(s => s.period === nextPeriodIndex + 1);
+
+        if(nextSlotIndex === currentSlotIndex + 1) {
+            consecutive.push([currentPeriodIndex, nextPeriodIndex]);
+        }
+    }
+    return consecutive;
+}
 
 const usePersistentState = <T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
@@ -152,6 +176,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const newTimetable: TimetableData = {};
     DAYS.forEach(day => { newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
 
+    const CONSECUTIVE_PERIODS = getConsecutivePeriods();
+
     function solve(board: TimetableData, sessions: TimetableSession[]): TimetableData | null {
         if (sessions.length === 0) {
             return board; // Success
@@ -202,8 +228,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
         // Teacher and Class availability
-        const slot = board[day][period];
-        if (slot.some(s => s.teacher === session.teacher) || slot.some(s => s.className === session.className)) {
+        const slot = board[day]?.[period];
+        if (!slot || slot.some(s => s.teacher === session.teacher) || slot.some(s => s.className === session.className)) {
             return false;
         }
 
@@ -331,6 +357,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         DAYS.forEach(day => { emptyTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
         
         const placedSessionIds = new Set<string>();
+        const CONSECUTIVE_PERIODS = getConsecutivePeriods();
 
         // Sort to attempt placing more constrained sessions first
         allSessions.sort((a,b) => (b.isDouble ? 1:0) - (a.isDouble ? 1:0));
@@ -425,6 +452,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
 
     const identifiedConflicts = new Map<string, Conflict>();
+    const CONSECUTIVE_PERIODS = getConsecutivePeriods();
 
     for (const day of DAYS) {
       for (let period = 0; period < PERIOD_COUNT; period++) {

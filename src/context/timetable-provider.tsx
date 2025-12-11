@@ -33,14 +33,14 @@ const TIME_SLOTS: TimeSlot[] = [
   { period: 1, time: "8:00 - 8:40" },
   { period: 2, time: "8:40 - 9:20" },
   { period: 3, time: "9:20 - 10:00" },
-  { period: null, time: "10:00 - 10:30", isBreak: true, label: "Short Break" },
-  { period: 4, time: "10:30 - 11:10" },
-  { period: 5, time: "11:10 - 11:50" },
-  { period: 6, time: "11:50 - 12:30" },
-  { period: null, time: "12:30 - 1:30", isBreak: true, label: "Lunch Break" },
-  { period: 7, time: "1:30 - 2:10" },
-  { period: 8, time: "2:10 - 2:50" },
-  { period: 9, time: "2:50 - 3:30" },
+  { period: null, time: "10:00 - 10:20", isBreak: true, label: "Short Break" },
+  { period: 4, time: "10:20 - 11:00" },
+  { period: 5, time: "11:00 - 11:40" },
+  { period: 6, time: "11:40 - 12:20" },
+  { period: null, time: "12:20 - 1:00", isBreak: true, label: "Lunch Break" },
+  { period: 7, time: "1:00 - 1:40" },
+  { period: 8, time: "1:40 - 2:20" },
+  { period: 9, time: "2:20 - 3:00" },
 ];
 const PERIOD_COUNT = TIME_SLOTS.filter(ts => !ts.isBreak).length;
 

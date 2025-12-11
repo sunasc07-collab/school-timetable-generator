@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Terminal } from "lucide-react";
+import ClientOnly from "./client-only";
 
 export default function TimetableGrid() {
   const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable, conflicts } = useTimetable();
@@ -260,5 +261,3 @@ export default function TimetableGrid() {
     </>
   );
 }
-
-    

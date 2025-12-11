@@ -83,7 +83,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const classSet = new Set<string>();
     const allSessions: TimetableSession[] = [];
 
-    // 1. Collect all sessions
+    // 1. Create all single session instances
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
@@ -113,45 +113,40 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    // 2. Initialize structures
+    const sortedClasses = Array.from(classSet).sort();
+    setClasses(sortedClasses);
+
+    // 2. Initialize grid and availability trackers
     const newTimetable: TimetableData = {};
     const teacherAvailability: { [key: string]: boolean[][] } = {};
     const classAvailability: { [key: string]: boolean[][] } = {};
     const classSubjectPeriodsPerDay: { [className: string]: { [subject: string]: number[] } } = {};
-    const unplacedSessions: TimetableSession[] = [];
 
     DAYS.forEach(day => { newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
     teachers.forEach(t => { teacherAvailability[t.name] = Array.from({ length: DAYS.length }, () => Array(PERIOD_COUNT).fill(true)); });
-    Array.from(classSet).forEach(c => {
+    sortedClasses.forEach(c => {
         classAvailability[c] = Array.from({ length: DAYS.length }, () => Array(PERIOD_COUNT).fill(true));
         classSubjectPeriodsPerDay[c] = {};
     });
 
-    // 3. Shuffle sessions for randomness
+    // 3. Shuffle sessions for randomness and place them
     const shuffledSessions = allSessions.sort(() => Math.random() - 0.5);
 
-    // 4. Place all sessions
     for (const session of shuffledSessions) {
         let placed = false;
-
+        
+        // Ensure subject tracker exists
         if (!classSubjectPeriodsPerDay[session.className][session.subject]) {
             classSubjectPeriodsPerDay[session.className][session.subject] = Array(DAYS.length).fill(0);
         }
 
-        const sortedDays = [...DAYS].sort((a, b) => {
-            const dayIndexA = DAYS.indexOf(a);
-            const dayIndexB = DAYS.indexOf(b);
-            const countA = classSubjectPeriodsPerDay[session.className][session.subject][dayIndexA];
-            const countB = classSubjectPeriodsPerDay[session.className][session.subject][dayIndexB];
-            if (countA !== countB) return countA - countB;
-            return Math.random() - 0.5;
-        });
-
-        for (const day of sortedDays) {
+        const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
+        for (const day of shuffledDays) {
             const dayIndex = DAYS.indexOf(day);
 
+            // Check if adding this period exceeds the limit of 2 for this subject on this day
             if (classSubjectPeriodsPerDay[session.className][session.subject][dayIndex] >= 2) {
-                continue;
+                continue; // Skip this day, try the next one
             }
 
             const shuffledPeriods = [...Array(PERIOD_COUNT).keys()].sort(() => Math.random() - 0.5);
@@ -162,40 +157,35 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     classAvailability[session.className][dayIndex][periodIndex] = false;
                     classSubjectPeriodsPerDay[session.className][session.subject][dayIndex]++;
                     placed = true;
-                    break; 
+                    break; // Move to the next session
                 }
             }
-            if (placed) break;
+            if (placed) break; // Move to the next session
         }
 
+        // If still not placed after trying all days, force place it by ignoring constraints
         if (!placed) {
-            unplacedSessions.push(session);
-        }
-    }
-
-    // 5. Force-place any remaining sessions
-    for (const session of unplacedSessions) {
-        let forced = false;
-        for (const day of DAYS) {
-            for (let period = 0; period < PERIOD_COUNT; period++) {
-                if (newTimetable[day][period].length < 2) { // Find a slot that's not overly crowded
-                    newTimetable[day][period].push(session);
-                    forced = true;
-                    break;
+            for (const day of shuffledDays) {
+                const dayIndex = DAYS.indexOf(day);
+                for (let periodIndex = 0; periodIndex < PERIOD_COUNT; periodIndex++) {
+                     // Just find the first available slot for the class, ignoring teacher conflicts
+                    if (classAvailability[session.className][dayIndex][periodIndex]) {
+                        newTimetable[day][periodIndex].push(session);
+                        classAvailability[session.className][dayIndex][periodIndex] = false;
+                        placed = true;
+                        break;
+                    }
                 }
+                if (placed) break;
             }
-            if (forced) break;
         }
-        // If still not placed, put it in the first slot as a last resort
-        if (!forced) {
+         // As a last resort, if still unplaced (e.g., class has no free slots), add to the first slot.
+        if (!placed) {
             newTimetable[DAYS[0]][0].push(session);
         }
     }
 
-
-    setClasses(Array.from(classSet).sort());
     setTimetable(newTimetable);
-
   }, [teachers, setClasses, setTimetable]);
 
 
@@ -416,3 +406,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

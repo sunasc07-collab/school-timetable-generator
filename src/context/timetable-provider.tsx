@@ -164,7 +164,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     };
     setAllTeachers(prev => [...prev, newTeacher]);
     teacherData.schoolSections.forEach(timetableId => {
-        updateTimetable(timetableId, { timetable: {}, classes: [] });
+        const timetable = timetables.find(t => t.id === timetableId);
+        if (timetable) {
+          updateTimetable(timetableId, { timetable: {}, conflicts: [] });
+        }
     })
   };
 
@@ -172,7 +175,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const teacher = allTeachers.find(t => t.id === teacherId);
     if (teacher) {
         teacher.schoolSections.forEach(timetableId => {
-            updateTimetable(timetableId, { timetable: {}, classes: [] });
+             const timetable = timetables.find(t => t.id === timetableId);
+             if (timetable) {
+               updateTimetable(timetableId, { timetable: {}, conflicts: [] });
+             }
         });
     }
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
@@ -180,8 +186,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const updateTeacher = (teacherData: Teacher) => {
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-    teacherData.schoolSections.forEach(timetableId => {
-        updateTimetable(timetableId, { timetable: {}, classes: [] });
+    const allInvolvedSections = new Set([...(allTeachers.find(t => t.id === teacherData.id)?.schoolSections || []), ...teacherData.schoolSections]);
+    
+    allInvolvedSections.forEach(timetableId => {
+        const timetable = timetables.find(t => t.id === timetableId);
+        if (timetable) {
+          updateTimetable(timetableId, { timetable: {}, conflicts: [] });
+        }
     });
   };
 
@@ -360,12 +371,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [activeTimetable, activeTeachers]);
+  }, [activeTimetable, activeTeachers, timetables, setTimetables]);
 
 
   const clearTimetable = () => {
     if (!activeTimetable) return;
-    updateTimetable(activeTimetable.id, { timetable: {}, classes: [], days: [], timeSlots: [] });
+    updateTimetable(activeTimetable.id, { timetable: {}, classes: [], conflicts: [] });
   }
   
   const moveSession = (
@@ -561,7 +572,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-  }, [timetables]);
+  }, [timetables, setTimetables]);
 
   const isConflict = (sessionId: string) => {
     return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
@@ -606,3 +617,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

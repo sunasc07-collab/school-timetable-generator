@@ -5,6 +5,7 @@ export type SubjectAssignment = {
     grades: string[];
     arms: string[];
     periods: number;
+    doublePeriods: number;
     groupArms: boolean;
 };
 
@@ -58,3 +59,5 @@ export type TimeSlot = {
 };
 
 export type ViewMode = 'class' | 'teacher';
+
+    

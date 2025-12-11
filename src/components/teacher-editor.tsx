@@ -30,10 +30,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, Link } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
-import type { Teacher, Subject, SubjectAssignment } from "@/lib/types";
+import type { Teacher, Subject } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
@@ -42,7 +42,11 @@ const assignmentSchema = z.object({
   grades: z.array(z.string()).min(1, "At least one grade is required."),
   arms: z.array(z.string()).min(1, "At least one arm is required."),
   periods: z.number().min(1, "Periods must be > 0").default(1),
+  doublePeriods: z.number().min(0).default(0),
   groupArms: z.boolean().default(true),
+}).refine(data => data.doublePeriods * 2 <= data.periods, {
+    message: "Total periods from doubles cannot exceed total periods.",
+    path: ["doublePeriods"],
 });
 
 const subjectSchema = z.object({
@@ -189,26 +193,46 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                     </FormItem>
                 )}
                 />
-
-             <FormField
-                control={control}
-                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Periods per week</FormLabel>
-                        <FormControl>
-                            <Input 
-                                type="number" 
-                                min="1" 
-                                className="w-24"
-                                {...field} 
-                                onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
-                            />
-                        </FormControl>
-                        <FormMessage/>
-                    </FormItem>
-                )}
-            />
+            <div className="flex gap-4">
+                <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.periods`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Total Periods / week</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    min="1" 
+                                    className="w-24"
+                                    {...field} 
+                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
+                                />
+                            </FormControl>
+                            <FormMessage/>
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={control}
+                    name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.doublePeriods`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Double Periods</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    min="0" 
+                                    className="w-24"
+                                    {...field} 
+                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)}
+                                />
+                            </FormControl>
+                            <FormMessage/>
+                        </FormItem>
+                    )}
+                />
+            </div>
         </div>
     )
 }
@@ -262,7 +286,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true })}
+                    onClick={() => appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, doublePeriods: 0, groupArms: true })}
                 >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Assignment Group
@@ -281,7 +305,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
-      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
+      subjects: [{ name: "", assignments: [{ grades: [], arms: [], periods: 1, doublePeriods: 0, groupArms: true }] }],
     },
   });
 
@@ -304,14 +328,15 @@ export default function TeacherEditor() {
                     grades: a.grades,
                     arms: a.arms,
                     periods: a.periods,
+                    doublePeriods: a.doublePeriods || 0,
                     groupArms: a.groupArms,
-                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }],
-            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, doublePeriods: 0, groupArms: true }],
+            })) : [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, doublePeriods: 0, groupArms: true }] }],
         });
     } else {
         form.reset({
             name: "",
-            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, doublePeriods: 0, groupArms: true }] }],
         });
     }
     setIsDialogOpen(true);
@@ -394,7 +419,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] })}
+                            onClick={() => appendSubject({ name: "", assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, doublePeriods: 0, groupArms: true }] })}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subject
@@ -460,6 +485,7 @@ export default function TeacherEditor() {
                             {subject.assignments.map(assignment => {
                                 const key = `${assignment.id}-${assignment.grades.join('-')}-${assignment.arms.join('-')}`;
                                 const groupedText = assignment.groupArms ? `Arms ${assignment.arms.join(', ')} (Grouped)` : `Arms ${assignment.arms.join(', ')} (Individual)`;
+                                const singlePeriods = assignment.periods - (assignment.doublePeriods || 0) * 2;
                                 return (
                                     <div key={key} className="pl-2">
                                         <div className="flex items-center gap-4 list-none">
@@ -468,10 +494,14 @@ export default function TeacherEditor() {
                                                 <span>
                                                     {assignment.grades.join(', ')} - 
                                                     {groupedText}
-                                                    ({assignment.periods} periods)
                                                 </span>
                                             </div>
                                         </div>
+                                         <div className="pl-5 text-xs mt-1 space-y-1">
+                                            <div>{assignment.periods} total periods</div>
+                                            { (assignment.doublePeriods || 0) > 0 && <div><Link className="h-3 w-3 mr-1 inline"/> {assignment.doublePeriods} double periods</div> }
+                                            { singlePeriods > 0 && <div>{singlePeriods} single periods</div> }
+                                         </div>
                                     </div>
                                 )
                             })}
@@ -493,3 +523,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

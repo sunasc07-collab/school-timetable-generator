@@ -15,9 +15,21 @@ import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Zap } from "lucide-react";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function TimetableGrid() {
   const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode } = useTimetable();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
     e.preventDefault();
@@ -39,6 +51,16 @@ export default function TimetableGrid() {
     }
   };
   
+  const handleRegenerateClick = () => {
+    setIsConfirmOpen(true);
+  };
+  
+  const handleConfirmRegenerate = () => {
+    generateTimetable();
+    setIsConfirmOpen(false);
+  };
+
+
   const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterValue: string) => {
      const relevantSessions = sessions.filter(s => viewMode === 'class' ? s.className === filterValue : s.teacher === filterValue);
      
@@ -157,14 +179,35 @@ export default function TimetableGrid() {
     : teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.name }));
 
   return (
-    <div className="space-y-8">
-       <div className="flex justify-end items-center mb-4">
-            <Button onClick={generateTimetable} variant="outline">
-                <Zap className="mr-2 h-4 w-4" />
-                Re-generate Timetable
-            </Button>
-        </div>
-        {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
-    </div>
+    <>
+       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Re-generating the timetable will discard any manual changes you've made. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRegenerate}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-8">
+        <div className="flex justify-end items-center mb-4">
+              <Button onClick={handleRegenerateClick} variant="outline">
+                  <Zap className="mr-2 h-4 w-4" />
+                  Re-generate Timetable
+              </Button>
+          </div>
+          {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
+      </div>
+    </>
   );
 }
+
+    

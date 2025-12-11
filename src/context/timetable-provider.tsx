@@ -9,20 +9,21 @@ type ViewMode = 'class' | 'teacher';
 type TimetableContextType = {
   timetables: Timetable[];
   activeTimetable: Timetable | null;
+  allTeachers: Teacher[];
   addTimetable: (name: string) => void;
   removeTimetable: (timetableId: string) => void;
   renameTimetable: (timetableId: string, newName: string) => void;
   setActiveTimetableId: (id: string | null) => void;
 
-  addTeacher: (timetableId: string, name: string, totalPeriods: number, subjects: Omit<Subject, "id">[]) => void;
-  removeTeacher: (timetableId: string, teacherId: string) => void;
-  updateTeacher: (timetableId: string, id: string, name: string, totalPeriods: number, subjects: Subject[]) => void;
+  addTeacher: (teacherData: Omit<Teacher, 'id'>) => void;
+  removeTeacher: (teacherId: string) => void;
+  updateTeacher: (teacherData: Teacher) => void;
   
-  generateTimetable: (timetableId: string) => void;
-  clearTimetable: (timetableId: string) => void;
-  moveSession: (timetableId: string, session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
-  resolveConflicts: (timetableId: string) => void;
-  isConflict: (timetableId: string, sessionId: string) => boolean;
+  generateTimetable: () => void;
+  clearTimetable: () => void;
+  moveSession: (session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
+  resolveConflicts: () => void;
+  isConflict: (sessionId: string) => boolean;
   
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
@@ -100,18 +101,18 @@ const usePersistentState = <T>(key: string, defaultValue: T): [T, React.Dispatch
 const createNewTimetable = (name: string, id?: string): Timetable => ({
     id: id || crypto.randomUUID(),
     name,
-    teachers: [],
     timetable: {},
     classes: [],
     conflicts: [],
-    days: [],
-    timeSlots: [],
+    days: DEFAULT_DAYS,
+    timeSlots: DEFAULT_TIME_SLOTS,
 })
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v2", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v2", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v3", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v3", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v3", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v3', 'class');
   
   useEffect(() => {
     if (timetables.length === 0) {
@@ -148,12 +149,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const addTeacher = (timetableId: string, name: string, totalPeriods: number, subjects: Omit<Subject, "id">[]) => {
+  const addTeacher = (teacherData: Omit<Teacher, 'id'>) => {
     const newTeacher: Teacher = {
       id: crypto.randomUUID(),
-      name,
-      totalPeriods,
-      subjects: subjects.map(s => ({ 
+      ...teacherData,
+      subjects: teacherData.subjects.map(s => ({ 
           ...s, 
           id: s.id || crypto.randomUUID(),
           assignments: s.assignments.map(a => ({
@@ -162,37 +162,39 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           })),
       })),
     };
-    const timetable = timetables.find(t => t.id === timetableId);
-    if(timetable){
-        updateTimetable(timetableId, { teachers: [...timetable.teachers, newTeacher], timetable: {}, classes: [] });
-    }
+    setAllTeachers(prev => [...prev, newTeacher]);
+    teacherData.schoolSections.forEach(timetableId => {
+        updateTimetable(timetableId, { timetable: {}, classes: [] });
+    })
   };
 
-  const removeTeacher = (timetableId: string, teacherId: string) => {
-    const timetable = timetables.find(t => t.id === timetableId);
-    if(timetable){
-        const newTeachers = timetable.teachers.filter(teacher => teacher.id !== teacherId)
-        updateTimetable(timetableId, { teachers: newTeachers, timetable: {}, classes: [] });
+  const removeTeacher = (teacherId: string) => {
+    const teacher = allTeachers.find(t => t.id === teacherId);
+    if (teacher) {
+        teacher.schoolSections.forEach(timetableId => {
+            updateTimetable(timetableId, { timetable: {}, classes: [] });
+        });
     }
+    setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
   };
   
-  const updateTeacher = (timetableId: string, id: string, name: string, totalPeriods: number, subjects: Subject[]) => {
-    const timetable = timetables.find(t => t.id === timetableId);
-    if(timetable){
-        const newTeachers = timetable.teachers.map(t => t.id === id ? { ...t, id, name, totalPeriods, subjects } : t)
-        updateTimetable(timetableId, { teachers: newTeachers, timetable: {}, classes: [] });
-    }
+  const updateTeacher = (teacherData: Teacher) => {
+    setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
+    teacherData.schoolSections.forEach(timetableId => {
+        updateTimetable(timetableId, { timetable: {}, classes: [] });
+    });
   };
 
+  const activeTimetable = timetables.find(t => t.id === activeTimetableId) || null;
+  const activeTeachers = activeTimetable ? allTeachers.filter(t => t.schoolSections.includes(activeTimetable.id)) : [];
 
-  const generateTimetable = useCallback((timetableId: string) => {
-    const timetable = timetables.find(t => t.id === timetableId);
-    if(!timetable) return;
+  const generateTimetable = useCallback(() => {
+    if(!activeTimetable) return;
 
     const classSet = new Set<string>();
     const requiredSessions: { [key: string]: { subject: string; teacher: string }[] } = {};
 
-    timetable.teachers.forEach(teacher => {
+    activeTeachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
                 if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
@@ -352,29 +354,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         })
     }
 
-    updateTimetable(timetableId, { 
+    updateTimetable(activeTimetable.id, { 
         timetable: finalTimetable || newTimetable,
         classes: sortedClasses,
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [timetables]);
+  }, [activeTimetable, activeTeachers]);
 
 
-  const clearTimetable = (timetableId: string) => {
-    updateTimetable(timetableId, { timetable: {}, classes: [], days: [], timeSlots: [] });
+  const clearTimetable = () => {
+    if (!activeTimetable) return;
+    updateTimetable(activeTimetable.id, { timetable: {}, classes: [], days: [], timeSlots: [] });
   }
   
   const moveSession = (
-    timetableId: string,
     session: TimetableSession, 
     from: { day: string; period: number },
     to: { day: string; period: number }
   ) => {
-    const timetable = timetables.find(t => t.id === timetableId);
-    if (!timetable) return;
+    if (!activeTimetable) return;
 
-    const newTimetableData = JSON.parse(JSON.stringify(timetable.timetable));
+    const newTimetableData = JSON.parse(JSON.stringify(activeTimetable.timetable));
     
     const fromSlot = newTimetableData[from.day]?.[from.period];
     if (fromSlot) {
@@ -389,14 +390,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         toSlot.push(session);
     }
 
-    updateTimetable(timetableId, { timetable: newTimetableData });
+    updateTimetable(activeTimetable.id, { timetable: newTimetableData });
   }
 
-  const resolveConflicts = (timetableId: string) => {
-    const timetable = timetables.find(t => t.id === timetableId);
-    if (!timetable?.timetable) return;
+  const resolveConflicts = () => {
+    if (!activeTimetable?.timetable) return;
 
-    const currentTimetable = timetable.timetable;
+    const currentTimetable = activeTimetable.timetable;
     const newTimetable = JSON.parse(JSON.stringify(currentTimetable));
     const allSessions: TimetableSession[] = [];
     Object.values(newTimetable).forEach((day: any) => day.forEach((slot: TimetableSession[]) => allSessions.push(...slot)));
@@ -483,7 +483,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     });
-    updateTimetable(timetableId, { timetable: emptyTimetable });
+    updateTimetable(activeTimetable.id, { timetable: emptyTimetable });
 };
 
   useEffect(() => {
@@ -563,18 +563,21 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   }, [timetables]);
 
-  const isConflict = (timetableId: string, sessionId: string) => {
-    const timetable = timetables.find(t => t.id === timetableId);
-    return timetable?.conflicts.some(c => c.id === sessionId) || false;
+  const isConflict = (sessionId: string) => {
+    return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
   }
-
-  const activeTimetable = timetables.find(t => t.id === activeTimetableId) || null;
+  
+  const augmentedActiveTimetable = activeTimetable ? {
+      ...activeTimetable,
+      teachers: activeTeachers,
+  } : null;
 
   return (
     <TimetableContext.Provider
       value={{
         timetables,
-        activeTimetable,
+        activeTimetable: augmentedActiveTimetable,
+        allTeachers,
         addTimetable,
         removeTimetable,
         renameTimetable,
@@ -585,7 +588,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         generateTimetable,
         clearTimetable,
         moveSession,
-        conflicts: activeTimetable?.conflicts || [],
         isConflict,
         viewMode,
         setViewMode,

@@ -30,7 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher, Subject } from "@/lib/types";
@@ -65,6 +65,7 @@ const teacherSchema = z.object({
   name: z.string().min(2, "Teacher name is required."),
   totalPeriods: z.number().min(1, "Total periods must be > 0").default(20),
   subjects: z.array(subjectSchema).min(1, "At least one subject is required."),
+  schoolSections: z.array(z.string()).min(1, "At least one school section is required."),
 }).refine(data => {
     const totalSubjectPeriods = data.subjects.reduce((sum, s) => sum + s.totalPeriods, 0);
     return totalSubjectPeriods <= data.totalPeriods;
@@ -376,8 +377,8 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
 }
 
 export default function TeacherEditor() {
-  const { activeTimetable, addTeacher, removeTeacher, updateTeacher } = useTimetable();
-  const teachers = activeTimetable?.teachers || [];
+  const { activeTimetable, allTeachers, timetables, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const currentTeachers = allTeachers.filter(t => activeTimetable && t.schoolSections.includes(activeTimetable.id));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
@@ -387,6 +388,7 @@ export default function TeacherEditor() {
       name: "",
       totalPeriods: 20,
       subjects: [{ name: "", totalPeriods: 1, assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
+      schoolSections: activeTimetable ? [activeTimetable.id] : [],
     },
   });
 
@@ -419,12 +421,14 @@ export default function TeacherEditor() {
                     groupArms: a.groupArms,
                 })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }],
             })) : [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+            schoolSections: teacher.schoolSections || (activeTimetable ? [activeTimetable.id] : []),
         });
     } else {
         form.reset({
             name: "",
             totalPeriods: 20,
             subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+            schoolSections: activeTimetable ? [activeTimetable.id] : [],
         });
     }
     setIsDialogOpen(true);
@@ -448,9 +452,9 @@ export default function TeacherEditor() {
     }
 
     if (editingTeacher && finalData.id) {
-        updateTeacher(activeTimetable.id, finalData.id, finalData.name, finalData.totalPeriods, finalData.subjects as Subject[]);
+        updateTeacher(finalData as Teacher);
     } else {
-        addTeacher(activeTimetable.id, finalData.name, finalData.totalPeriods, finalData.subjects as Omit<Subject, "id">[]);
+        addTeacher(finalData as Omit<Teacher, 'id'>);
     }
     form.reset();
     setIsDialogOpen(false);
@@ -514,6 +518,54 @@ export default function TeacherEditor() {
                             )}
                         />
                       </div>
+                      
+                      <FormField
+                          control={form.control}
+                          name="schoolSections"
+                          render={() => (
+                          <FormItem>
+                              <div className="mb-2">
+                                <FormLabel className="text-base">School Sections</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                    Select the sections this teacher belongs to.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 p-2 border rounded-md">
+                                {timetables.map((timetable) => (
+                                  <FormField
+                                    key={timetable.id}
+                                    control={form.control}
+                                    name="schoolSections"
+                                    render={({ field }) => {
+                                      return (
+                                        <FormItem
+                                          key={timetable.id}
+                                          className="flex flex-row items-center space-x-2 space-y-0"
+                                        >
+                                          <FormControl>
+                                            <Checkbox
+                                              checked={field.value?.includes(timetable.id)}
+                                              onCheckedChange={(checked) => {
+                                                const currentValue = field.value || [];
+                                                return checked
+                                                  ? field.onChange([...currentValue, timetable.id])
+                                                  : field.onChange(currentValue.filter((value) => value !== timetable.id))
+                                              }}
+                                            />
+                                          </FormControl>
+                                          <FormLabel className="font-normal text-sm">
+                                            {timetable.name}
+                                          </FormLabel>
+                                        </FormItem>
+                                      );
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                              <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       <div className="space-y-4 p-3 border rounded-md">
                         <div className="flex justify-between items-center">
@@ -576,11 +628,11 @@ export default function TeacherEditor() {
       </Dialog>
       
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground px-2 flex items-center"><Users className="mr-2 h-4 w-4"/>Teachers ({teachers.length})</h3>
+        <h3 className="text-sm font-medium text-muted-foreground px-2 flex items-center"><Users className="mr-2 h-4 w-4"/>Teachers ({currentTeachers.length})</h3>
         <ScrollArea className="h-[calc(100vh-12rem)]">
-          {teachers.length > 0 ? (
+          {currentTeachers.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {teachers.map((teacher) => (
+              {currentTeachers.map((teacher) => (
                 <AccordionItem value={teacher.id} key={teacher.id}>
                   <div className="flex items-center w-full hover:bg-muted/50 rounded-md">
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
@@ -606,7 +658,7 @@ export default function TeacherEditor() {
                       className="h-7 w-7 text-muted-foreground hover:text-destructive mr-2"
                       onClick={(e) => {
                         e.stopPropagation();
-                        activeTimetable && removeTeacher(activeTimetable.id, teacher.id);
+                        removeTeacher(teacher.id);
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -614,6 +666,18 @@ export default function TeacherEditor() {
                   </div>
                   <AccordionContent className="px-2 pb-4">
                     <div className="space-y-3">
+                       <div className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
+                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
+                                <Building className="mr-2 h-4 w-4 text-primary" />
+                                <span>School Sections</span>
+                            </div>
+                            <div className="mt-2 space-x-2 pl-2">
+                                {teacher.schoolSections.map(sectionId => {
+                                    const timetable = timetables.find(t => t.id === sectionId);
+                                    return timetable ? <Badge key={sectionId} variant="secondary">{timetable.name}</Badge> : null;
+                                })}
+                            </div>
+                       </div>
                       {teacher.subjects.map((subject) => (
                         <div key={subject.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
@@ -652,7 +716,7 @@ export default function TeacherEditor() {
             </Accordion>
           ) : (
              <div className="text-sm text-muted-foreground text-center p-8">
-                No teachers added yet. Click "Add Teacher" to begin.
+                No teachers assigned to this section. Add teachers or assign existing ones.
              </div>
           )}
         </ScrollArea>

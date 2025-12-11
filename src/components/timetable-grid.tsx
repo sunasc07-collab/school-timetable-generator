@@ -67,7 +67,7 @@ export default function TimetableGrid() {
         const data: TimetableDragData = JSON.parse(
           e.dataTransfer.getData("application/json")
         );
-        moveSession(activeTimetable.id, data.session, data.from, { day, period });
+        moveSession(data.session, data.from, { day, period });
     } catch (error) {
         console.error("Failed to parse drag data:", error);
     }
@@ -78,13 +78,13 @@ export default function TimetableGrid() {
     if (Object.keys(timetable).length > 0) {
       setIsRegenerateConfirmOpen(true);
     } else {
-      generateTimetable(activeTimetable.id);
+      generateTimetable();
     }
   };
   
   const handleConfirmRegenerate = () => {
     if (!activeTimetable) return;
-    generateTimetable(activeTimetable.id);
+    generateTimetable();
     setIsRegenerateConfirmOpen(false);
   };
 
@@ -95,7 +95,7 @@ export default function TimetableGrid() {
 
   const handleConfirmClear = () => {
     if (!activeTimetable) return;
-    clearTimetable(activeTimetable.id);
+    clearTimetable();
     setIsClearConfirmOpen(false);
   }
 
@@ -110,7 +110,7 @@ export default function TimetableGrid() {
             <TimetableItem
               key={`${session.id}-${session.part || ''}`}
               session={session}
-              isConflict={isConflict(activeTimetable?.id || "", session.id)}
+              isConflict={isConflict(session.id)}
               from={{ day, period }}
             />
         ))}
@@ -281,7 +281,7 @@ export default function TimetableGrid() {
             </div>
             <div className="flex gap-2">
                 {conflicts.length > 0 && (
-                  <Button onClick={() => activeTimetable && resolveConflicts(activeTimetable.id)} variant="outline">
+                  <Button onClick={() => resolveConflicts()} variant="outline">
                     <ZapOff className="mr-2 h-4 w-4" />
                     Resolve Conflicts
                   </Button>

@@ -20,6 +20,7 @@ export type Teacher = {
   name: string;
   totalPeriods: number;
   subjects: Subject[];
+  schoolSections: string[];
 };
 
 export type TimetableSession = {
@@ -63,7 +64,6 @@ export type ViewMode = 'class' | 'teacher';
 export type Timetable = {
   id: string;
   name: string;
-  teachers: Teacher[];
   timetable: TimetableData;
   classes: string[];
   conflicts: Conflict[];

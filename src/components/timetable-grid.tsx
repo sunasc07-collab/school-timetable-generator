@@ -172,8 +172,12 @@ export default function TimetableGrid() {
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
                 {timeSlots.map((slot, index) => (
-                <TableHead key={index} className="font-headline text-center">
-                    {slot.isBreak ? slot.label : (
+                <TableHead key={index} className="font-headline text-center align-middle">
+                    {slot.isBreak ? (
+                        <div className="[writing-mode:vertical-rl] rotate-180 text-center mx-auto my-2 text-muted-foreground font-medium">
+                            {slot.label}
+                        </div>
+                    ) : (
                         <>
                             <div>{slot.time}</div>
                             <div className="text-xs font-normal">Period {slot.period}</div>

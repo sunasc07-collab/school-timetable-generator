@@ -63,7 +63,14 @@ const subjectSchema = z.object({
 const teacherSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Teacher name is required."),
+  totalPeriods: z.number().min(1, "Total periods must be > 0").default(20),
   subjects: z.array(subjectSchema).min(1, "At least one subject is required."),
+}).refine(data => {
+    const totalSubjectPeriods = data.subjects.reduce((sum, s) => sum + s.totalPeriods, 0);
+    return totalSubjectPeriods <= data.totalPeriods;
+}, {
+    message: "Total periods for all subjects cannot exceed the teacher's total periods.",
+    path: ["subjects"],
 });
 
 type TeacherFormValues = z.infer<typeof teacherSchema>;
@@ -226,7 +233,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
     )
 }
 
-const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean }) => {
+const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPeriodsForThisSubject, setValue }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean, maxPeriodsForThisSubject: number, setValue: any }) => {
     
     const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment, update } = useFieldArray({
         control,
@@ -274,54 +281,46 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove }: { subj
                         </FormItem>
                     )}
                 />
-                <FormField
+                 <FormField
                     control={control}
                     name={`subjects.${subjectIndex}.totalPeriods`}
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Total Periods / week</FormLabel>
-                            <FormControl>
-                                <Input 
-                                    type="number" 
-                                    min="1" 
-                                    className="w-28"
-                                    {...field} 
-                                    onChange={e => {
-                                        const value = parseInt(e.target.value, 10) || 1;
-                                        field.onChange(value);
-                                        // Reset assignment periods if total is reduced
-                                        const currentAssignments = subjectData.assignments;
-                                        let runningTotal = 0;
-                                        const newAssignments = currentAssignments.map((a: any) => {
-                                            if (runningTotal + a.periods <= value) {
-                                                runningTotal += a.periods;
-                                                return a;
-                                            }
-                                            const newPeriods = Math.max(0, value - runningTotal);
-                                            runningTotal += newPeriods;
-                                            return { ...a, periods: newPeriods };
-                                        }).filter((a: any) => a.periods > 0);
+                             <Select onValueChange={(value) => {
+                                const newTotal = parseInt(value);
+                                field.onChange(newTotal);
 
-                                        if (newAssignments.length === 0 && value > 0) {
-                                            newAssignments.push({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
-                                        }
+                                const currentAssignments = subjectData.assignments;
+                                let runningTotal = 0;
+                                const newAssignments = currentAssignments.map((a: any) => {
+                                    if (runningTotal + a.periods <= newTotal) {
+                                        runningTotal += a.periods;
+                                        return a;
+                                    }
+                                    const newPeriods = Math.max(0, newTotal - runningTotal);
+                                    runningTotal += newPeriods;
+                                    return { ...a, periods: newPeriods };
+                                }).filter((a: any) => a.periods > 0);
 
-                                        // Update the entire array of assignments
-                                        const subjectRoot = `subjects.${subjectIndex}.assignments`;
-                                        (control as any)._fields[subjectRoot] = [];
-                                        newAssignments.forEach((a: any, i: number) => {
-                                           update(i, a);
-                                        });
-                                        if (assignmentFields.length > newAssignments.length) {
-                                           for (let i = newAssignments.length; i < assignmentFields.length; i++) {
-                                             removeAssignment(i);
-                                           }
-                                        }
+                                if (newAssignments.length === 0 && newTotal > 0) {
+                                    newAssignments.push({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
+                                }
+                                
+                                setValue(`subjects.${subjectIndex}.assignments`, newAssignments);
 
-
-                                    }}
-                                />
-                            </FormControl>
+                            }} value={String(field.value)}>
+                                <FormControl>
+                                    <SelectTrigger className="w-28">
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {Array.from({ length: maxPeriodsForThisSubject }, (_, i) => i + 1).map(p => (
+                                        <SelectItem key={p} value={String(p)}>{p}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -383,6 +382,7 @@ export default function TeacherEditor() {
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       name: "",
+      totalPeriods: 20,
       subjects: [{ name: "", totalPeriods: 1, assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
     },
   });
@@ -391,6 +391,11 @@ export default function TeacherEditor() {
     control: form.control,
     name: "subjects",
   });
+
+  const teacherFormData = useWatch({ control: form.control });
+  const teacherTotalPeriods = teacherFormData.totalPeriods || 0;
+  const subjectsTotalPeriods = teacherFormData.subjects.reduce((acc, s) => acc + (s.totalPeriods || 0), 0);
+  const unassignedTeacherPeriods = teacherTotalPeriods - subjectsTotalPeriods;
   
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
@@ -398,6 +403,7 @@ export default function TeacherEditor() {
         form.reset({
             id: teacher.id,
             name: teacher.name,
+            totalPeriods: teacher.totalPeriods,
             subjects: teacher.subjects.length > 0 ? teacher.subjects.map(s => ({
                 id: s.id || crypto.randomUUID(),
                 name: s.name,
@@ -414,6 +420,7 @@ export default function TeacherEditor() {
     } else {
         form.reset({
             name: "",
+            totalPeriods: 20,
             subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
         });
     }
@@ -424,6 +431,7 @@ export default function TeacherEditor() {
     const finalData = {
         ...data,
         id: editingTeacher?.id,
+        totalPeriods: data.totalPeriods,
         subjects: data.subjects.map(s => ({
             ...s,
             id: s.id || crypto.randomUUID(),
@@ -435,9 +443,9 @@ export default function TeacherEditor() {
     }
 
     if (editingTeacher && finalData.id) {
-        updateTeacher(finalData.id, finalData.name, finalData.subjects as Subject[]);
+        updateTeacher(finalData.id, finalData.name, finalData.totalPeriods, finalData.subjects as Subject[]);
     } else {
-        addTeacher(finalData.name, finalData.subjects as Omit<Subject, "id">[]);
+        addTeacher(finalData.name, finalData.totalPeriods, finalData.subjects as Omit<Subject, "id">[]);
     }
     form.reset();
     setIsDialogOpen(false);
@@ -465,32 +473,58 @@ export default function TeacherEditor() {
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                   <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teacher Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g., Mr. Smith" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Teacher Name</FormLabel>
+                                <FormControl>
+                                <Input placeholder="e.g., Mr. Smith" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="totalPeriods"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Total Periods / week</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="1" className="w-28" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                      </div>
 
-                      <div className="space-y-4">
-                        <FormLabel>Subjects</FormLabel>
+                      <div className="space-y-4 p-3 border rounded-md">
+                        <div className="flex justify-between items-center">
+                            <FormLabel>Subjects</FormLabel>
+                             <Badge variant={unassignedTeacherPeriods > 0 ? "secondary" : (unassignedTeacherPeriods === 0 ? "default" : "destructive")}>
+                                {unassignedTeacherPeriods} unassigned period{unassignedTeacherPeriods !== 1 ? 's' : ''}
+                            </Badge>
+                        </div>
                         <div className="space-y-3">
-                          {subjectFields.map((field, index) => (
-                            <SubjectForm 
-                                key={field.id} 
-                                subjectIndex={index} 
-                                control={form.control} 
-                                removeSubject={() => removeSubject(index)}
-                                canRemove={subjectFields.length > 1}
-                            />
-                          ))}
+                          {subjectFields.map((field, index) => {
+                             const currentSubjectPeriods = teacherFormData.subjects[index].totalPeriods || 0;
+                             const maxForThis = unassignedTeacherPeriods + currentSubjectPeriods;
+                             return (
+                                <SubjectForm 
+                                    key={field.id} 
+                                    subjectIndex={index} 
+                                    control={form.control} 
+                                    removeSubject={() => removeSubject(index)}
+                                    canRemove={subjectFields.length > 1}
+                                    maxPeriodsForThisSubject={maxForThis}
+                                    setValue={form.setValue}
+                                />
+                             )
+                          })}
                         </div>
                         <Button
                             type="button"
@@ -498,10 +532,18 @@ export default function TeacherEditor() {
                             size="sm"
                             className="mt-2"
                             onClick={() => appendSubject({ name: "", totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] })}
+                            disabled={unassignedTeacherPeriods <= 0}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Subject
                           </Button>
+                         <FormField
+                            control={form.control}
+                            name="subjects"
+                            render={({ fieldState }) => (
+                            fieldState.error && <p className="text-sm font-medium text-destructive">{fieldState.error.message}</p>
+                            )}
+                        />
                       </div>
                     </div>
                   </ScrollArea>
@@ -526,7 +568,10 @@ export default function TeacherEditor() {
                 <AccordionItem value={teacher.id} key={teacher.id}>
                   <div className="flex items-center w-full hover:bg-muted/50 rounded-md">
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
-                        <span className="font-medium">{teacher.name}</span>
+                        <div className="flex flex-col items-start">
+                           <span className="font-medium">{teacher.name}</span>
+                           <span className="text-xs text-muted-foreground font-normal">{teacher.subjects.reduce((acc, s) => acc + s.totalPeriods, 0)} / {teacher.totalPeriods} periods</span>
+                        </div>
                     </AccordionTrigger>
                      <Button
                       variant="ghost"

@@ -8,9 +8,9 @@ type ViewMode = 'class' | 'teacher';
 
 type TimetableContextType = {
   teachers: Teacher[];
-  addTeacher: (name: string, subjects: Omit<Subject, "id">[]) => void;
+  addTeacher: (name: string, totalPeriods: number, subjects: Omit<Subject, "id">[]) => void;
   removeTeacher: (id: string) => void;
-  updateTeacher: (id: string, name: string, subjects: Subject[]) => void;
+  updateTeacher: (id: string, name: string, totalPeriods: number, subjects: Subject[]) => void;
   timetable: TimetableData;
   classes: string[];
   days: string[];
@@ -185,7 +185,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         const session = sessions[0];
         const remainingSessions = sessions.slice(1);
-        const shuffledDays = DAYS.slice().sort(() => Math.random() - 0.5);
+        
+        const dayUsage = DAYS.map(day => ({ day, count: board[day].flat().filter(s => s.className === session.className && s.subject === session.subject).length }));
+        const shuffledDays = dayUsage.sort((a, b) => a.count - b.count).map(d => d.day);
 
         for (const day of shuffledDays) {
             if (session.isDouble) {
@@ -262,10 +264,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
              for (const day of DAYS) {
                 for (let period = 0; period < PERIOD_COUNT; period++) {
                     if (session.isDouble) {
+                        const partner = sessionsToPlace.find(s => s.id === session.id && s.part !== session.part);
+                        if (!partner) continue;
                         const p2 = period + 1;
                         if (CONSECUTIVE_PERIODS.some(p => p[0] === period && p[1] === p2)) {
                             finalTimetable![day][period].push({...session, part: 1});
-                            finalTimetable![day][p2].push({...session, part: 2});
+                            finalTimetable![day][p2].push({...partner, part: 2});
                             placed = true;
                             placedIds.add(session.id);
                             break;
@@ -289,10 +293,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const days = Object.keys(timetable).length > 0 ? DAYS : [];
   const timeSlots = Object.keys(timetable).length > 0 ? TIME_SLOTS : [];
 
-  const addTeacher = (name: string, subjects: Omit<Subject, "id">[]) => {
+  const addTeacher = (name: string, totalPeriods: number, subjects: Omit<Subject, "id">[]) => {
     const newTeacher: Teacher = {
       id: crypto.randomUUID(),
       name,
+      totalPeriods,
       subjects: subjects.map(s => ({ 
           ...s, 
           id: s.id || crypto.randomUUID(),
@@ -311,8 +316,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setClasses([]);
   };
   
-  const updateTeacher = (id: string, name: string, subjects: Subject[]) => {
-    setTeachers(prev => prev.map(t => t.id === id ? { id, name, subjects } : t));
+  const updateTeacher = (id: string, name: string, totalPeriods: number, subjects: Subject[]) => {
+    setTeachers(prev => prev.map(t => t.id === id ? { id, name, totalPeriods, subjects } : t));
     setTimetable({});
     setClasses([]);
   };
@@ -563,5 +568,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

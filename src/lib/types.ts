@@ -18,6 +18,7 @@ export type Subject = {
 export type Teacher = {
   id: string;
   name: string;
+  totalPeriods: number;
   subjects: Subject[];
 };
 

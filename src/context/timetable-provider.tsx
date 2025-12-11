@@ -124,6 +124,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const teacherAvailability: { [key: string]: boolean[][] } = {};
     const classAvailability: { [key: string]: boolean[][] } = {};
     const classDoublePeriodDays: { [key: string]: Set<string> } = {};
+    const classSubjectPeriodsPerDay: { [className: string]: { [subject: string]: number[] } } = {};
+
 
     DAYS.forEach((day, dayIndex) => {
         newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
@@ -136,6 +138,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     Array.from(classSet).forEach(c => {
         classAvailability[c] = Array.from({ length: DAYS.length }, () => Array(PERIOD_COUNT).fill(true));
         classDoublePeriodDays[c] = new Set();
+        classSubjectPeriodsPerDay[c] = {};
     });
     
     // 3. Separate sessions and shuffle for randomness
@@ -147,15 +150,24 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     for (const session of doubleSessions) {
         if (placedDoubleIds.has(session.id)) continue;
 
+        if (!classSubjectPeriodsPerDay[session.className][session.subject]) {
+            classSubjectPeriodsPerDay[session.className][session.subject] = Array(DAYS.length).fill(0);
+        }
+
         let placed = false;
         // Shuffle days to avoid piling up at the start of the week
         const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
 
         for (const day of shuffledDays) {
             if (placed) break;
+            const dayIndex = DAYS.indexOf(day);
+
             if (classDoublePeriodDays[session.className]?.has(day)) continue;
 
-            const dayIndex = DAYS.indexOf(day);
+            if ((classSubjectPeriodsPerDay[session.className][session.subject][dayIndex] + 2) > 2) {
+                continue;
+            }
+
             // Shuffle consecutive periods to try different slots
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
@@ -178,6 +190,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     classAvailability[session.className][dayIndex][p2] = false;
 
                     classDoublePeriodDays[session.className].add(day);
+                    classSubjectPeriodsPerDay[session.className][session.subject][dayIndex] += 2;
                     placedDoubleIds.add(session.id);
                     placed = true;
                     break;
@@ -188,10 +201,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     // 5. Place single periods
     for (const session of singleSessions) {
+        if (!classSubjectPeriodsPerDay[session.className][session.subject]) {
+            classSubjectPeriodsPerDay[session.className][session.subject] = Array(DAYS.length).fill(0);
+        }
+
        let placed = false;
        for (let dayIndex = 0; dayIndex < DAYS.length; dayIndex++) {
            if (placed) break;
            const day = DAYS[dayIndex];
+
+           if ((classSubjectPeriodsPerDay[session.className][session.subject][dayIndex] + 1) > 2) {
+                continue;
+            }
+
            for (let periodIndex = 0; periodIndex < PERIOD_COUNT; periodIndex++) {
                const teacherFree = teacherAvailability[session.teacher][dayIndex][periodIndex];
                const classFree = classAvailability[session.className][dayIndex][periodIndex];
@@ -200,6 +222,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                    newTimetable[day][periodIndex].push(session);
                    teacherAvailability[session.teacher][dayIndex][periodIndex] = false;
                    classAvailability[session.className][dayIndex][periodIndex] = false;
+                   classSubjectPeriodsPerDay[session.className][session.subject][dayIndex]++;
                    placed = true;
                    break;
                }

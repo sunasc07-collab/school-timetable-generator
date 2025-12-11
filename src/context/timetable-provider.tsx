@@ -81,6 +81,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const classSet = new Set<string>();
     const sessionsToPlace: TimetableSession[] = [];
 
+    // 1. Collect all sessions that need to be placed
     teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
@@ -118,111 +119,55 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    // Initialize empty timetable
+    // 2. Initialize an empty timetable
     const newTimetable: TimetableData = {};
     for (const day of DAYS) {
         newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
     }
 
-    const doubleSessions = sessionsToPlace.filter(s => s.isDouble);
+    const doubleSessions = sessionsToPlace.filter(s => s.isDouble && s.part === 1);
     const singleSessions = sessionsToPlace.filter(s => !s.isDouble);
-    
-    // --- Placement Logic ---
-    const dailyDoubleCount: { [className: string]: { [day: string]: number } } = {};
-    Array.from(classSet).forEach(c => {
-        dailyDoubleCount[c] = {};
-        DAYS.forEach(d => dailyDoubleCount[c][d] = 0);
-    });
 
-    const placedDoubleSessionIds = new Set<string>();
+    let currentDayIndex = 0;
+    let currentPeriodIndex = 0;
+
+    const getNextSlot = () => {
+        const day = DAYS[currentDayIndex];
+        const period = currentPeriodIndex;
+
+        currentPeriodIndex++;
+        if (currentPeriodIndex >= PERIOD_COUNT) {
+            currentPeriodIndex = 0;
+            currentDayIndex = (currentDayIndex + 1) % DAYS.length;
+        }
+        return { day, period };
+    };
     
-    // 1. Place double sessions first
-    doubleSessions.filter(s => s.part === 1).forEach(sessionPart1 => {
-        const sessionPart2 = doubleSessions.find(s => s.id === sessionPart1.id && s.part === 2)!;
-        let placed = false;
+    // 3. Brute-force placement of all sessions
+    
+    // Place double sessions
+    doubleSessions.forEach(sessionPart1 => {
+        const sessionPart2 = sessionsToPlace.find(s => s.id === sessionPart1.id && s.part === 2)!;
         
-        for (const day of DAYS) {
-            // Respect one double per day per class
-            if (dailyDoubleCount[sessionPart1.className][day] > 0) continue;
-
-            for (const p of CONSECUTIVE_PERIODS) {
-                const period1 = p[0];
-                const period2 = p[1];
-
-                const slot1 = newTimetable[day][period1];
-                const slot2 = newTimetable[day][period2];
-
-                const teacherConflict = slot1.some(s => s.teacher === sessionPart1.teacher) || slot2.some(s => s.teacher === sessionPart1.teacher);
-                const classConflict = slot1.some(s => s.className === sessionPart1.className) || slot2.some(s => s.className === sessionPart1.className);
-                
-                if (!teacherConflict && !classConflict) {
-                    slot1.push(sessionPart1);
-                    slot2.push(sessionPart2);
-                    dailyDoubleCount[sessionPart1.className][day]++;
-                    placedDoubleSessionIds.add(sessionPart1.id);
-                    placed = true;
-                    break;
-                }
-            }
-            if (placed) break;
-        }
-    });
-
-    // Brute force place any unplaced doubles
-    doubleSessions.filter(s => s.part === 1 && !placedDoubleSessionIds.has(s.id)).forEach(sessionPart1 => {
-        const sessionPart2 = doubleSessions.find(s => s.id === sessionPart1.id && s.part === 2)!;
         let placed = false;
-        for (const day of DAYS) {
-            for (const p of CONSECUTIVE_PERIODS) {
-                 const period1 = p[0];
-                 const period2 = p[1];
-                 const slot1 = newTimetable[day][period1];
-                 const slot2 = newTimetable[day][period2];
-                 // Just place it, conflicts will be flagged
-                 slot1.push(sessionPart1);
-                 slot2.push(sessionPart2);
-                 placed = true;
-                 break;
+        while (!placed) {
+            const { day, period } = getNextSlot();
+            // Check if there is a consecutive slot available on the same day
+            const nextPeriod = period + 1;
+            const isConsecutivePair = CONSECUTIVE_PERIODS.some(p => p[0] === period && p[1] === nextPeriod);
+
+            if (isConsecutivePair) {
+                newTimetable[day][period].push(sessionPart1);
+                newTimetable[day][nextPeriod].push(sessionPart2);
+                placed = true;
             }
-            if (placed) break;
         }
     });
-    
-    // 2. Place all single sessions
+
+    // Place single sessions
     singleSessions.forEach(session => {
-        let placed = false;
-        // Try to find a non-conflicting slot first
-        for (const day of DAYS) {
-            for (let period = 0; period < PERIOD_COUNT; period++) {
-                const slot = newTimetable[day][period];
-                const teacherConflict = slot.some(s => s.teacher === session.teacher);
-                const classConflict = slot.some(s => s.className === session.className);
-                if (!teacherConflict && !classConflict) {
-                    slot.push(session);
-                    placed = true;
-                    break;
-                }
-            }
-            if(placed) break;
-        }
-
-        // If no ideal spot, just place it anywhere it fits.
-        if (!placed) {
-            for (const day of DAYS) {
-                for (let period = 0; period < PERIOD_COUNT; period++) {
-                     if(newTimetable[day][period].length < 3) { // Avoid making slots too crowded
-                        newTimetable[day][period].push(session);
-                        placed = true;
-                        break;
-                     }
-                }
-                if (placed) break;
-            }
-        }
-        // If still not placed (highly unlikely), force place in the first slot
-        if (!placed) {
-            newTimetable[DAYS[0]][0].push(session);
-        }
+        const { day, period } = getNextSlot();
+        newTimetable[day][period].push(session);
     });
 
     setClasses(Array.from(classSet).sort());
@@ -397,3 +342,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

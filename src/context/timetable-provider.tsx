@@ -78,7 +78,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode', 'class');
 
   const generateTimetable = useCallback(() => {
-    console.log("Starting timetable generation...");
     const classSet = new Set<string>();
     let sessionsToPlace: TimetableSession[] = [];
 
@@ -96,6 +95,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                   for (let i = 0; i < numDouble; i++) {
                       const doubleId = crypto.randomUUID();
                       sessionsToPlace.push({ id: doubleId, subject: subject.name, teacher: teacher.name, className, isDouble: true, part: 1 });
+                      sessionsToPlace.push({ id: doubleId, subject: subject.name, teacher: teacher.name, className, isDouble: true, part: 2 });
                   }
                   for (let i = 0; i < numSingle; i++) {
                       sessionsToPlace.push({ id: crypto.randomUUID(), subject: subject.name, teacher: teacher.name, className, isDouble: false });
@@ -119,123 +119,76 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    const doubleSessions = sessionsToPlace.filter(s => s.isDouble).map(s => ({...s, isDouble: true, part: 1 as const}));
-    const singleSessions = sessionsToPlace.filter(s => !s.isDouble);
-
-    // Shuffle for randomness
-    const shuffledDoubles = doubleSessions.sort(() => Math.random() - 0.5);
-    const shuffledSingles = singleSessions.sort(() => Math.random() - 0.5);
-    const allSessions = [...shuffledDoubles, ...shuffledSingles];
-
-    
     // 2. Initialize an empty timetable
     let newTimetable: TimetableData = {};
     for (const day of DAYS) {
         newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
     }
 
-    // 3. Backtracking solver
-    const solve = (currentTimetable: TimetableData, sessions: TimetableSession[]): TimetableData | null => {
-        if (sessions.length === 0) {
-            return currentTimetable; // Success
-        }
+    // 3. Brute-force placement
+    let dayIndex = 0;
+    let periodIndex = 0;
 
-        const session = sessions[0];
-        const remainingSessions = sessions.slice(1);
-        
-        // --- Double Period Logic ---
-        if (session.isDouble) {
-            for (const day of DAYS) {
-                // Check if this class already has a double period on this day
-                const hasDoubleOnDay = Object.values(currentTimetable[day]).flat().some(
-                    s => s.isDouble && s.className === session.className
-                );
-                if (hasDoubleOnDay) continue;
+    const doubleSessions = sessionsToPlace.filter(s => s.isDouble);
+    const singleSessions = sessionsToPlace.filter(s => !s.isDouble);
 
-                for (const p of CONSECUTIVE_PERIODS) {
-                    const period1 = p[0];
-                    const period2 = p[1];
-                    
-                    const slot1 = currentTimetable[day][period1];
-                    const slot2 = currentTimetable[day][period2];
+    // Place double sessions first
+    const placedDoubleIds = new Set<string>();
+    for (const session of doubleSessions) {
+        if (placedDoubleIds.has(session.id)) continue;
 
-                    const isTeacherAvailable = !slot1.some(s => s.teacher === session.teacher) && !slot2.some(s => s.teacher === session.teacher);
-                    const isClassAvailable = !slot1.some(s => s.className === session.className) && !slot2.some(s => s.className === session.className);
-
-                    if (isTeacherAvailable && isClassAvailable) {
-                        const nextTimetable = JSON.parse(JSON.stringify(currentTimetable));
-                        nextTimetable[day][period1].push({ ...session, part: 1 });
-                        nextTimetable[day][period2].push({ ...session, part: 2 });
-                        
-                        const result = solve(nextTimetable, remainingSessions);
-                        if (result) return result;
-                    }
-                }
-            }
-        } 
-        // --- Single Period Logic ---
-        else {
-             for (const day of DAYS) {
-                for (let period = 0; period < PERIOD_COUNT; period++) {
-                    const slot = currentTimetable[day][period];
-                    
-                    const isTeacherAvailable = !slot.some(s => s.teacher === session.teacher);
-                    const isClassAvailable = !slot.some(s => s.className === session.className);
-
-                    if (isTeacherAvailable && isClassAvailable) {
-                         const nextTimetable = JSON.parse(JSON.stringify(currentTimetable));
-                         nextTimetable[day][period].push(session);
-
-                         const result = solve(nextTimetable, remainingSessions);
-                         if (result) return result;
-                    }
-                }
-            }
-        }
-        
-        return null; // Backtrack
-    };
-
-    const solvedTimetable = solve(newTimetable, allSessions);
-
-    if (solvedTimetable) {
-        console.log("Timetable generated successfully!");
-        setClasses(Array.from(classSet).sort());
-        setTimetable(solvedTimetable);
-    } else {
-        console.error("Failed to generate a valid timetable. Some constraints might be too restrictive.");
-        // Fallback: just place everything to show the user what conflicts
-        let fallbackTimetable: TimetableData = {};
-        for (const day of DAYS) {
-            fallbackTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []);
-        }
-        let dayIndex = 0;
-        let periodIndex = 0;
-        
-        const getNextSlot = () => {
+        let placed = false;
+        while (!placed) {
             const day = DAYS[dayIndex];
-            const period = periodIndex;
-            periodIndex = (periodIndex + 1) % PERIOD_COUNT;
-            if(periodIndex === 0) dayIndex = (dayIndex + 1) % DAYS.length;
-            return { day, period };
-        }
-
-        allSessions.forEach(s => {
-             if (s.isDouble) {
-                const sessionPart1 = {...s, part: 1 as const};
-                const sessionPart2 = {...s, part: 2 as const};
-                const {day, period} = getNextSlot();
-                fallbackTimetable[day][period].push(sessionPart1);
-                const {day: day2, period: period2} = getNextSlot();
-                fallbackTimetable[day2][period2].push(sessionPart2);
-            } else {
-                 const {day, period} = getNextSlot();
-                 fallbackTimetable[day][period].push(s);
+            // Find a consecutive slot
+            const consecutiveSlot = CONSECUTIVE_PERIODS.find(p => {
+                const period1 = p[0];
+                const period2 = p[1];
+                return newTimetable[day][period1].length === 0 && newTimetable[day][period2].length === 0;
+            });
+            
+            if (consecutiveSlot) {
+                newTimetable[day][consecutiveSlot[0]].push({ ...session, part: 1 });
+                newTimetable[day][consecutiveSlot[1]].push({ ...session, part: 2 });
+                placedDoubleIds.add(session.id);
+                placed = true;
             }
-        });
-        setClasses(Array.from(classSet).sort());
-        setTimetable(fallbackTimetable);
+
+            periodIndex++;
+            if (periodIndex >= PERIOD_COUNT) {
+                periodIndex = 0;
+                dayIndex = (dayIndex + 1) % DAYS.length;
+            }
+             // Break if we loop all the way around to prevent infinite loops on impossible schedules
+            if (dayIndex === 0 && periodIndex === 0 && !placed) break;
+        }
     }
+    
+    // Reset for single sessions
+    dayIndex = 0;
+    periodIndex = 0;
+
+    // Place single sessions
+    for (const session of singleSessions) {
+         let placed = false;
+         while(!placed) {
+            const day = DAYS[dayIndex];
+            if (newTimetable[day][periodIndex].length === 0) {
+                 newTimetable[day][periodIndex].push(session);
+                 placed = true;
+            }
+            periodIndex++;
+            if (periodIndex >= PERIOD_COUNT) {
+                periodIndex = 0;
+                dayIndex = (dayIndex + 1) % DAYS.length;
+            }
+            if (dayIndex === 0 && periodIndex === 0 && !placed) break; // Safety break
+         }
+    }
+
+    setClasses(Array.from(classSet).sort());
+    setTimetable(newTimetable);
+
   }, [teachers, setClasses, setTimetable]);
 
 

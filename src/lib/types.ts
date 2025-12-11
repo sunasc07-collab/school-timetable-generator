@@ -4,7 +4,6 @@ export type SubjectAssignment = {
     id: string;
     grades: string[];
     arms: string[];
-    periods: number;
     groupArms: boolean;
 };
 

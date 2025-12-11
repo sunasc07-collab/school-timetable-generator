@@ -217,11 +217,6 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
       name: `subjects.${subjectIndex}`
     });
 
-    const totalPeriods = subjectData.totalPeriods || 0;
-    
-    const assignedPeriods = subjectData.assignments.length || 0;
-    const unassignedPeriods = totalPeriods - assignedPeriods;
-
     const handleAppendAssignment = () => {
         appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true });
     };
@@ -642,9 +637,6 @@ export default function TeacherEditor() {
                                                 </span>
                                             </div>
                                         </div>
-                                         <div className="pl-5 text-xs mt-1 space-y-1">
-                                            <div>{subject.totalPeriods} period{subject.totalPeriods !== 1 ? 's' : ''}</div>
-                                         </div>
                                     </div>
                                 )
                             })}
@@ -666,4 +658,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
 

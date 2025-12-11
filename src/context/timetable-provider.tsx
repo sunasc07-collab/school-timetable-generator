@@ -203,8 +203,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     activeTeachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
-            subject.assignments.forEach(assignment => {
+            const totalAssignments = subject.assignments.length;
+            if (totalAssignments === 0) return;
+            
+            const basePeriodsPerAssignment = Math.floor(subject.totalPeriods / totalAssignments);
+            const remainder = subject.totalPeriods % totalAssignments;
+
+            subject.assignments.forEach((assignment, index) => {
                 if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+                
+                const periodsForThisAssignment = basePeriodsPerAssignment + (index < remainder ? 1 : 0);
 
                 const processClass = (className: string, periods: number) => {
                     classSet.add(className);
@@ -219,20 +227,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (assignment.groupArms) {
                     assignment.grades.forEach(grade => {
                         const className = `${grade} ${assignment.arms.join(', ')}`;
-                        processClass(className, assignment.periods);
+                        processClass(className, periodsForThisAssignment);
                     });
                 } else {
                      assignment.grades.forEach(grade => {
                         assignment.arms.forEach(arm => {
                             const className = `${grade} ${arm}`;
-                            processClass(className, assignment.periods);
+                            processClass(className, periodsForThisAssignment);
                         });
                     });
                 }
             });
         });
     });
-
+    
     const sortedClasses = Array.from(classSet).sort();
 
     // Group into single and double sessions

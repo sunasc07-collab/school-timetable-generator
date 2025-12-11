@@ -23,6 +23,8 @@ export default function TimetableItem({
     e.dataTransfer.setData("application/json", JSON.stringify(dragData));
   };
 
+  const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
+
   return (
     <Card
       draggable
@@ -33,7 +35,7 @@ export default function TimetableItem({
         session.isDouble && session.part === 1 ? "rounded-b-none border-b-0" : "",
         session.isDouble && session.part === 2 ? "rounded-t-none border-t-0" : ""
       )}
-      title={`Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}`}
+      title={title}
     >
        {session.isDouble && <div className="absolute top-0 right-1 text-xs text-muted-foreground opacity-70">D</div>}
        {isConflict && <div className="absolute top-0 left-1 text-xs text-destructive-foreground bg-destructive rounded-full h-4 w-4 flex items-center justify-center font-bold ring-2 ring-white">!</div>}
@@ -54,3 +56,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+    

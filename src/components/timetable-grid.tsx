@@ -26,9 +26,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Terminal } from "lucide-react";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable } = useTimetable();
+  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable, conflicts } = useTimetable();
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
@@ -54,7 +56,11 @@ export default function TimetableGrid() {
   };
   
   const handleRegenerateClick = () => {
-    setIsRegenerateConfirmOpen(true);
+    if (Object.keys(timetable).length > 0) {
+      setIsRegenerateConfirmOpen(true);
+    } else {
+      generateTimetable();
+    }
   };
   
   const handleConfirmRegenerate = () => {
@@ -113,7 +119,7 @@ export default function TimetableGrid() {
           <p className="text-muted-foreground mt-2 mb-4">
             Click the button below to generate a timetable based on the current teacher and subject configuration.
           </p>
-          <Button onClick={generateTimetable} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Button onClick={handleRegenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground">
             <Zap className="mr-2 h-4 w-4" />
             Generate Timetable
           </Button>
@@ -226,18 +232,33 @@ export default function TimetableGrid() {
       </AlertDialog>
 
       <div className="space-y-8">
-        <div className="flex justify-end items-center mb-4 gap-2">
-            <Button onClick={handleClearClick} variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Clear Timetable
-            </Button>
-            <Button onClick={handleRegenerateClick} variant="outline">
-                <Zap className="mr-2 h-4 w-4" />
-                Re-generate Timetable
-            </Button>
+        <div className="flex justify-between items-center mb-4 gap-2">
+            <div>
+              {conflicts.length > 0 && (
+                 <Alert variant="destructive" className="max-w-md">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle> {conflicts.length} Conflict{conflicts.length > 1 ? 's' : ''} Detected!</AlertTitle>
+                    <AlertDescription>
+                      {conflicts[0].message} {conflicts.length > 1 ? ` (and ${conflicts.length - 1} more)`: ''} Review the highlighted slots.
+                    </AlertDescription>
+                  </Alert>
+              )}
+            </div>
+            <div className="flex gap-2">
+                <Button onClick={handleClearClick} variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear Timetable
+                </Button>
+                <Button onClick={handleRegenerateClick} variant="outline">
+                    <Zap className="mr-2 h-4 w-4" />
+                    Re-generate Timetable
+                </Button>
+            </div>
         </div>
           {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
       </div>
     </>
   );
 }
+
+    

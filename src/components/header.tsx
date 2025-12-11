@@ -26,7 +26,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useState } from "react";
@@ -55,7 +54,7 @@ export default function Header() {
   const timetable = currentTimetable?.timetable || {};
   const timeSlots = currentTimetable?.timeSlots || [];
   const days = currentTimetable?.days || [];
-  const teachers = (currentTimetable as any)?.teachers || [];
+  const teachers = (activeTimetable as any)?.teachers || [];
   
   const handlePrint = () => {
     window.print();

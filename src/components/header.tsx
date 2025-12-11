@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useState } from "react";
+import type { ViewMode } from "@/lib/types";
 
 type DialogState = 'add' | 'rename' | 'remove' | null;
 
@@ -357,9 +358,10 @@ export default function Header() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Timetable View</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as 'class' | 'teacher')}>
+            <DropdownMenuRadioGroup value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
               <DropdownMenuRadioItem value="class">By Class</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="teacher">By Teacher</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="arm">By Arm</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>

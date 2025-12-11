@@ -58,7 +58,7 @@ export type TimeSlot = {
   label?: string;
 };
 
-export type ViewMode = 'class' | 'teacher';
+export type ViewMode = 'class' | 'teacher' | 'arm';
 
 export type Timetable = {
   id: string;

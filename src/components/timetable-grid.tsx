@@ -15,7 +15,7 @@ import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Trash2, Zap, ZapOff } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +50,24 @@ export default function TimetableGrid() {
   
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
+  const arms = useMemo(() => {
+    if (!activeTimetable) return [];
+    const armSet = new Set<string>();
+    
+    activeTimetable.teachers.forEach(teacher => {
+        teacher.subjects.forEach(subject => {
+            subject.assignments.forEach(assignment => {
+                assignment.grades.forEach(grade => {
+                    assignment.arms.forEach(arm => {
+                        armSet.add(`${grade} ${arm}`);
+                    });
+                });
+            });
+        });
+    });
+    return Array.from(armSet).sort();
+  }, [activeTimetable]);
 
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
@@ -101,7 +119,14 @@ export default function TimetableGrid() {
 
 
   const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterValue: string) => {
-     const relevantSessions = sessions.filter(s => viewMode === 'class' ? s.className === filterValue : s.teacher === filterValue);
+     let relevantSessions: TimetableSession[] = [];
+     if (viewMode === 'class') {
+         relevantSessions = sessions.filter(s => s.className === filterValue);
+     } else if (viewMode === 'teacher') {
+         relevantSessions = sessions.filter(s => s.teacher === filterValue);
+     } else if (viewMode === 'arm') {
+         relevantSessions = sessions.filter(s => s.className.includes(filterValue));
+     }
      
      if (relevantSessions.length > 0) {
       return (
@@ -233,9 +258,14 @@ export default function TimetableGrid() {
     </div>
   );
   
-  const itemsToRender = viewMode === 'class' 
-    ? classes.map(className => ({ title: `${className}'s Timetable`, filterValue: className }))
-    : teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.name }));
+  let itemsToRender: { title: string, filterValue: string }[] = [];
+  if (viewMode === 'class') {
+    itemsToRender = classes.map(className => ({ title: `${className}'s Timetable`, filterValue: className }));
+  } else if (viewMode === 'teacher') {
+    itemsToRender = teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.name }));
+  } else if (viewMode === 'arm') {
+    itemsToRender = arms.map(armName => ({ title: `${armName}'s Timetable`, filterValue: armName }));
+  }
 
   return (
     <ClientOnly>

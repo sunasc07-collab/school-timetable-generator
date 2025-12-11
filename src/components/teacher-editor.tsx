@@ -32,7 +32,7 @@ import {
 import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, BookOpen, Users, Minus, Pencil, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Teacher, Subject } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
@@ -43,7 +43,6 @@ const assignmentSchema = z.object({
   id: z.string().optional(),
   grades: z.array(z.string()).min(1, "At least one grade is required."),
   arms: z.array(z.string()).min(1, "At least one arm is required."),
-  periods: z.number().min(1, "Periods must be > 0").default(1),
   groupArms: z.boolean().default(true),
 });
 
@@ -52,12 +51,6 @@ const subjectSchema = z.object({
   name: z.string().min(1, "Subject name is required."),
   totalPeriods: z.number().min(1, "Total periods must be > 0").default(1),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
-}).refine(data => {
-    const totalAssigned = data.assignments.reduce((sum, a) => sum + a.periods, 0);
-    return totalAssigned <= data.totalPeriods;
-}, {
-    message: "Total assigned periods cannot exceed the subject's total periods.",
-    path: ["assignments"],
 });
 
 const teacherSchema = z.object({
@@ -226,31 +219,11 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
 
     const totalPeriods = subjectData.totalPeriods || 0;
     
-    // Distribute periods among assignments
-    useEffect(() => {
-        if (subjectData.assignments.length > 0) {
-            const periodsPerAssignment = Math.floor(totalPeriods / subjectData.assignments.length);
-            const remainder = totalPeriods % subjectData.assignments.length;
-            
-            const newAssignments = subjectData.assignments.map((assignment: any, index: number) => {
-                const periods = periodsPerAssignment + (index < remainder ? 1 : 0);
-                return { ...assignment, periods };
-            }).filter((a: any) => a.periods > 0);
-
-            if(JSON.stringify(newAssignments) !== JSON.stringify(subjectData.assignments.filter((a:any) => a.periods > 0))) {
-                setValue(`subjects.${subjectIndex}.assignments`, newAssignments.length > 0 ? newAssignments : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: totalPeriods, groupArms: true }]);
-            }
-        } else if (totalPeriods > 0) {
-             setValue(`subjects.${subjectIndex}.assignments`, [{ id: crypto.randomUUID(), grades: [], arms: [], periods: totalPeriods, groupArms: true }]);
-        }
-    }, [totalPeriods, subjectData.assignments.length, setValue, subjectIndex]);
-
-
-    const assignedPeriods = subjectData.assignments.reduce((acc: number, a: { periods: number; }) => acc + (a.periods || 0), 0);
+    const assignedPeriods = subjectData.assignments.length || 0;
     const unassignedPeriods = totalPeriods - assignedPeriods;
 
     const handleAppendAssignment = () => {
-        appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true });
+        appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true });
     };
     
     return (
@@ -308,8 +281,8 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
             <div className="p-2 border rounded-md bg-background/50 relative space-y-2">
                 <div className="flex justify-between items-center">
                     <FormLabel>Class Assignments</FormLabel>
-                     <Badge variant={unassignedPeriods > 0 ? "secondary" : (unassignedPeriods === 0 ? "default" : "destructive")}>
-                      {unassignedPeriods} unassigned period{unassignedPeriods !== 1 ? 's' : ''}
+                     <Badge variant={"secondary"}>
+                      {subjectData.assignments.length} assignment{subjectData.assignments.length !== 1 ? 's' : ''}
                     </Badge>
                 </div>
                  {assignmentFields.map((field, index) => {
@@ -357,7 +330,7 @@ export default function TeacherEditor() {
     defaultValues: {
       name: "",
       totalPeriods: 20,
-      subjects: [{ name: "", totalPeriods: 1, assignments: [{ grades: [], arms: [], periods: 1, groupArms: true }] }],
+      subjects: [{ name: "", totalPeriods: 1, assignments: [{ grades: [], arms: [], groupArms: true }] }],
       schoolSections: activeTimetable ? [activeTimetable.id] : [],
     },
   });
@@ -387,17 +360,16 @@ export default function TeacherEditor() {
                     id: a.id || crypto.randomUUID(),
                     grades: a.grades,
                     arms: a.arms,
-                    periods: a.periods,
                     groupArms: a.groupArms,
-                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }],
-            })) : [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }],
+            })) : [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }] }],
             schoolSections: teacher.schoolSections || (activeTimetable ? [activeTimetable.id] : []),
         });
     } else {
         form.reset({
             name: "",
             totalPeriods: 20,
-            subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }] }],
             schoolSections: activeTimetable ? [activeTimetable.id] : [],
         });
     }
@@ -569,7 +541,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], periods: 1, groupArms: true }] })}
+                            onClick={() => appendSubject({ name: "", totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }] })}
                             disabled={unassignedTeacherPeriods <= 0}
                           >
                             <Plus className="mr-2 h-4 w-4" />
@@ -671,7 +643,7 @@ export default function TeacherEditor() {
                                             </div>
                                         </div>
                                          <div className="pl-5 text-xs mt-1 space-y-1">
-                                            <div>{assignment.periods} period{assignment.periods !== 1 ? 's' : ''}</div>
+                                            <div>{subject.totalPeriods} period{subject.totalPeriods !== 1 ? 's' : ''}</div>
                                          </div>
                                     </div>
                                 )
@@ -695,4 +667,3 @@ export default function TeacherEditor() {
   );
 }
 
-    

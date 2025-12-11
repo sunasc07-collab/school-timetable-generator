@@ -75,7 +75,7 @@ const teacherSchema = z.object({
 
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 
-const GRADE_OPTIONS = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
 const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignment, canRemoveAssignment, unassignedPeriods, maxPeriodsForThisAssignment }: { subjectIndex: number, assignmentIndex: number, control: any, removeAssignment: () => void, canRemoveAssignment: boolean, unassignedPeriods: number, maxPeriodsForThisAssignment: number }) => {
@@ -97,38 +97,40 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                 render={() => (
                 <FormItem>
                     <FormLabel>Grades</FormLabel>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 border rounded-md">
-                    {GRADE_OPTIONS.map((grade) => (
-                    <FormField
-                        key={grade}
-                        control={control}
-                        name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                        render={({ field }) => {
-                        return (
-                            <FormItem
+                    <ScrollArea className="h-32">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 border rounded-md">
+                        {GRADE_OPTIONS.map((grade) => (
+                        <FormField
                             key={grade}
-                            className="flex flex-row items-center space-x-2 space-y-0"
-                            >
-                            <FormControl>
-                                <Checkbox
-                                checked={field.value?.includes(grade)}
-                                onCheckedChange={(checked) => {
-                                    const currentValue = field.value || [];
-                                    return checked
-                                    ? field.onChange([...currentValue, grade])
-                                    : field.onChange(currentValue.filter(value => value !== grade))
-                                }}
-                                />
-                            </FormControl>
-                            <FormLabel className="font-normal text-sm">
-                                {grade}
-                            </FormLabel>
-                            </FormItem>
-                        )
-                        }}
-                    />
-                    ))}
-                    </div>
+                            control={control}
+                            name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
+                            render={({ field }) => {
+                            return (
+                                <FormItem
+                                key={grade}
+                                className="flex flex-row items-center space-x-2 space-y-0"
+                                >
+                                <FormControl>
+                                    <Checkbox
+                                    checked={field.value?.includes(grade)}
+                                    onCheckedChange={(checked) => {
+                                        const currentValue = field.value || [];
+                                        return checked
+                                        ? field.onChange([...currentValue, grade])
+                                        : field.onChange(currentValue.filter(value => value !== grade))
+                                    }}
+                                    />
+                                </FormControl>
+                                <FormLabel className="font-normal text-sm">
+                                    {grade}
+                                </FormLabel>
+                                </FormItem>
+                            )
+                            }}
+                        />
+                        ))}
+                        </div>
+                    </ScrollArea>
                     <FormMessage />
                 </FormItem>
                 )}
@@ -235,7 +237,7 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
 
 const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPeriodsForThisSubject, setValue }: { subjectIndex: number, control: any, removeSubject: () => void, canRemove: boolean, maxPeriodsForThisSubject: number, setValue: any }) => {
     
-    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment, update } = useFieldArray({
+    const { fields: assignmentFields, append: appendAssignment, remove: removeAssignment } = useFieldArray({
         control,
         name: `subjects.${subjectIndex}.assignments`,
     });
@@ -374,7 +376,8 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
 }
 
 export default function TeacherEditor() {
-  const { teachers, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const { activeTimetable, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const teachers = activeTimetable?.teachers || [];
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
@@ -428,6 +431,8 @@ export default function TeacherEditor() {
   }
 
   function onSubmit(data: TeacherFormValues) {
+    if (!activeTimetable) return;
+
     const finalData = {
         ...data,
         id: editingTeacher?.id,
@@ -443,13 +448,21 @@ export default function TeacherEditor() {
     }
 
     if (editingTeacher && finalData.id) {
-        updateTeacher(finalData.id, finalData.name, finalData.totalPeriods, finalData.subjects as Subject[]);
+        updateTeacher(activeTimetable.id, finalData.id, finalData.name, finalData.totalPeriods, finalData.subjects as Subject[]);
     } else {
-        addTeacher(finalData.name, finalData.totalPeriods, finalData.subjects as Omit<Subject, "id">[]);
+        addTeacher(activeTimetable.id, finalData.name, finalData.totalPeriods, finalData.subjects as Omit<Subject, "id">[]);
     }
     form.reset();
     setIsDialogOpen(false);
     setEditingTeacher(null);
+  }
+
+  if (!activeTimetable) {
+      return (
+          <div className="p-4 text-center text-muted-foreground">
+              Please select a school section from the header to begin.
+          </div>
+      )
   }
 
   return (
@@ -593,7 +606,7 @@ export default function TeacherEditor() {
                       className="h-7 w-7 text-muted-foreground hover:text-destructive mr-2"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeTeacher(teacher.id);
+                        activeTimetable && removeTeacher(activeTimetable.id, teacher.id);
                       }}
                     >
                       <Trash2 className="h-4 w-4" />

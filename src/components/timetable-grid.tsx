@@ -31,7 +31,23 @@ import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
 
 export default function TimetableGrid() {
-  const { timetable, days, timeSlots, moveSession, isConflict, teachers, classes, generateTimetable, viewMode, clearTimetable, conflicts, resolveConflicts } = useTimetable();
+  const { 
+    activeTimetable,
+    moveSession, 
+    isConflict, 
+    generateTimetable, 
+    viewMode, 
+    clearTimetable, 
+    resolveConflicts 
+  } = useTimetable();
+
+  const timetable = activeTimetable?.timetable || {};
+  const days = activeTimetable?.days || [];
+  const timeSlots = activeTimetable?.timeSlots || [];
+  const teachers = activeTimetable?.teachers || [];
+  const classes = activeTimetable?.classes || [];
+  const conflicts = activeTimetable?.conflicts || [];
+  
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
@@ -46,35 +62,40 @@ export default function TimetableGrid() {
     period: number
   ) => {
     e.preventDefault();
+    if (!activeTimetable) return;
     try {
         const data: TimetableDragData = JSON.parse(
           e.dataTransfer.getData("application/json")
         );
-        moveSession(data.session, data.from, { day, period });
+        moveSession(activeTimetable.id, data.session, data.from, { day, period });
     } catch (error) {
         console.error("Failed to parse drag data:", error);
     }
   };
   
   const handleRegenerateClick = () => {
+    if (!activeTimetable) return;
     if (Object.keys(timetable).length > 0) {
       setIsRegenerateConfirmOpen(true);
     } else {
-      generateTimetable();
+      generateTimetable(activeTimetable.id);
     }
   };
   
   const handleConfirmRegenerate = () => {
-    generateTimetable();
+    if (!activeTimetable) return;
+    generateTimetable(activeTimetable.id);
     setIsRegenerateConfirmOpen(false);
   };
 
   const handleClearClick = () => {
+     if (!activeTimetable) return;
     setIsClearConfirmOpen(true);
   };
 
   const handleConfirmClear = () => {
-    clearTimetable();
+    if (!activeTimetable) return;
+    clearTimetable(activeTimetable.id);
     setIsClearConfirmOpen(false);
   }
 
@@ -89,7 +110,7 @@ export default function TimetableGrid() {
             <TimetableItem
               key={`${session.id}-${session.part || ''}`}
               session={session}
-              isConflict={isConflict(session.id)}
+              isConflict={isConflict(activeTimetable?.id || "", session.id)}
               from={{ day, period }}
             />
         ))}
@@ -99,6 +120,19 @@ export default function TimetableGrid() {
     return <div className="h-20 w-full" />; // Placeholder for empty slot
   }
 
+  if (!activeTimetable) {
+    return (
+      <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
+        <div>
+          <h3 className="text-lg font-semibold font-headline">No Timetable Selected</h3>
+          <p className="text-muted-foreground mt-2">
+            Please select or create a school section from the dropdown in the header to get started.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
   if (teachers.length === 0) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
@@ -247,7 +281,7 @@ export default function TimetableGrid() {
             </div>
             <div className="flex gap-2">
                 {conflicts.length > 0 && (
-                  <Button onClick={resolveConflicts} variant="outline">
+                  <Button onClick={() => activeTimetable && resolveConflicts(activeTimetable.id)} variant="outline">
                     <ZapOff className="mr-2 h-4 w-4" />
                     Resolve Conflicts
                   </Button>

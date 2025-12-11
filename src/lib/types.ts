@@ -31,7 +31,6 @@ export type TimetableSession = {
   part?: 1 | 2;
 };
 
-// A slot in the timetable can now hold multiple sessions (to represent conflicts)
 export type TimetableSlot = TimetableSession[];
 
 export type TimetableData = {
@@ -60,3 +59,14 @@ export type TimeSlot = {
 };
 
 export type ViewMode = 'class' | 'teacher';
+
+export type Timetable = {
+  id: string;
+  name: string;
+  teachers: Teacher[];
+  timetable: TimetableData;
+  classes: string[];
+  conflicts: Conflict[];
+  days: string[];
+  timeSlots: TimeSlot[];
+};

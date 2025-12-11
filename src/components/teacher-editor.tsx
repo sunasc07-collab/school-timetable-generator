@@ -511,6 +511,9 @@ export default function TeacherEditor() {
                         </div>
                         <div className="space-y-3">
                           {subjectFields.map((field, index) => {
+                             if (!teacherFormData.subjects || !teacherFormData.subjects[index]) {
+                                return null;
+                             }
                              const currentSubjectPeriods = teacherFormData.subjects[index].totalPeriods || 0;
                              const maxForThis = unassignedTeacherPeriods + currentSubjectPeriods;
                              return (
@@ -644,5 +647,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

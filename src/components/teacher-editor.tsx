@@ -62,7 +62,7 @@ const teacherSchema = z.object({
   name: z.string().min(2, "Teacher name is required."),
   maxPeriods: z.number().min(1, "Max periods must be > 0").default(20),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
-  schoolSections: z.array(z.string()).min(1, "At least one school section is required."),
+  schoolSections: z.array(z.string()).min(1, "At least one school is required."),
 }).refine(data => {
     const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length), 0);
     return totalAssignedPeriods <= data.maxPeriods;
@@ -76,7 +76,7 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fieldsLength }: { index: number, control: any, remove: (index: number) => void, maxPeriodsForThisAssignment: number, fieldsLength: number }) => {
+const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -258,7 +258,7 @@ export default function TeacherEditor() {
   if (!activeTimetable) {
       return (
           <div className="p-4 text-center text-muted-foreground">
-              Please select a school section from the header to begin.
+              Please select a school from the header to begin.
           </div>
       )
   }
@@ -319,9 +319,9 @@ export default function TeacherEditor() {
                           render={() => (
                           <FormItem>
                               <div className="mb-2">
-                                <FormLabel className="text-base">School Sections</FormLabel>
+                                <FormLabel className="text-base">Schools</FormLabel>
                                 <p className="text-sm text-muted-foreground">
-                                    Select the sections this teacher belongs to.
+                                    Select the schools this teacher belongs to.
                                 </p>
                               </div>
                               <div className="grid grid-cols-2 gap-2 p-2 border rounded-md">
@@ -369,11 +369,7 @@ export default function TeacherEditor() {
                             </Badge>
                         </div>
                         <div className="space-y-3">
-                           {fields.map((field, index) => {
-                               const currentPeriods = watchedAssignments[index]?.periods || 0;
-                               const currentArms = watchedAssignments[index]?.arms?.length || 0;
-                               const maxForThis = unassignedPeriods + (currentPeriods * currentArms);
-                               return (
+                           {fields.map((field, index) => (
                                 <AssignmentRow 
                                     key={field.id}
                                     index={index}
@@ -383,11 +379,9 @@ export default function TeacherEditor() {
                                             remove(index);
                                         }
                                     }}
-                                    maxPeriodsForThisAssignment={maxForThis}
                                     fieldsLength={fields.length}
                                 />
-                               )
-                           })}
+                           ))}
                         </div>
                         <Button
                             type="button"
@@ -464,7 +458,7 @@ export default function TeacherEditor() {
                        <div className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                             <div className="flex items-center gap-2 font-semibold text-foreground/90">
                                 <Building className="mr-2 h-4 w-4 text-primary" />
-                                <span>School Sections</span>
+                                <span>Schools</span>
                             </div>
                             <div className="mt-2 space-x-2 pl-2">
                                 {teacher.schoolSections.map(sectionId => {
@@ -497,7 +491,7 @@ export default function TeacherEditor() {
             </Accordion>
           ) : (
              <div className="text-sm text-muted-foreground text-center p-8">
-                No teachers assigned to this section. Add teachers or assign existing ones.
+                No teachers assigned to this school. Add teachers or assign existing ones.
              </div>
           )}
         </ScrollArea>
@@ -505,5 +499,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

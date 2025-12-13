@@ -252,13 +252,13 @@ export default function Header() {
       <AlertDialog open={dialogOpen === 'add'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Add New School Section</AlertDialogTitle>
+            <AlertDialogTitle>Add New School</AlertDialogTitle>
             <AlertDialogDescription>
-              Enter a name for the new timetable (e.g., "Primary", "Secondary").
+              Enter a name for the new school (e.g., "Primary School", "Secondary School").
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input 
-            placeholder="Timetable name"
+            placeholder="School name"
             value={timetableName}
             onChange={(e) => setTimetableName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddNewTimetable()}
@@ -273,13 +273,13 @@ export default function Header() {
       <AlertDialog open={dialogOpen === 'rename'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Rename Timetable</AlertDialogTitle>
+            <AlertDialogTitle>Rename School</AlertDialogTitle>
             <AlertDialogDescription>
-              Enter a new name for the timetable.
+              Enter a new name for the school.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input 
-            placeholder="New timetable name"
+            placeholder="New school name"
             value={timetableName}
             onChange={(e) => setTimetableName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleRenameTimetable()}
@@ -296,7 +296,7 @@ export default function Header() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the timetable and all its associated data.
+              This action cannot be undone. This will permanently delete the school and all its associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -320,11 +320,11 @@ export default function Header() {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-48">
-                    <span>{activeTimetable?.name || "Select Timetable"}</span>
+                    <span>{activeTimetable?.name || "Select School"}</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>School Sections</DropdownMenuLabel>
+                <DropdownMenuLabel>Schools</DropdownMenuLabel>
                 <DropdownMenuRadioGroup value={activeTimetable?.id} onValueChange={(id) => id && setActiveTimetableId(id)}>
                     {timetables.map(t => (
                         <DropdownMenuRadioItem key={t.id} value={t.id} className="flex justify-between items-center pr-1" onSelect={(e) => e.preventDefault()}>
@@ -343,7 +343,7 @@ export default function Header() {
                 <DropdownMenuSeparator/>
                 <DropdownMenuItem onSelect={() => openDialog('add')}>
                     <Plus className="mr-2 h-4 w-4"/>
-                    <span>Add New Section</span>
+                    <span>Add New School</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

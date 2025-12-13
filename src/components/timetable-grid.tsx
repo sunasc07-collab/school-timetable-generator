@@ -56,16 +56,14 @@ export default function TimetableGrid() {
     const armSet = new Set<string>();
     
     activeTimetable.teachers.forEach(teacher => {
-        teacher.subjects.forEach(subject => {
-            subject.assignments.forEach(assignment => {
-                const grade = assignment.grade;
-                if (grade && assignment.arms.length > 0) {
-                    assignment.arms.forEach(arm => {
-                        armSet.add(`${grade} ${arm}`);
-                    });
-                }
-            });
-        });
+      teacher.assignments.forEach(assignment => {
+        const grade = assignment.grade;
+        if (grade && assignment.arms.length > 0) {
+          assignment.arms.forEach(arm => {
+            armSet.add(`${grade} ${arm}`);
+          });
+        }
+      });
     });
     return Array.from(armSet).sort();
   }, [activeTimetable]);
@@ -152,9 +150,9 @@ export default function TimetableGrid() {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
         <div>
-          <h3 className="text-lg font-semibold font-headline">No Timetable Selected</h3>
+          <h3 className="text-lg font-semibold font-headline">No School Selected</h3>
           <p className="text-muted-foreground mt-2">
-            Please select or create a school section from the dropdown in the header to get started.
+            Please select or create a school from the dropdown in the header to get started.
           </p>
         </div>
       </div>

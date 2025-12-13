@@ -117,7 +117,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     if (timetables.length === 0) {
-        const defaultTimetable = createNewTimetable("Secondary");
+        const defaultTimetable = createNewTimetable("Secondary School");
         setTimetables([defaultTimetable]);
         setActiveTimetableId(defaultTimetable.id);
     } else if (!activeTimetableId || !timetables.some(t => t.id === activeTimetableId)) {
@@ -691,5 +691,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

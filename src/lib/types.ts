@@ -1,24 +1,18 @@
 
 
 export type SubjectAssignment = {
-    id: string;
-    grade: string;
-    arms: string[];
-    groupArms: boolean;
-};
-
-export type Subject = {
   id: string;
-  name: string;
-  totalPeriods: number;
-  assignments: SubjectAssignment[];
+  grade: string;
+  subject: string;
+  arms: string[];
+  periods: number;
 };
 
 export type Teacher = {
   id: string;
   name: string;
-  totalPeriods: number;
-  subjects: Subject[];
+  maxPeriods: number;
+  assignments: SubjectAssignment[];
   schoolSections: string[];
 };
 
@@ -70,3 +64,5 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
 };
+
+    

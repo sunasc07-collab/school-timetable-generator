@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
-import type { Teacher, Subject, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode } from "@/lib/types";
+import type { Teacher, SubjectAssignment, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode } from "@/lib/types";
 
 type TimetableContextType = {
   timetables: Timetable[];
@@ -110,10 +110,10 @@ const createNewTimetable = (name: string, id?: string): Timetable => ({
 })
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v3", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v3", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v3", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v3', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v4", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v4", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v4", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v4', 'class');
   
   useEffect(() => {
     if (timetables.length === 0) {
@@ -206,57 +206,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const teachersForCurrentTimetable = allTeachers.filter(teacher => teacher.schoolSections.includes(activeTimetable.id));
 
     teachersForCurrentTimetable.forEach(teacher => {
-      teacher.subjects.forEach(subject => {
-        if (!subject.assignments) return;
-        
-        subject.assignments.forEach(assignment => {
-            const grade = assignment.grade;
-            if (!grade) return;
-            const periodsPerClass = subject.totalPeriods;
-            
-            let className: string;
-            let individualClasses: string[];
+        teacher.assignments.forEach(assignment => {
+            const { grade, subject, arms, periods } = assignment;
+            if (!grade || !subject || arms.length === 0) return;
 
-            if (assignment.groupArms && assignment.arms.length > 0) {
-                className = `${grade} ${assignment.arms.join(', ')}`;
-                individualClasses = assignment.arms.map(arm => `${grade} ${arm}`);
-            } else {
-                className = grade;
-                individualClasses = [grade];
-            }
-            
-            if (assignment.arms.length > 0 && !assignment.groupArms) {
-                  const totalDivisions = assignment.arms.length;
-                  const basePeriods = Math.floor(periodsPerClass / totalDivisions);
-                  let remainder = periodsPerClass % totalDivisions;
-                  
-                  assignment.arms.forEach(arm => {
-                    let periodsForThisClass = basePeriods + (remainder > 0 ? 1 : 0);
-                    if (remainder > 0) remainder--;
+            const individualClasses = arms.map(arm => `${grade} ${arm}`);
+            const className = `${grade} ${arms.join(', ')}`;
 
-                    const singleClassName = `${grade} ${arm}`;
-                    for (let i = 0; i < periodsForThisClass; i++) {
-                        allRequiredSessions.push({
-                            subject: subject.name,
-                            teacher: teacher.name,
-                            className: singleClassName,
-                            classes: [singleClassName],
-                        });
-                    }
-                  });
-
-            } else {
-                for (let i = 0; i < periodsPerClass; i++) {
-                    allRequiredSessions.push({
-                        subject: subject.name,
-                        teacher: teacher.name,
-                        className: className,
-                        classes: individualClasses,
-                    });
-                }
+            for (let i = 0; i < periods; i++) {
+                allRequiredSessions.push({
+                    subject: subject,
+                    teacher: teacher.name,
+                    className: className,
+                    classes: individualClasses,
+                });
             }
         });
-      });
     });
     
     const classSet = new Set<string>();
@@ -726,3 +691,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

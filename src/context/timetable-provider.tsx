@@ -255,7 +255,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     Object.entries(sessionCounts).forEach(([key, countValue]) => {
         const [subject, teacher, classesStr] = key.split('__');
         const classes = classesStr.split(',');
-        const className = classes.join(", ");
+        const className = classes.length > 1 ? classes.join(", ") : classes[0];
         let count = countValue;
 
         while (count >= 2) {
@@ -420,7 +420,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [activeTimetable, activeTeachers]);
+  }, [activeTimetable, activeTeachers, timetables]);
 
 
   const clearTimetable = () => {
@@ -668,13 +668,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    
-
-
-
-    
-
-    

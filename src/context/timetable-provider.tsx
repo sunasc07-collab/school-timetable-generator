@@ -196,12 +196,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
-
+    
     const requiredSessions: {
-        subject: string;
-        teacher: string;
-        className: string;
-        classes: string[];
+      subject: string;
+      teacher: string;
+      className: string;
+      classes: string[];
     }[] = [];
 
     activeTeachers.forEach(teacher => {
@@ -216,7 +216,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         requiredSessions.push({
                             subject: subject.name,
                             teacher: teacher.name,
-                            className: allArmsInAssignment.join(', '), 
+                            className: allArmsInAssignment[0], // Representative
                             classes: allArmsInAssignment,
                         });
                     }

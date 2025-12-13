@@ -30,15 +30,6 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
 
-const dayAbbreviations: { [key: string]: string } = {
-  "Monday": "Mo",
-  "Tuesday": "Tu",
-  "Wednesday": "We",
-  "Thursday": "Th",
-  "Friday": "Fr",
-};
-
-
 export default function TimetableGrid() {
   const { 
     activeTimetable,
@@ -282,9 +273,7 @@ export default function TimetableGrid() {
 
                 return (
                     <TableRow key={day}>
-                        <TableCell className="font-medium text-muted-foreground align-top pt-3">
-                            <div className="font-bold text-lg">{dayAbbreviations[day] || day}</div>
-                        </TableCell>
+                        <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
                         {rowCells}
                     </TableRow>
                 );

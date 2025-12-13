@@ -136,7 +136,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const removeTimetable = (timetableId: string) => {
-      setAllTeachers(prev => prev.filter(t => t.schoolId !== timetableId));
+      setAllTeachers(prev => {
+          return prev.map(teacher => ({
+              ...teacher,
+              assignments: teacher.assignments.filter(a => a.schoolId !== timetableId)
+          })).filter(teacher => teacher.assignments.length > 0);
+      });
       setTimetables(prev => {
           const newTimetables = prev.filter(t => t.id !== timetableId);
           if (activeTimetableId === timetableId) {
@@ -152,24 +157,39 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const addTeacher = (teacherData: Teacher) => {
     setAllTeachers(prev => [...prev, teacherData]);
-    updateTimetable(teacherData.schoolId, { timetable: {}, conflicts: [] });
+    teacherData.assignments.forEach(a => {
+        updateTimetable(a.schoolId, { timetable: {}, conflicts: [] });
+    })
   };
 
   const removeTeacher = (teacherId: string) => {
     const teacher = allTeachers.find(t => t.id === teacherId);
     if (teacher) {
-        updateTimetable(teacher.schoolId, { timetable: {}, conflicts: [] });
+        const schoolIds = new Set(teacher.assignments.map(a => a.schoolId));
+        schoolIds.forEach(schoolId => {
+            updateTimetable(schoolId, { timetable: {}, conflicts: [] });
+        });
     }
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
   };
   
   const updateTeacher = (teacherData: Teacher) => {
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-    updateTimetable(teacherData.schoolId, { timetable: {}, conflicts: [] });
+    const schoolIds = new Set(teacherData.assignments.map(a => a.schoolId));
+    
+    // Also consider old schools if they changed
+    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
+    oldTeacher?.assignments.forEach(a => schoolIds.add(a.schoolId));
+
+    schoolIds.forEach(schoolId => {
+        updateTimetable(schoolId, { timetable: {}, conflicts: [] });
+    });
   };
 
   const activeTimetableRaw = timetables.find(t => t.id === activeTimetableId) || null;
-  const activeTeachers = activeTimetableRaw ? allTeachers.filter(t => t.schoolId === activeTimetableRaw.id) : [];
+  const activeTeachers = activeTimetableRaw 
+      ? allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetableRaw.id))
+      : [];
 
   const activeTimetable = activeTimetableRaw ? {
       ...activeTimetableRaw,
@@ -188,6 +208,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
+            if (assignment.schoolId !== activeTimetable.id) return;
             const { grade, subject, arms, periods } = assignment;
             if (!grade || !subject || arms.length === 0) return;
 

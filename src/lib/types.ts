@@ -6,6 +6,7 @@ export type SubjectAssignment = {
   subject: string;
   arms: string[];
   periods: number;
+  schoolId: string;
 };
 
 export type Teacher = {
@@ -13,7 +14,6 @@ export type Teacher = {
   name: string;
   maxPeriods: number;
   assignments: SubjectAssignment[];
-  schoolId: string;
 };
 
 export type TimetableSession = {

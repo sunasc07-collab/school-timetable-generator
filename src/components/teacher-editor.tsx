@@ -30,14 +30,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, Users, Pencil, Book, GraduationCap } from "lucide-react";
+import { Plus, Trash2, Users, Pencil, Book, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useState } from "react";
 import type { Teacher } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { cn } from "@/lib/utils";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -45,6 +44,7 @@ const assignmentSchema = z.object({
   subject: z.string().min(1, "A subject is required."),
   arms: z.array(z.string()).min(1, "At least one arm is required."),
   periods: z.number().min(1, "Periods must be > 0").default(1),
+  schoolId: z.string().min(1, "A school is required."),
 });
 
 const teacherSchema = z.object({
@@ -52,7 +52,6 @@ const teacherSchema = z.object({
   name: z.string().min(2, "Teacher name is required."),
   maxPeriods: z.number().min(1, "Max periods must be > 0").default(20),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
-  schoolId: z.string().min(1, "Teacher must be assigned to at least one school."),
 }).refine(data => {
     const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length), 0);
     return totalAssignedPeriods <= data.maxPeriods;
@@ -73,103 +72,131 @@ const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
+    const { timetables } = useTimetable();
+    
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
              <Button type="button" variant="ghost" size="icon" onClick={() => remove(assignmentIndex)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
                 <Trash2 className="h-4 w-4" />
             </Button>
-            <FormField
-                control={control}
-                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`}
-                render={({ field }) => (
-                    <FormItem className="w-3/12">
-                        {assignmentIndex === 0 && <FormLabel>Grade</FormLabel>}
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Grade" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                <ScrollArea className="h-72">
-                                  {GRADE_OPTIONS.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
-                                </ScrollArea>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={control}
-                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.subject`}
-                render={({ field }) => (
-                    <FormItem className="w-4/12 flex flex-col">
-                        {assignmentIndex === 0 && <FormLabel>Subject</FormLabel>}
-                        <FormControl>
-                             <Input placeholder="Subject name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={control}
-                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                render={({ field }) => (
-                <FormItem className="w-4/12">
-                    {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
-                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
-                        {ARM_OPTIONS.map((arm) => (
-                            <FormField
-                                key={arm}
-                                control={control}
-                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                render={({ field }) => (
-                                    <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value?.includes(arm)}
-                                                onCheckedChange={(checked) => {
-                                                    const currentValue = field.value || [];
-                                                    return checked
-                                                        ? field.onChange([...currentValue, arm])
-                                                        : field.onChange(currentValue.filter(value => value !== arm));
-                                                }}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="font-normal text-sm"> {arm} </FormLabel>
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
-                    </div>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-             <FormField
-                control={control}
-                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.periods`}
-                render={({ field }) => (
-                    <FormItem className="w-2/12">
-                        {assignmentIndex === 0 && <FormLabel>Periods/wk</FormLabel>}
-                         <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Count" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {Array.from({ length: 10 }, (_, i) => i + 1).map(p => (
-                                    <SelectItem key={p} value={String(p)}>{p}</SelectItem>
+            <div className="grid grid-cols-1 gap-y-2 w-full">
+                <div className="grid grid-cols-2 gap-x-2">
+                    <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`}
+                        render={({ field }) => (
+                            <FormItem>
+                                {assignmentIndex === 0 && <FormLabel>School</FormLabel>}
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="School" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {timetables.map((t) => ( <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem> ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.subject`}
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                {assignmentIndex === 0 && <FormLabel>Subject</FormLabel>}
+                                <FormControl>
+                                     <Input placeholder="Subject name" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                 <div className="grid grid-cols-[1fr_2fr_1fr] gap-x-2">
+                    <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`}
+                        render={({ field }) => (
+                            <FormItem>
+                                {assignmentIndex === 0 && <FormLabel>Grade</FormLabel>}
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Grade" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <ScrollArea className="h-72">
+                                          {GRADE_OPTIONS.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
+                                        </ScrollArea>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                        render={({ field }) => (
+                        <FormItem>
+                            {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
+                             <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                {ARM_OPTIONS.map((arm) => (
+                                    <FormField
+                                        key={arm}
+                                        control={control}
+                                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                        render={({ field }) => (
+                                            <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(arm)}
+                                                        onCheckedChange={(checked) => {
+                                                            const currentValue = field.value || [];
+                                                            return checked
+                                                                ? field.onChange([...currentValue, arm])
+                                                                : field.onChange(currentValue.filter(value => value !== arm));
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal text-sm"> {arm} </FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
                                 ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.periods`}
+                        render={({ field }) => (
+                            <FormItem>
+                                {assignmentIndex === 0 && <FormLabel>Periods/wk</FormLabel>}
+                                 <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Count" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {Array.from({ length: 10 }, (_, i) => i + 1).map(p => (
+                                            <SelectItem key={p} value={String(p)}>{p}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            </div>
         </div>
     )
 }
@@ -185,6 +212,8 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     control,
     name: `teachers.${index}`
   });
+
+  const { activeTimetable } = useTimetable();
 
   const watchedAssignments = teacherData.assignments || [];
   const maxPeriods = teacherData.maxPeriods || 0;
@@ -261,7 +290,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
           variant="outline"
           size="sm"
           className="mt-2"
-          onClick={() => append({ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 })}
+          onClick={() => append({ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' })}
           disabled={unassignedPeriods <= 0}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -281,8 +310,10 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
 
 export default function TeacherEditor() {
-  const { activeTimetable, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables } = useTimetable();
+  const allTeachers = timetables.flatMap(t => (t as any).teachers || []);
   const currentTeachers = activeTimetable?.teachers || [];
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
@@ -298,11 +329,10 @@ export default function TeacherEditor() {
     name: "teachers"
   });
 
-  const getNewTeacherForm = (schoolId: string): TeacherFormValues => ({
+  const getNewTeacherForm = (): TeacherFormValues => ({
     name: "",
     maxPeriods: 20,
-    assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-    schoolId,
+    assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   });
 
   const handleOpenDialog = (teacher: Teacher | null) => {
@@ -318,12 +348,12 @@ export default function TeacherEditor() {
                 grade: a.grade,
                 subject: a.subject,
                 arms: a.arms,
-                periods: a.periods
-            })) : [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-            schoolId: teacher.schoolId,
+                periods: a.periods,
+                schoolId: a.schoolId,
+            })) : [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1, schoolId: activeTimetable.id }],
         }]);
     } else {
-        replace([getNewTeacherForm(activeTimetable.id)]);
+        replace([getNewTeacherForm()]);
     }
     setIsDialogOpen(true);
   }
@@ -398,7 +428,7 @@ export default function TeacherEditor() {
                             type="button"
                             variant="outline"
                             className="w-full"
-                            onClick={() => appendTeacher(getNewTeacherForm(activeTimetable.id))}
+                            onClick={() => appendTeacher(getNewTeacherForm())}
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Another Teacher
@@ -431,7 +461,7 @@ export default function TeacherEditor() {
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
                         <div className="flex flex-col items-start">
                            <span className="font-medium">{teacher.name}</span>
-                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.reduce((acc, a) => acc + (a.periods * a.arms.length), 0)} / {teacher.maxPeriods} periods</span>
+                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.filter(a => a.schoolId === activeTimetable.id).reduce((acc, a) => acc + (a.periods * a.arms.length), 0)} / {teacher.maxPeriods} periods</span>
                         </div>
                     </AccordionTrigger>
                      <Button
@@ -459,7 +489,7 @@ export default function TeacherEditor() {
                   </div>
                   <AccordionContent className="px-2 pb-4">
                     <div className="space-y-3">
-                      {teacher.assignments.map((assignment) => (
+                      {teacher.assignments.filter(a => a.schoolId === activeTimetable.id).map((assignment) => (
                         <div key={assignment.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
                              <Book className="mr-2 h-4 w-4 text-primary" />
@@ -476,6 +506,11 @@ export default function TeacherEditor() {
                            </div>
                         </div>
                       ))}
+                       {teacher.assignments.filter(a => a.schoolId !== activeTimetable.id).length > 0 && (
+                          <div className="text-xs text-muted-foreground italic pl-4 mt-4">
+                            Also has {teacher.assignments.filter(a => a.schoolId !== activeTimetable.id).length} assignment(s) in other schools.
+                          </div>
+                       )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -483,7 +518,7 @@ export default function TeacherEditor() {
             </Accordion>
           ) : (
              <div className="text-sm text-muted-foreground text-center p-8">
-                No teachers assigned to this school yet.
+                No teachers created yet.
              </div>
           )}
         </ScrollArea>

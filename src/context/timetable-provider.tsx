@@ -201,71 +201,60 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       subject: string;
       teacher: string;
       className: string;
-      classes: string[];
+      groupId?: string;
     }[] = [];
 
     activeTeachers.forEach(teacher => {
-      teacher.subjects.forEach(subject => {
-        subject.assignments.forEach(assignment => {
-          const allArmsInAssignment = assignment.grades.flatMap(grade =>
-            assignment.arms.map(arm => `${grade} ${arm}`)
-          );
+        teacher.subjects.forEach(subject => {
+            subject.assignments.forEach(assignment => {
+                const individualClasses = assignment.grades.flatMap(grade =>
+                    assignment.arms.map(arm => `${grade} ${arm}`)
+                );
 
-          if (assignment.groupArms) {
-            if (allArmsInAssignment.length > 0) {
-              for (let i = 0; i < subject.totalPeriods; i++) {
-                requiredSessions.push({
-                  subject: subject.name,
-                  teacher: teacher.name,
-                  className: allArmsInAssignment.join(", "),
-                  classes: allArmsInAssignment,
-                });
-              }
-            }
-          } else {
-            allArmsInAssignment.forEach(individualClass => {
-              for (let i = 0; i < subject.totalPeriods; i++) {
-                requiredSessions.push({
-                  subject: subject.name,
-                  teacher: teacher.name,
-                  className: individualClass,
-                  classes: [individualClass],
-                });
-              }
+                if (individualClasses.length === 0) return;
+
+                const groupId = assignment.groupArms && individualClasses.length > 1 ? crypto.randomUUID() : undefined;
+
+                for (let i = 0; i < subject.totalPeriods; i++) {
+                    individualClasses.forEach(className => {
+                        requiredSessions.push({
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: className,
+                            groupId: groupId,
+                        });
+                    });
+                }
             });
-          }
         });
-      });
     });
 
     const classSet = new Set<string>();
-    activeTeachers.forEach(t => t.subjects.forEach(s => s.assignments.forEach(a => a.grades.forEach(g => a.arms.forEach(arm => classSet.add(`${g} ${arm}`))))));
+    requiredSessions.forEach(req => classSet.add(req.className));
     const sortedClasses = Array.from(classSet).sort();
 
     const sessionCounts: { [key: string]: number } = {};
     requiredSessions.forEach(req => {
-      const key = `${req.subject}__${req.teacher}__${[...req.classes].sort().join(',')}`;
-      if (!sessionCounts[key]) {
-        sessionCounts[key] = 0;
-      }
-      sessionCounts[key]++;
+        const key = `${req.subject}__${req.teacher}__${req.className}__${req.groupId || 'none'}`;
+        if (!sessionCounts[key]) {
+            sessionCounts[key] = 0;
+        }
+        sessionCounts[key]++;
     });
     
     const sessionsToPlace: TimetableSession[] = [];
     Object.entries(sessionCounts).forEach(([key, countValue]) => {
-        const [subject, teacher, classesStr] = key.split('__');
-        const classes = classesStr.split(',');
-        const className = classes.length > 1 ? classes.join(", ") : classes[0];
+        const [subject, teacher, className, groupId] = key.split('__');
         let count = countValue;
 
         while (count >= 2) {
             const doubleId = crypto.randomUUID();
-            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes, isDouble: true, part: 1 });
-            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes, isDouble: true, part: 2 });
+            sessionsToPlace.push({ id: doubleId, subject, teacher, className, groupId: groupId === 'none' ? undefined : groupId, isDouble: true, part: 1 });
+            sessionsToPlace.push({ id: doubleId, subject, teacher, className, groupId: groupId === 'none' ? undefined : groupId, isDouble: true, part: 2 });
             count -= 2;
         }
         if (count > 0) {
-            sessionsToPlace.push({ id: crypto.randomUUID(), subject, teacher, className, classes, isDouble: false });
+            sessionsToPlace.push({ id: crypto.randomUUID(), subject, teacher, className, groupId: groupId === 'none' ? undefined : groupId, isDouble: false });
         }
     });
 
@@ -279,19 +268,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
         const slot = board[day]?.[period];
         if (!slot) return false; 
+        
+        // Teacher conflict
         if (slot.some(s => s.teacher === session.teacher)) return false; 
         
-        const teacherAlreadyHasDouble = slot.some(s => s.teacher === session.teacher && s.isDouble);
-        if (teacherAlreadyHasDouble && session.isDouble) return false;
-
-        const sessionClasses = session.classes || [session.className];
-        for (const s of slot) {
-            const existingClasses = s.classes || [s.className];
-            if (sessionClasses.some(c => existingClasses.includes(c))) {
-                return false; 
-            }
-        }
+        // Class conflict
+        if (slot.some(s => s.className === session.className)) return false;
         
+        // Group conflict
+        if (session.groupId && slot.some(s => s.groupId === session.groupId)) return false;
+
         const daySessions = board[day].flat();
         const subjectPeriodsOnDay = daySessions.filter(s => s.className === session.className && s.subject === session.subject).length;
         if (subjectPeriodsOnDay >= 2 && !session.isDouble) return false;
@@ -488,15 +474,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
         const slot = board[day]?.[period];
         if (!slot) return false;
-        if (slot.some(s => s.teacher === session.teacher)) return false;
         
-        const sessionClasses = session.classes || [session.className];
-        for (const s of slot) {
-            const existingClasses = s.classes || [s.className];
-            if (sessionClasses.some(c => existingClasses.includes(c))) {
-                return false;
-            }
-        }
+        // Teacher conflict
+        if (slot.some(s => s.teacher === session.teacher)) return false; 
+        
+        // Class conflict
+        if (slot.some(s => s.className === session.className)) return false;
+        
+        // Group conflict
+        if (session.groupId && slot.some(s => s.groupId === session.groupId)) return false;
+
         return true;
     }
 
@@ -559,8 +546,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                 const teachersInSlot = new Set<string>();
                 const classesInSlot = new Set<string>();
+                const groupsInSlot = new Set<string>();
                 
                 for (const session of slotSessions) {
+                    // Teacher conflict
                     if (teachersInSlot.has(session.teacher)) {
                         slotSessions.forEach(s => {
                             if (s.teacher === session.teacher) identifiedConflicts.set(s.id, { id: s.id, type: 'teacher', message: `Teacher ${s.teacher} is double-booked.` });
@@ -568,18 +557,27 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     }
                     teachersInSlot.add(session.teacher);
 
-                    const sessionClasses = session.classes || [session.className];
-                     sessionClasses.forEach(cls => {
-                        if (classesInSlot.has(cls)) {
+                    // Class conflict
+                    if (classesInSlot.has(session.className)) {
+                        slotSessions.forEach(s => {
+                            if (s.className === session.className) {
+                                identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} is double-booked.` });
+                            }
+                        });
+                    }
+                    classesInSlot.add(session.className);
+                    
+                    // Group conflict
+                    if (session.groupId) {
+                        if (groupsInSlot.has(session.groupId)) {
                             slotSessions.forEach(s => {
-                                const sClasses = s.classes || [s.className];
-                                if (sClasses.includes(cls)) {
-                                    identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${cls} is double-booked.` });
+                                if (s.groupId === session.groupId) {
+                                    identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Group conflict for subject ${s.subject}.` });
                                 }
                             });
                         }
-                        classesInSlot.add(cls);
-                    });
+                        groupsInSlot.add(session.groupId);
+                    }
                 }
             }
         }

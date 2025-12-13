@@ -2,12 +2,11 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
-import type { Teacher, SubjectAssignment, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode } from "@/lib/types";
+import type { Teacher, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode } from "@/lib/types";
 
 type TimetableContextType = {
   timetables: Timetable[];
-  activeTimetable: Timetable | null;
-  allTeachers: Teacher[];
+  activeTimetable: (Timetable & { teachers: Teacher[] }) | null;
   addTimetable: (name: string) => void;
   removeTimetable: (timetableId: string) => void;
   renameTimetable: (timetableId: string, newName: string) => void;
@@ -110,14 +109,14 @@ const createNewTimetable = (name: string, id?: string): Timetable => ({
 })
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v4", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v4", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v4", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v4', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v5", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v5", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v5", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v5', 'class');
   
   useEffect(() => {
     if (timetables.length === 0) {
-        const defaultTimetable = createNewTimetable("Secondary School");
+        const defaultTimetable = createNewTimetable("New School");
         setTimetables([defaultTimetable]);
         setActiveTimetableId(defaultTimetable.id);
     } else if (!activeTimetableId || !timetables.some(t => t.id === activeTimetableId)) {
@@ -144,10 +143,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           }
           return newTimetables;
       });
-      setAllTeachers(prev => prev.map(teacher => ({
-        ...teacher,
-        schoolSections: teacher.schoolSections.filter(id => id !== timetableId)
-      })));
+      // Also remove teachers associated only with this school
+      setAllTeachers(prev => prev.filter(teacher => teacher.schoolId !== timetableId));
   }
   
   const renameTimetable = (timetableId: string, newName: string) => {
@@ -156,42 +153,32 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const addTeacher = (teacherData: Teacher) => {
     setAllTeachers(prev => [...prev, teacherData]);
-    teacherData.schoolSections.forEach(timetableId => {
-        const timetable = timetables.find(t => t.id === timetableId);
-        if (timetable) {
-          updateTimetable(timetableId, { timetable: {}, conflicts: [] });
-        }
-    })
+    // A new teacher assignment requires regeneration
+    updateTimetable(teacherData.schoolId, { timetable: {}, conflicts: [] });
   };
 
   const removeTeacher = (teacherId: string) => {
     const teacher = allTeachers.find(t => t.id === teacherId);
     if (teacher) {
-        teacher.schoolSections.forEach(timetableId => {
-             const timetable = timetables.find(t => t.id === timetableId);
-             if (timetable) {
-               updateTimetable(timetableId, { timetable: {}, conflicts: [] });
-             }
-        });
+        // Clearing timetable is necessary as a teacher is removed
+        updateTimetable(teacher.schoolId, { timetable: {}, conflicts: [] });
     }
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
   };
   
   const updateTeacher = (teacherData: Teacher) => {
-    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-    
-    const allInvolvedSections = new Set([...(oldTeacher?.schoolSections || []), ...teacherData.schoolSections]);
-    
-    allInvolvedSections.forEach(timetableId => {
-        const timetable = timetables.find(t => t.id === timetableId);
-        if (timetable) {
-          updateTimetable(timetableId, { timetable: {}, conflicts: [] });
-        }
-    });
+    // An update to a teacher requires regeneration
+    updateTimetable(teacherData.schoolId, { timetable: {}, conflicts: [] });
   };
 
-  const activeTimetable = timetables.find(t => t.id === activeTimetableId) || null;
+  const activeTimetableRaw = timetables.find(t => t.id === activeTimetableId) || null;
+  const activeTeachers = activeTimetableRaw ? allTeachers.filter(t => t.schoolId === activeTimetableRaw.id) : [];
+
+  const activeTimetable = activeTimetableRaw ? {
+      ...activeTimetableRaw,
+      teachers: activeTeachers,
+  } : null;
   
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
@@ -203,9 +190,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       classes: string[];
     }[] = [];
     
-    const teachersForCurrentTimetable = allTeachers.filter(teacher => teacher.schoolSections.includes(activeTimetable.id));
-
-    teachersForCurrentTimetable.forEach(teacher => {
+    activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             const { grade, subject, arms, periods } = assignment;
             if (!grade || !subject || arms.length === 0) return;
@@ -261,23 +246,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const newTimetable: TimetableData = {};
     DEFAULT_DAYS.forEach(day => { newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
 
-    const allSessionsFromOtherTimetables: { session: TimetableSession; day: string; period: number }[] = [];
-    timetables.forEach(tt => {
-      if (tt.id !== activeTimetable.id) {
-        tt.days.forEach(day => {
-          const daySlots = tt.timetable[day];
-          if (daySlots) {
-            daySlots.forEach((slot, period) => {
-              slot.forEach(session => {
-                allSessionsFromOtherTimetables.push({ session, day, period });
-              });
-            });
-          }
-        });
-      }
-    });
-
-
     const CONSECUTIVE_PERIODS = getConsecutivePeriods();
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
@@ -285,12 +253,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (!slot) return false; 
         
         if (slot.some(s => s.teacher === session.teacher)) return false; 
-        
-        const teacherIsBusyElsewhere = allSessionsFromOtherTimetables.some(
-          ({ session: otherSession, day: otherDay, period: otherPeriod }) =>
-            otherSession.teacher === session.teacher && otherDay === day && otherPeriod === period
-        );
-        if (teacherIsBusyElsewhere) return false;
         
         if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
         
@@ -426,7 +388,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [allTeachers, timetables, activeTimetableId]);
+  }, [allTeachers, activeTimetable?.id, activeTimetable?.teachers]);
 
 
   const clearTimetable = () => {
@@ -496,28 +458,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (!slot) return false;
         if (slot.some(s => s.teacher === session.teacher)) return false;
         if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
-        
-        const allSessionsFromOtherTimetables: { session: TimetableSession; day: string; period: number }[] = [];
-        timetables.forEach(tt => {
-          if (tt.id !== activeTimetable?.id) {
-            tt.days.forEach(day_ => {
-              const daySlots = tt.timetable[day_];
-              if (daySlots) {
-                daySlots.forEach((slot_, period_) => {
-                  slot_.forEach(session_ => {
-                    allSessionsFromOtherTimetables.push({ session: session_, day: day_, period: period_ });
-                  });
-                });
-              }
-            });
-          }
-        });
-        
-        const teacherIsBusyElsewhere = allSessionsFromOtherTimetables.some(
-          ({ session: otherSession, day: otherDay, period: otherPeriod }) =>
-            otherSession.teacher === session.teacher && otherDay === day && otherPeriod === period
-        );
-        if (teacherIsBusyElsewhere) return false;
         
         return true;
     }
@@ -651,18 +591,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
   }
   
-  const activeTeachers = activeTimetable ? allTeachers.filter(t => t.schoolSections.includes(activeTimetable.id)) : [];
-  const augmentedActiveTimetable = activeTimetable ? {
-      ...activeTimetable,
-      teachers: activeTeachers,
-  } : null;
-
   return (
     <TimetableContext.Provider
       value={{
         timetables,
-        activeTimetable: augmentedActiveTimetable,
-        allTeachers,
+        activeTimetable,
         addTimetable,
         removeTimetable,
         renameTimetable,
@@ -691,3 +624,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

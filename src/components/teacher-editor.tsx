@@ -24,30 +24,19 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, Users, Pencil, Building, Book, GraduationCap } from "lucide-react";
+import { Plus, Trash2, Users, Pencil, Book, GraduationCap } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useState, useEffect } from "react";
-import type { Teacher, SubjectAssignment } from "@/lib/types";
+import { useState } from "react";
+import type { Teacher } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -62,7 +51,7 @@ const teacherSchema = z.object({
   name: z.string().min(2, "Teacher name is required."),
   maxPeriods: z.number().min(1, "Max periods must be > 0").default(20),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
-  schoolSections: z.array(z.string()).min(1, "At least one school is required."),
+  schoolId: z.string(),
 }).refine(data => {
     const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length), 0);
     return totalAssignedPeriods <= data.maxPeriods;
@@ -80,14 +69,14 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
-            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
+             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
                 <Trash2 className="h-4 w-4" />
             </Button>
             <FormField
                 control={control}
                 name={`assignments.${index}.grade`}
                 render={({ field }) => (
-                    <FormItem className="w-2/12">
+                    <FormItem className="w-3/12">
                         {index === 0 && <FormLabel>Grade</FormLabel>}
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
@@ -109,10 +98,10 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
                 control={control}
                 name={`assignments.${index}.subject`}
                 render={({ field }) => (
-                    <FormItem className="w-3/12 flex flex-col">
+                    <FormItem className="w-4/12 flex flex-col">
                         {index === 0 && <FormLabel>Subject</FormLabel>}
                         <FormControl>
-                            <Input placeholder="Subject name" {...field} />
+                             <Input placeholder="Subject name" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -158,11 +147,11 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
                 name={`assignments.${index}.periods`}
                 render={({ field }) => (
                     <FormItem className="w-2/12">
-                        {index === 0 && <FormLabel>Periods</FormLabel>}
+                        {index === 0 && <FormLabel>Periods/wk</FormLabel>}
                          <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
                             <FormControl>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Periods" />
+                                    <SelectValue placeholder="Count" />
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -181,8 +170,8 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
 
 
 export default function TeacherEditor() {
-  const { activeTimetable, allTeachers, timetables, addTeacher, removeTeacher, updateTeacher } = useTimetable();
-  const currentTeachers = allTeachers.filter(t => activeTimetable && t.schoolSections.includes(activeTimetable.id));
+  const { activeTimetable, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const currentTeachers = activeTimetable?.teachers || [];
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
@@ -192,7 +181,7 @@ export default function TeacherEditor() {
       name: "",
       maxPeriods: 20,
       assignments: [{ grade: "", subject: "", arms: [], periods: 1 }],
-      schoolSections: activeTimetable ? [activeTimetable.id] : [],
+      schoolId: activeTimetable ? activeTimetable.id : "",
     },
   });
   
@@ -207,6 +196,7 @@ export default function TeacherEditor() {
   const unassignedPeriods = maxPeriods - totalAssignedPeriods;
 
   const handleOpenDialog = (teacher: Teacher | null) => {
+    if (!activeTimetable) return;
     setEditingTeacher(teacher);
     if (teacher) {
         form.reset({
@@ -220,14 +210,14 @@ export default function TeacherEditor() {
                 arms: a.arms,
                 periods: a.periods
             })) : [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-            schoolSections: teacher.schoolSections || (activeTimetable ? [activeTimetable.id] : []),
+            schoolId: teacher.schoolId || activeTimetable.id,
         });
     } else {
         form.reset({
             name: "",
             maxPeriods: 20,
             assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-            schoolSections: activeTimetable ? [activeTimetable.id] : [],
+            schoolId: activeTimetable.id,
         });
     }
     setIsDialogOpen(true);
@@ -236,9 +226,10 @@ export default function TeacherEditor() {
   function onSubmit(data: TeacherFormValues) {
     if (!activeTimetable) return;
 
-    const finalData = {
+    const finalData: Teacher = {
         ...data,
         id: editingTeacher?.id || crypto.randomUUID(),
+        schoolId: activeTimetable.id, // Ensure it's always the current school
         assignments: data.assignments.map(a => ({
             ...a,
             id: a.id || crypto.randomUUID(),
@@ -246,9 +237,9 @@ export default function TeacherEditor() {
     }
 
     if (editingTeacher) {
-        updateTeacher(finalData as Teacher);
+        updateTeacher(finalData);
     } else {
-        addTeacher(finalData as Teacher);
+        addTeacher(finalData);
     }
     form.reset();
     setIsDialogOpen(false);
@@ -312,54 +303,6 @@ export default function TeacherEditor() {
                             )}
                         />
                       </div>
-                      
-                      <FormField
-                          control={form.control}
-                          name="schoolSections"
-                          render={() => (
-                          <FormItem>
-                              <div className="mb-2">
-                                <FormLabel className="text-base">Schools</FormLabel>
-                                <p className="text-sm text-muted-foreground">
-                                    Select the schools this teacher belongs to.
-                                </p>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 p-2 border rounded-md">
-                                {timetables.map((timetable) => (
-                                  <FormField
-                                    key={timetable.id}
-                                    control={form.control}
-                                    name="schoolSections"
-                                    render={({ field }) => {
-                                      return (
-                                        <FormItem
-                                          key={timetable.id}
-                                          className="flex flex-row items-center space-x-2 space-y-0"
-                                        >
-                                          <FormControl>
-                                            <Checkbox
-                                              checked={field.value?.includes(timetable.id)}
-                                              onCheckedChange={(checked) => {
-                                                const currentValue = field.value || [];
-                                                return checked
-                                                  ? field.onChange([...currentValue, timetable.id])
-                                                  : field.onChange(currentValue.filter((value) => value !== timetable.id))
-                                              }}
-                                            />
-                                          </FormControl>
-                                          <FormLabel className="font-normal text-sm">
-                                            {timetable.name}
-                                          </FormLabel>
-                                        </FormItem>
-                                      );
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                              <FormMessage />
-                          </FormItem>
-                        )}
-                      />
 
                       <div className="space-y-2 p-3 border rounded-md">
                         <div className="flex justify-between items-center mb-2">
@@ -455,18 +398,6 @@ export default function TeacherEditor() {
                   </div>
                   <AccordionContent className="px-2 pb-4">
                     <div className="space-y-3">
-                       <div className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
-                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
-                                <Building className="mr-2 h-4 w-4 text-primary" />
-                                <span>Schools</span>
-                            </div>
-                            <div className="mt-2 space-x-2 pl-2">
-                                {teacher.schoolSections.map(sectionId => {
-                                    const timetable = timetables.find(t => t.id === sectionId);
-                                    return timetable ? <Badge key={sectionId} variant="secondary">{timetable.name}</Badge> : null;
-                                })}
-                            </div>
-                       </div>
                       {teacher.assignments.map((assignment) => (
                         <div key={assignment.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
@@ -491,7 +422,7 @@ export default function TeacherEditor() {
             </Accordion>
           ) : (
              <div className="text-sm text-muted-foreground text-center p-8">
-                No teachers assigned to this school. Add teachers or assign existing ones.
+                No teachers assigned to this school yet.
              </div>
           )}
         </ScrollArea>
@@ -499,3 +430,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

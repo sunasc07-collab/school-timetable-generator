@@ -13,7 +13,7 @@ export type Teacher = {
   name: string;
   maxPeriods: number;
   assignments: SubjectAssignment[];
-  schoolSections: string[];
+  schoolId: string;
 };
 
 export type TimetableSession = {
@@ -64,5 +64,7 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
 };
+
+    
 
     

@@ -675,5 +675,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

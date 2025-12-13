@@ -3,11 +3,13 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import type { Teacher, SubjectAssignment, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode } from "@/lib/types";
+import { subjectOptions as defaultSubjects } from "@/lib/subjects";
 
 type TimetableContextType = {
   timetables: Timetable[];
   activeTimetable: Timetable | null;
   allTeachers: Teacher[];
+  subjects: string[];
   addTimetable: (name: string) => void;
   removeTimetable: (timetableId: string) => void;
   renameTimetable: (timetableId: string, newName: string) => void;
@@ -17,6 +19,8 @@ type TimetableContextType = {
   removeTeacher: (teacherId: string) => void;
   updateTeacher: (teacherData: Teacher) => void;
   
+  addSubject: (subject: string) => void;
+
   generateTimetable: () => void;
   clearTimetable: () => void;
   moveSession: (session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
@@ -114,6 +118,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v4", []);
   const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v4", null);
   const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v4', 'class');
+  const [subjects, setSubjects] = usePersistentState<string[]>("timetable_subjects_v4", defaultSubjects);
   
   useEffect(() => {
     if (timetables.length === 0) {
@@ -191,6 +196,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const addSubject = (subject: string) => {
+      setSubjects(prev => {
+          if (prev.includes(subject)) return prev;
+          return [...prev, subject].sort();
+      });
+  };
+
   const activeTimetable = timetables.find(t => t.id === activeTimetableId) || null;
   
   const generateTimetable = useCallback(() => {
@@ -212,7 +224,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
             const individualClasses = arms.map(arm => `${grade} ${arm}`);
             const className = `${grade} ${arms.join(', ')}`;
-
+            
             for (let i = 0; i < periods; i++) {
                 allRequiredSessions.push({
                     subject: subject,
@@ -663,6 +675,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         timetables,
         activeTimetable: augmentedActiveTimetable,
         allTeachers,
+        subjects,
         addTimetable,
         removeTimetable,
         renameTimetable,
@@ -670,6 +683,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         addTeacher,
         removeTeacher,
         updateTeacher,
+        addSubject,
         generateTimetable,
         clearTimetable,
         moveSession,
@@ -691,5 +705,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

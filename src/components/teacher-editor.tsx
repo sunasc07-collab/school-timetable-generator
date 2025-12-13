@@ -24,6 +24,16 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -37,7 +47,6 @@ import type { Teacher, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { subjectOptions } from "@/lib/subjects";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -65,8 +74,10 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 
 const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
+const ADD_NEW_SUBJECT_VALUE = "__ADD_NEW__";
 
-const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: { index: number, control: any, remove: () => void, maxPeriodsForThisAssignment: number }) => {
+const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, onSubjectChange }: { index: number, control: any, remove: () => void, maxPeriodsForThisAssignment: number, onSubjectChange: (value: string, index: number) => void }) => {
+    const { subjects } = useTimetable();
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
             <Button type="button" variant="ghost" size="icon" onClick={remove} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive">
@@ -100,7 +111,7 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: 
                 render={({ field }) => (
                     <FormItem className="w-3/12">
                         {index === 0 && <FormLabel>Subject</FormLabel>}
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={(value) => onSubjectChange(value, index)} value={field.value}>
                             <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Subject" />
@@ -108,7 +119,8 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: 
                             </FormControl>
                             <SelectContent>
                                <ScrollArea className="h-72">
-                                {subjectOptions.map((subject) => ( <SelectItem key={subject} value={subject}>{subject}</SelectItem> ))}
+                                <SelectItem value={ADD_NEW_SUBJECT_VALUE} className="font-semibold text-primary">Add New Subject...</SelectItem>
+                                {subjects.map((subject) => ( <SelectItem key={subject} value={subject}>{subject}</SelectItem> ))}
                                </ScrollArea>
                             </SelectContent>
                         </Select>
@@ -179,9 +191,12 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: 
 
 
 export default function TeacherEditor() {
-  const { activeTimetable, allTeachers, timetables, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const { activeTimetable, allTeachers, timetables, addTeacher, removeTeacher, updateTeacher, addSubject } = useTimetable();
   const currentTeachers = allTeachers.filter(t => activeTimetable && t.schoolSections.includes(activeTimetable.id));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [activeAssignmentIndex, setActiveAssignmentIndex] = useState<number | null>(null);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
   const form = useForm<TeacherFormValues>({
@@ -253,6 +268,26 @@ export default function TeacherEditor() {
     setEditingTeacher(null);
   }
 
+  const handleSubjectChange = (value: string, index: number) => {
+      if (value === ADD_NEW_SUBJECT_VALUE) {
+          setActiveAssignmentIndex(index);
+          setIsAddSubjectDialogOpen(true);
+      } else {
+          form.setValue(`assignments.${index}.subject`, value);
+      }
+  };
+
+  const handleAddNewSubject = () => {
+    if (newSubjectName.trim() && activeAssignmentIndex !== null) {
+        addSubject(newSubjectName.trim());
+        form.setValue(`assignments.${activeAssignmentIndex}.subject`, newSubjectName.trim());
+        setNewSubjectName("");
+        setActiveAssignmentIndex(null);
+        setIsAddSubjectDialogOpen(false);
+    }
+  };
+
+
   if (!activeTimetable) {
       return (
           <div className="p-4 text-center text-muted-foreground">
@@ -263,6 +298,27 @@ export default function TeacherEditor() {
 
   return (
     <div className="p-2 space-y-4">
+      <AlertDialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add New Subject</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the name of the new subject you want to create.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input 
+            placeholder="e.g., Further Mathematics"
+            value={newSubjectName}
+            onChange={(e) => setNewSubjectName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddNewSubject()}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAddNewSubject}>Add Subject</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={isDialogOpen} onOpenChange={(open) => {
         setIsDialogOpen(open);
         if (!open) setEditingTeacher(null);
@@ -377,6 +433,7 @@ export default function TeacherEditor() {
                                     control={form.control}
                                     remove={() => remove(index)}
                                     maxPeriodsForThisAssignment={maxForThis}
+                                    onSubjectChange={handleSubjectChange}
                                 />
                                )
                            })}
@@ -497,5 +554,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

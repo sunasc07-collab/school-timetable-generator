@@ -129,7 +129,7 @@ export default function TimetableGrid() {
      } else if (viewMode === 'teacher') {
          relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
      } else if (viewMode === 'arm') {
-         relevantSessions = allSessionsInSlot.filter(s => s.className === filterValue);
+         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
      }
      
      if (relevantSessions.length > 0) {
@@ -364,6 +364,8 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    
 
     
 

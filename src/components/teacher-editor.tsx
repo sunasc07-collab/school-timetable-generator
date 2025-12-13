@@ -47,7 +47,6 @@ import type { Teacher, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { Combobox } from "./ui/combobox";
 
 
 const assignmentSchema = z.object({
@@ -78,9 +77,6 @@ const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
 const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fieldsLength }: { index: number, control: any, remove: (index: number) => void, maxPeriodsForThisAssignment: number, fieldsLength: number }) => {
-    const { subjects, addSubject } = useTimetable();
-
-    const subjectOptions = subjects.map(s => ({ label: s, value: s }));
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -115,21 +111,9 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fi
                 render={({ field }) => (
                     <FormItem className="w-3/12 flex flex-col">
                         {index === 0 && <FormLabel>Subject</FormLabel>}
-                        <Combobox
-                            options={subjectOptions}
-                            value={field.value}
-                            onChange={(value) => {
-                                if (value) {
-                                    field.onChange(value);
-                                    const formattedValue = value.charAt(0).toUpperCase() + value.slice(1);
-                                    if (!subjects.map(s=>s.toLowerCase()).includes(formattedValue.toLowerCase())) {
-                                        addSubject(formattedValue);
-                                    }
-                                }
-                            }}
-                            placeholder="Select or add subject"
-                            notfoundtext="Create new subject"
-                        />
+                        <FormControl>
+                            <Input placeholder="Subject name" {...field} />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -521,3 +505,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

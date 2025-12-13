@@ -98,9 +98,11 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {GRADE_OPTIONS.map((grade) => (
-                                <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                            ))}
+                            <ScrollArea className="h-72">
+                                {GRADE_OPTIONS.map((grade) => (
+                                    <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                                ))}
+                            </ScrollArea>
                         </SelectContent>
                     </Select>
                     <FormMessage />

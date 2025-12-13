@@ -390,7 +390,11 @@ export default function TeacherEditor() {
                                     key={field.id}
                                     index={index}
                                     control={form.control}
-                                    remove={() => remove(index)}
+                                    remove={() => {
+                                        if (fields.length > 1) {
+                                            remove(index);
+                                        }
+                                    }}
                                     maxPeriodsForThisAssignment={maxForThis}
                                 />
                                )

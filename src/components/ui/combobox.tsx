@@ -30,32 +30,27 @@ type ComboboxProps = {
 }
 
 export function Combobox({ options, value, onChange, placeholder = "Select an option", notfoundtext = "No option found." }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState(value || "");
 
   React.useEffect(() => {
     setInputValue(value);
-  }, [value])
+  }, [value]);
 
   const handleSelect = (currentValue: string) => {
     const newValue = currentValue === value ? "" : currentValue;
     onChange(newValue);
     setInputValue(newValue);
     setOpen(false);
-  }
+  };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  }
-  
-  const handleBlur = () => {
-    // If the input value is not in the options, treat it as a new value
-    if (inputValue && !options.find(option => option.value.toLowerCase() === inputValue.toLowerCase())) {
-      onChange(inputValue);
-    } else if (!inputValue) {
-      onChange("");
+  const handleCreateNew = () => {
+    if (inputValue && !options.some(opt => opt.value.toLowerCase() === inputValue.toLowerCase())) {
+        onChange(inputValue);
     }
-  }
+    setOpen(false);
+  };
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -66,9 +61,11 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
           aria-expanded={open}
           className="w-full justify-between"
         >
+          <span className="truncate">
           {value
-            ? options.find((option) => option.value === value)?.label
+            ? options.find((option) => option.value === value)?.label ?? value
             : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -78,18 +75,15 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
             placeholder="Search or add new..."
             value={inputValue}
             onValueChange={setInputValue}
-            onBlur={handleBlur}
           />
           <CommandList>
-            <CommandEmpty
-                onSelect={() => {
-                    if (inputValue) {
-                        onChange(inputValue);
-                        setOpen(false);
-                    }
-                }}
-            >
-                <button className="w-full text-left p-2 text-sm">{notfoundtext}</button>
+            <CommandEmpty>
+                <button 
+                  className="w-full text-left p-2 text-sm"
+                  onClick={handleCreateNew}
+                >
+                  {notfoundtext}
+                </button>
             </CommandEmpty>
             <CommandGroup>
               <ScrollArea className="h-72">

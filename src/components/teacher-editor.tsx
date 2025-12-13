@@ -65,7 +65,7 @@ const teacherSchema = z.object({
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
   schoolSections: z.array(z.string()).min(1, "At least one school section is required."),
 }).refine(data => {
-    const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + a.periods, 0);
+    const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length), 0);
     return totalAssignedPeriods <= data.maxPeriods;
 }, {
     message: "Total assigned periods cannot exceed the teacher's maximum periods.",
@@ -77,14 +77,14 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: { index: number, control: any, remove: () => void, maxPeriodsForThisAssignment: number }) => {
+const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fieldsLength }: { index: number, control: any, remove: () => void, maxPeriodsForThisAssignment: number, fieldsLength: number }) => {
     const { subjects, addSubject } = useTimetable();
 
     const subjectOptions = subjects.map(s => ({ label: s, value: s }));
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
-            <Button type="button" variant="ghost" size="icon" onClick={remove} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive">
+            <Button type="button" variant="ghost" size="icon" onClick={remove} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
                 <Trash2 className="h-4 w-4" />
             </Button>
             <FormField
@@ -119,13 +119,16 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: 
                             options={subjectOptions}
                             value={field.value}
                             onChange={(value) => {
-                                field.onChange(value);
-                                if (value && !subjects.includes(value)) {
-                                    addSubject(value);
+                                if (value) {
+                                    field.onChange(value);
+                                    const formattedValue = value.charAt(0).toUpperCase() + value.slice(1);
+                                    if (!subjects.includes(formattedValue)) {
+                                        addSubject(formattedValue);
+                                    }
                                 }
                             }}
                             placeholder="Select or add subject"
-                            notfoundtext="No subject found. Type to create."
+                            notfoundtext="Create a new subject"
                         />
                         <FormMessage />
                     </FormItem>
@@ -179,7 +182,7 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment }: 
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {Array.from({ length: maxPeriodsForThisAssignment }, (_, i) => i + 1).map(p => (
+                                {Array.from({ length: 10 }, (_, i) => i + 1).map(p => (
                                     <SelectItem key={p} value={String(p)}>{p}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -216,7 +219,7 @@ export default function TeacherEditor() {
 
   const watchedAssignments = form.watch("assignments");
   const maxPeriods = form.watch("maxPeriods");
-  const totalAssignedPeriods = watchedAssignments.reduce((acc, a) => acc + (a.periods || 0), 0);
+  const totalAssignedPeriods = watchedAssignments.reduce((acc, a) => acc + (a.periods * a.arms.length || 0), 0);
   const unassignedPeriods = maxPeriods - totalAssignedPeriods;
 
   const handleOpenDialog = (teacher: Teacher | null) => {
@@ -384,18 +387,16 @@ export default function TeacherEditor() {
                         <div className="space-y-3">
                            {fields.map((field, index) => {
                                const currentPeriods = watchedAssignments[index]?.periods || 0;
-                               const maxForThis = unassignedPeriods + currentPeriods;
+                               const currentArms = watchedAssignments[index]?.arms?.length || 0;
+                               const maxForThis = unassignedPeriods + (currentPeriods * currentArms);
                                return (
                                 <AssignmentRow 
                                     key={field.id}
                                     index={index}
                                     control={form.control}
-                                    remove={() => {
-                                        if (fields.length > 1) {
-                                            remove(index);
-                                        }
-                                    }}
+                                    remove={() => remove(index)}
                                     maxPeriodsForThisAssignment={maxForThis}
+                                    fieldsLength={fields.length}
                                 />
                                )
                            })}
@@ -444,7 +445,7 @@ export default function TeacherEditor() {
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
                         <div className="flex flex-col items-start">
                            <span className="font-medium">{teacher.name}</span>
-                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.reduce((acc, a) => acc + a.periods, 0)} / {teacher.maxPeriods} periods</span>
+                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.reduce((acc, a) => acc + (a.periods * a.arms.length), 0)} / {teacher.maxPeriods} periods</span>
                         </div>
                     </AccordionTrigger>
                      <Button

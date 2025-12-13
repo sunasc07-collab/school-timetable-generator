@@ -31,26 +31,12 @@ type ComboboxProps = {
 
 export function Combobox({ options, value, onChange, placeholder = "Select an option", notfoundtext = "No option found." }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
-  const [inputValue, setInputValue] = React.useState(value || "");
-
-  React.useEffect(() => {
-    setInputValue(value);
-  }, [value]);
-
+  
   const handleSelect = (currentValue: string) => {
     const newValue = currentValue === value ? "" : currentValue;
     onChange(newValue);
-    setInputValue(newValue);
     setOpen(false);
   };
-
-  const handleCreateNew = () => {
-    if (inputValue && !options.some(opt => opt.value.toLowerCase() === inputValue.toLowerCase())) {
-        onChange(inputValue);
-    }
-    setOpen(false);
-  };
-
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -70,20 +56,21 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
+        <Command filter={(value, search) => {
+          const option = options.find(o => o.value === value);
+          if (option) {
+            return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+          }
+          return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+        }}>
           <CommandInput 
             placeholder="Search or add new..."
-            value={inputValue}
-            onValueChange={setInputValue}
           />
           <CommandList>
             <CommandEmpty>
-                <button 
-                  className="w-full text-left p-2 text-sm"
-                  onClick={handleCreateNew}
-                >
+                <CommandItem onSelect={() => handleSelect(document.querySelector<HTMLInputElement>('input[cmdk-input]')?.value || '')}>
                   {notfoundtext}
-                </button>
+                </CommandItem>
             </CommandEmpty>
             <CommandGroup>
               <ScrollArea className="h-72">

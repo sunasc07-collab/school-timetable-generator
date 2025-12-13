@@ -41,7 +41,7 @@ import { Badge } from "./ui/badge";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
-  grades: z.array(z.string()).min(1, "At least one grade is required."),
+  grade: z.string().min(1, "A grade is required."),
   arms: z.array(z.string()).min(1, "At least one arm is required."),
   groupArms: z.boolean().default(true),
 });
@@ -87,44 +87,22 @@ const AssignmentForm = ({ subjectIndex, assignmentIndex, control, removeAssignme
             </Button>
             <FormField
                 control={control}
-                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                render={() => (
+                name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grade`}
+                render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Grades</FormLabel>
-                    <ScrollArea className="h-32">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 border rounded-md">
-                        {GRADE_OPTIONS.map((grade) => (
-                        <FormField
-                            key={grade}
-                            control={control}
-                            name={`subjects.${subjectIndex}.assignments.${assignmentIndex}.grades`}
-                            render={({ field }) => {
-                            return (
-                                <FormItem
-                                key={grade}
-                                className="flex flex-row items-center space-x-2 space-y-0"
-                                >
-                                <FormControl>
-                                    <Checkbox
-                                    checked={field.value?.includes(grade)}
-                                    onCheckedChange={(checked) => {
-                                        const currentValue = field.value || [];
-                                        return checked
-                                        ? field.onChange([...currentValue, grade])
-                                        : field.onChange(currentValue.filter(value => value !== grade))
-                                    }}
-                                    />
-                                </FormControl>
-                                <FormLabel className="font-normal text-sm">
-                                    {grade}
-                                </FormLabel>
-                                </FormItem>
-                            )
-                            }}
-                        />
-                        ))}
-                        </div>
-                    </ScrollArea>
+                    <FormLabel>Grade</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a grade" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {GRADE_OPTIONS.map((grade) => (
+                                <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <FormMessage />
                 </FormItem>
                 )}
@@ -218,7 +196,7 @@ const SubjectForm = ({ subjectIndex, control, removeSubject, canRemove, maxPerio
     });
 
     const handleAppendAssignment = () => {
-        appendAssignment({ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true });
+        appendAssignment({ id: crypto.randomUUID(), grade: "", arms: [], groupArms: true });
     };
     
     return (
@@ -325,7 +303,7 @@ export default function TeacherEditor() {
     defaultValues: {
       name: "",
       totalPeriods: 20,
-      subjects: [{ name: "", totalPeriods: 1, assignments: [{ grades: [], arms: [], groupArms: true }] }],
+      subjects: [{ name: "", totalPeriods: 1, assignments: [{ grade: "", arms: [], groupArms: true }] }],
       schoolSections: activeTimetable ? [activeTimetable.id] : [],
     },
   });
@@ -353,18 +331,18 @@ export default function TeacherEditor() {
                 totalPeriods: s.totalPeriods,
                 assignments: s.assignments.length > 0 ? s.assignments.map(a => ({
                     id: a.id || crypto.randomUUID(),
-                    grades: a.grades,
+                    grade: a.grade,
                     arms: a.arms,
                     groupArms: a.groupArms,
-                })) : [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }],
-            })) : [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }] }],
+                })) : [{ id: crypto.randomUUID(), grade: "", arms: [], groupArms: true }],
+            })) : [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grade: "", arms: [], groupArms: true }] }],
             schoolSections: teacher.schoolSections || (activeTimetable ? [activeTimetable.id] : []),
         });
     } else {
         form.reset({
             name: "",
             totalPeriods: 20,
-            subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }] }],
+            subjects: [{ name: "", id: crypto.randomUUID(), totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grade: "", arms: [], groupArms: true }] }],
             schoolSections: activeTimetable ? [activeTimetable.id] : [],
         });
     }
@@ -536,7 +514,7 @@ export default function TeacherEditor() {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            onClick={() => appendSubject({ name: "", totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grades: [], arms: [], groupArms: true }] })}
+                            onClick={() => appendSubject({ name: "", totalPeriods: 1, assignments: [{ id: crypto.randomUUID(), grade: "", arms: [], groupArms: true }] })}
                             disabled={unassignedTeacherPeriods <= 0}
                           >
                             <Plus className="mr-2 h-4 w-4" />
@@ -624,7 +602,7 @@ export default function TeacherEditor() {
                            </div>
                            <div className="mt-2 space-y-2">
                             {subject.assignments.map(assignment => {
-                                const key = `${assignment.id}-${assignment.grades.join('-')}-${assignment.arms.join('-')}`;
+                                const key = `${assignment.id}-${assignment.grade}-${assignment.arms.join('-')}`;
                                 const groupedText = assignment.groupArms ? `Arms ${assignment.arms.join(', ')} (Grouped)` : `Arms ${assignment.arms.join(', ')} (Individual)`;
                                 return (
                                     <div key={key} className="pl-2">
@@ -632,7 +610,7 @@ export default function TeacherEditor() {
                                             <div className="flex items-center text-xs">
                                                 <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
                                                 <span>
-                                                    {assignment.grades.join(', ')} - 
+                                                    {assignment.grade} - 
                                                     {groupedText}
                                                 </span>
                                             </div>
@@ -658,5 +636,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-

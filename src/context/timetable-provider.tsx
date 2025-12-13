@@ -210,52 +210,51 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!subject.assignments) return;
 
             subject.assignments.forEach(assignment => {
-                if (assignment.grades.length === 0) return;
+                const grade = assignment.grade;
+                if (!grade) return;
+                
+                const periodsPerClass = subject.totalPeriods;
+                let className: string;
+                let individualClasses: string[];
 
-                assignment.grades.forEach(grade => {
-                    const periodsPerClass = subject.totalPeriods;
-                    let className: string;
-                    let individualClasses: string[];
+                if (assignment.groupArms && assignment.arms.length > 0) {
+                    className = `${grade} ${assignment.arms.join(', ')}`;
+                    individualClasses = assignment.arms.map(arm => `${grade} ${arm}`);
+                } else {
+                    className = grade;
+                    individualClasses = [grade];
+                }
+                
+                if (assignment.arms.length > 0 && !assignment.groupArms) {
+                      const totalDivisions = assignment.arms.length;
+                      const basePeriods = Math.floor(periodsPerClass / totalDivisions);
+                      let remainder = periodsPerClass % totalDivisions;
+                      
+                      assignment.arms.forEach(arm => {
+                        let periodsForThisClass = basePeriods + (remainder > 0 ? 1 : 0);
+                        if (remainder > 0) remainder--;
 
-                    if (assignment.groupArms && assignment.arms.length > 0) {
-                        className = `${grade} ${assignment.arms.join(', ')}`;
-                        individualClasses = assignment.arms.map(arm => `${grade} ${arm}`);
-                    } else {
-                        className = grade;
-                        individualClasses = [grade];
-                    }
-                    
-                    if (assignment.arms.length > 0 && !assignment.groupArms) {
-                         const totalDivisions = assignment.arms.length;
-                         const basePeriods = Math.floor(periodsPerClass / totalDivisions);
-                         let remainder = periodsPerClass % totalDivisions;
-                         
-                         assignment.arms.forEach(arm => {
-                            let periodsForThisClass = basePeriods + (remainder > 0 ? 1 : 0);
-                            if (remainder > 0) remainder--;
-
-                            const singleClassName = `${grade} ${arm}`;
-                            for (let i = 0; i < periodsForThisClass; i++) {
-                                allRequiredSessions.push({
-                                    subject: subject.name,
-                                    teacher: teacher.name,
-                                    className: singleClassName,
-                                    classes: [singleClassName],
-                                });
-                            }
-                         });
-
-                    } else {
-                        for (let i = 0; i < periodsPerClass; i++) {
+                        const singleClassName = `${grade} ${arm}`;
+                        for (let i = 0; i < periodsForThisClass; i++) {
                             allRequiredSessions.push({
                                 subject: subject.name,
                                 teacher: teacher.name,
-                                className: className,
-                                classes: individualClasses,
+                                className: singleClassName,
+                                classes: [singleClassName],
                             });
                         }
+                      });
+
+                } else {
+                    for (let i = 0; i < periodsPerClass; i++) {
+                        allRequiredSessions.push({
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: className,
+                            classes: individualClasses,
+                        });
                     }
-                });
+                }
             });
         });
     });

@@ -2,7 +2,7 @@
 
 export type SubjectAssignment = {
     id: string;
-    grades: string[];
+    grade: string;
     arms: string[];
     groupArms: boolean;
 };

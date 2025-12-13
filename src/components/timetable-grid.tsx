@@ -203,7 +203,7 @@ export default function TimetableGrid() {
                     {slot.isBreak ? (
                         <div className="relative h-full flex items-center justify-center">
                             <span className="absolute inset-0 bg-background z-10"></span>
-                            <span className="relative z-20 font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
+                             <span className="relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180">
                                 {slot.label}
                             </span>
                         </div>
@@ -218,14 +218,33 @@ export default function TimetableGrid() {
             </TableRow>
             </TableHeader>
             <TableBody>
-            {days.map((day) => {
+            {days.map((day, dayIndex) => {
                 const rowCells = [];
                 let periodIndex = 0;
                 for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
                     const slot = timeSlots[slotIndex];
 
                     if (slot.isBreak) {
-                        rowCells.push(<TableCell key={`break-${slotIndex}`} className="bg-muted/50" />);
+                        if (slot.label?.toUpperCase() === 'ASSEMBLY') {
+                            if (dayIndex === 0) { // Only render for the first day (Monday)
+                                rowCells.push(
+                                    <TableCell 
+                                        key={`break-${slotIndex}`} 
+                                        className="bg-muted/50 align-middle text-center p-0" 
+                                        rowSpan={days.length}
+                                    >
+                                        <div className="relative h-full flex items-center justify-center">
+                                          <span className="absolute inset-0 bg-background z-10"></span>
+                                          <span className="relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180">
+                                              {slot.label}
+                                          </span>
+                                        </div>
+                                    </TableCell>
+                                );
+                            }
+                        } else {
+                            rowCells.push(<TableCell key={`break-${slotIndex}`} className="bg-muted/50" />);
+                        }
                         continue;
                     }
                     
@@ -234,11 +253,11 @@ export default function TimetableGrid() {
                     rowCells.push(
                         <TableCell
                             key={slotIndex}
-                            className={cn("p-1 align-top", slot.isBreak ? "bg-muted/30" : "hover:bg-muted/50 transition-colors")}
+                            className={cn("p-1 align-top", "hover:bg-muted/50 transition-colors")}
                             onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                             onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
                         >
-                            {!slot.isBreak && renderCellContent(sessions, day, periodIndex, filterValue)}
+                            {renderCellContent(sessions, day, periodIndex, filterValue)}
                         </TableCell>
                     );
 
@@ -340,4 +359,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
 

@@ -73,6 +73,17 @@ const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
+const getGradeOptionsForSchool = (schoolName: string) => {
+    const lowerCaseSchoolName = schoolName.toLowerCase();
+    if (lowerCaseSchoolName.includes('primary')) {
+        return PRIMARY_GRADES;
+    }
+    if (lowerCaseSchoolName.includes('secondary')) {
+        return SECONDARY_GRADES;
+    }
+    return ALL_GRADE_OPTIONS;
+};
+
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
     const { timetables } = useTimetable();
     const { setValue, getValues } = useFormContext();
@@ -85,23 +96,20 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const gradeOptions = useMemo(() => {
         const selectedSchool = timetables.find(t => t.id === schoolId);
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
-
-        const schoolName = selectedSchool.name.toLowerCase();
-        if (schoolName.includes('primary')) {
-            return PRIMARY_GRADES;
-        }
-        if (schoolName.includes('secondary')) {
-            return SECONDARY_GRADES;
-        }
-        return ALL_GRADE_OPTIONS;
+        return getGradeOptionsForSchool(selectedSchool.name);
     }, [schoolId, timetables]);
     
-    useEffect(() => {
+    const handleSchoolChange = (newSchoolId: string) => {
         const currentGrade = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`);
-        if (currentGrade && !gradeOptions.includes(currentGrade)) {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`, '');
+        const selectedSchool = timetables.find(t => t.id === newSchoolId);
+        if (currentGrade && selectedSchool) {
+            const newGradeOptions = getGradeOptionsForSchool(selectedSchool.name);
+            if (!newGradeOptions.includes(currentGrade)) {
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`, '');
+            }
         }
-    }, [schoolId, gradeOptions, setValue, getValues, teacherIndex, assignmentIndex]);
+        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
+    };
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -116,7 +124,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         render={({ field }) => (
                             <FormItem>
                                 {assignmentIndex === 0 && <FormLabel>School</FormLabel>}
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={handleSchoolChange} value={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="School" />

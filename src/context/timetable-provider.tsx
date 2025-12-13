@@ -212,6 +212,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           const individualClasses = assignment.grades.flatMap(grade =>
             assignment.arms.map(arm => `${grade} ${arm}`)
           );
+          if (individualClasses.length === 0) return;
 
           if (assignment.groupArms) {
             const combinedClassName = individualClasses.length > 1 

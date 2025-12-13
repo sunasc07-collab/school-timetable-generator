@@ -196,7 +196,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
-    
+
     const requiredSessions: {
       subject: string;
       teacher: string;
@@ -205,64 +205,67 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }[] = [];
 
     activeTeachers.forEach(teacher => {
-        teacher.subjects.forEach(subject => {
-            subject.assignments.forEach(assignment => {
-                const allArmsInAssignment = assignment.grades.flatMap(grade => 
-                    assignment.arms.map(arm => `${grade} ${arm}`)
-                );
+      teacher.subjects.forEach(subject => {
+        subject.assignments.forEach(assignment => {
+          const allArmsInAssignment = assignment.grades.flatMap(grade =>
+            assignment.arms.map(arm => `${grade} ${arm}`)
+          );
 
-                if (assignment.groupArms) {
-                    for (let i = 0; i < subject.totalPeriods; i++) {
-                        requiredSessions.push({
-                            subject: subject.name,
-                            teacher: teacher.name,
-                            className: allArmsInAssignment.join(", "), // For display
-                            classes: allArmsInAssignment,
-                        });
-                    }
-                } else {
-                    allArmsInAssignment.forEach(individualClass => {
-                        for (let i = 0; i < subject.totalPeriods; i++) {
-                            requiredSessions.push({
-                                subject: subject.name,
-                                teacher: teacher.name,
-                                className: individualClass,
-                                classes: [individualClass],
-                            });
-                        }
-                    });
-                }
+          if (assignment.groupArms) {
+            if (allArmsInAssignment.length > 0) {
+              for (let i = 0; i < subject.totalPeriods; i++) {
+                requiredSessions.push({
+                  subject: subject.name,
+                  teacher: teacher.name,
+                  className: allArmsInAssignment.join(", "),
+                  classes: allArmsInAssignment,
+                });
+              }
+            }
+          } else {
+            allArmsInAssignment.forEach(individualClass => {
+              for (let i = 0; i < subject.totalPeriods; i++) {
+                requiredSessions.push({
+                  subject: subject.name,
+                  teacher: teacher.name,
+                  className: individualClass,
+                  classes: [individualClass],
+                });
+              }
             });
+          }
         });
+      });
     });
-    
+
     const classSet = new Set<string>();
     activeTeachers.forEach(t => t.subjects.forEach(s => s.assignments.forEach(a => a.grades.forEach(g => a.arms.forEach(arm => classSet.add(`${g} ${arm}`))))));
     const sortedClasses = Array.from(classSet).sort();
 
     const sessionCounts: { [key: string]: number } = {};
     requiredSessions.forEach(req => {
-        const key = `${req.subject}__${req.teacher}__${[...req.classes].sort().join(',')}`;
-        if (!sessionCounts[key]) {
-            sessionCounts[key] = 0;
-        }
-        sessionCounts[key]++;
+      const key = `${req.subject}__${req.teacher}__${[...req.classes].sort().join(',')}`;
+      if (!sessionCounts[key]) {
+        sessionCounts[key] = 0;
+      }
+      sessionCounts[key]++;
     });
-
+    
     const sessionsToPlace: TimetableSession[] = [];
     Object.entries(sessionCounts).forEach(([key, countValue]) => {
         const [subject, teacher, classesStr] = key.split('__');
         const classes = classesStr.split(',');
+        const className = classes.join(", ");
         let count = countValue;
 
         while (count >= 2) {
             const doubleId = crypto.randomUUID();
-            sessionsToPlace.push({ id: doubleId, subject, teacher, className: classes.join(", "), classes, isDouble: true, part: 1 });
-            sessionsToPlace.push({ id: doubleId, subject, teacher, className: classes.join(", "), classes, isDouble: true, part: 2 });
+            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes, isDouble: true, part: 1 });
+            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes, isDouble: true, part: 2 });
             count -= 2;
         }
         if (count > 0) {
-            sessionsToPlace.push({ id: crypto.randomUUID(), subject, teacher, className: classes.join(", "), classes, isDouble: false });
+            sessionsToPlace.push({ id: crypto.randomUUID(), subject, teacher, className, classes, isDouble: false });
         }
     });
 
@@ -671,5 +674,7 @@ export const useTimetable = (): TimetableContextType => {
     
 
 
+
+    
 
     

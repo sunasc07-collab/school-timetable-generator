@@ -122,13 +122,13 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fi
                                 if (value) {
                                     field.onChange(value);
                                     const formattedValue = value.charAt(0).toUpperCase() + value.slice(1);
-                                    if (!subjects.includes(formattedValue) && !subjects.map(s=>s.toLowerCase()).includes(formattedValue.toLowerCase())) {
+                                    if (!subjects.map(s=>s.toLowerCase()).includes(formattedValue.toLowerCase())) {
                                         addSubject(formattedValue);
                                     }
                                 }
                             }}
                             placeholder="Select or add subject"
-                            notfoundtext="Create a new subject"
+                            notfoundtext="Create new subject"
                         />
                         <FormMessage />
                     </FormItem>

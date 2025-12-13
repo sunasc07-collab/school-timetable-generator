@@ -33,7 +33,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
   const [open, setOpen] = React.useState(false);
   
   const handleSelect = (currentValue: string) => {
-    onChange(currentValue === value ? "" : currentValue);
+    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue);
     setOpen(false);
   };
 
@@ -68,7 +68,6 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
           if (option) {
             return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
           }
-          // Fallback for dynamically created values that might not be in options
           return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
         }}>
           <CommandInput 
@@ -98,7 +97,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value === option.value ? "opacity-100" : "opacity-0"
+                        value.toLowerCase() === option.value.toLowerCase() ? "opacity-100" : "opacity-0"
                       )}
                     />
                     {option.label}

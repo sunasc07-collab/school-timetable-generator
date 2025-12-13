@@ -203,7 +203,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       className: string;
       classes: string[];
     }[] = [];
-
+    
     activeTeachers.forEach(teacher => {
       teacher.subjects.forEach(subject => {
         subject.assignments.forEach(assignment => {
@@ -214,27 +214,40 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           );
 
           if (assignment.groupArms) {
-            // Create one session for the grouped class
-            const combinedClassName = `${assignment.grades.join(', ')} ${assignment.arms.join(', ')}`;
-             for (let i = 0; i < subject.totalPeriods; i++) {
+            const combinedClassName = individualClasses.length > 1 
+              ? `${assignment.grades.join(', ')} Arms ${assignment.arms.join(', ')}` 
+              : individualClasses[0];
+
+            for (let i = 0; i < subject.totalPeriods; i++) {
                 requiredSessions.push({
                   subject: subject.name,
                   teacher: teacher.name,
                   className: combinedClassName,
                   classes: individualClasses,
                 });
-              }
+            }
           } else {
-            // Create individual sessions for each class
-            individualClasses.forEach(className => {
-              for (let i = 0; i < subject.totalPeriods; i++) {
-                requiredSessions.push({
-                  subject: subject.name,
-                  teacher: teacher.name,
-                  className: className,
-                  classes: [className],
-                });
-              }
+             const numArms = individualClasses.length;
+             if (numArms === 0) return;
+
+             const periodsPerArm = Math.floor(subject.totalPeriods / numArms);
+             let remainderPeriods = subject.totalPeriods % numArms;
+
+             individualClasses.forEach(className => {
+                let periodsForThisArm = periodsPerArm;
+                if (remainderPeriods > 0) {
+                    periodsForThisArm++;
+                    remainderPeriods--;
+                }
+                
+                for (let i = 0; i < periodsForThisArm; i++) {
+                    requiredSessions.push({
+                        subject: subject.name,
+                        teacher: teacher.name,
+                        className: className,
+                        classes: [className],
+                    });
+                }
             });
           }
         });

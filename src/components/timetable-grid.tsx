@@ -58,11 +58,13 @@ export default function TimetableGrid() {
     activeTimetable.teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
-                assignment.grades.forEach(grade => {
-                    assignment.arms.forEach(arm => {
-                        armSet.add(`${grade} ${arm}`);
+                if (!assignment.groupArms) {
+                    assignment.grades.forEach(grade => {
+                        assignment.arms.forEach(arm => {
+                            armSet.add(`${grade} ${arm}`);
+                        });
                     });
-                });
+                }
             });
         });
     });
@@ -197,13 +199,13 @@ export default function TimetableGrid() {
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
                 {timeSlots.map((slot, index) => (
-                <TableHead key={index} className="font-headline text-center align-middle">
+                <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
-                        <div className={cn(
-                            "text-center mx-auto my-2 text-muted-foreground font-medium uppercase",
-                            "[writing-mode:vertical-lr]"
-                         )}>
-                            {slot.label}
+                        <div className="relative h-full flex items-center justify-center">
+                            <span className="absolute inset-0 bg-background z-10"></span>
+                            <span className="relative z-20 font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
+                                {slot.label}
+                            </span>
                         </div>
                     ) : (
                         <>
@@ -338,3 +340,4 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+

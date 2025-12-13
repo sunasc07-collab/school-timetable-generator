@@ -192,8 +192,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   const activeTimetable = timetables.find(t => t.id === activeTimetableId) || null;
-  const activeTeachers = activeTimetable ? allTeachers.filter(t => t.schoolSections.includes(activeTimetable.id)) : [];
-
+  
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
 
@@ -205,17 +204,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }[] = [];
     
     allTeachers.forEach(teacher => {
-        if (!teacher.schoolSections.includes(activeTimetable.id)) return;
-
         teacher.subjects.forEach(subject => {
             if (!subject.assignments) return;
 
             subject.assignments.forEach(assignment => {
+                const isForCurrentTimetable = teacher.schoolSections.includes(activeTimetable.id);
+                if (!isForCurrentTimetable) return;
+
                 if (assignment.grades.length === 0) return;
 
                 assignment.grades.forEach(grade => {
-                    let className: string;
+                    let periodsPerClass = subject.totalPeriods;
                     let individualClasses: string[];
+                    let className: string;
 
                     if (assignment.groupArms) {
                         const armPart = assignment.arms.length > 0 ? ` ${assignment.arms.join(', ')}` : '';
@@ -223,48 +224,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         individualClasses = assignment.arms.length > 0 
                             ? assignment.arms.map(arm => `${grade} ${arm}`)
                             : [grade];
+                        
+                        for (let i = 0; i < periodsPerClass; i++) {
+                            allRequiredSessions.push({
+                                subject: subject.name,
+                                teacher: teacher.name,
+                                className: className,
+                                classes: individualClasses,
+                            });
+                        }
                     } else {
-                        // This case will be handled by iterating through arms individually
-                        // We do nothing here and handle it in the next block
-                        return;
-                    }
-                    
-                    if (!assignment.groupArms) return;
+                        const targetClasses = assignment.arms.length > 0 ? assignment.arms : [null]; // Treat grade as a class if no arms
+                        const totalDivisions = targetClasses.length;
+                        if (totalDivisions === 0) return;
 
-                    for (let i = 0; i < subject.totalPeriods; i++) {
-                        allRequiredSessions.push({
-                            subject: subject.name,
-                            teacher: teacher.name,
-                            className: className,
-                            classes: individualClasses,
+                        const basePeriods = Math.floor(periodsPerClass / totalDivisions);
+                        let remainder = periodsPerClass % totalDivisions;
+
+                        targetClasses.forEach(arm => {
+                            let periodsForThisClass = basePeriods;
+                            if (remainder > 0) {
+                                periodsForThisClass++;
+                                remainder--;
+                            }
+
+                            className = arm ? `${grade} ${arm}` : grade;
+
+                            for (let i = 0; i < periodsForThisClass; i++) {
+                                allRequiredSessions.push({
+                                    subject: subject.name,
+                                    teacher: teacher.name,
+                                    className: className,
+                                    classes: [className],
+                                });
+                            }
                         });
                     }
                 });
-
-                if (!assignment.groupArms && assignment.arms.length > 0) {
-                     const periodsPerArm = Math.floor(subject.totalPeriods / assignment.arms.length);
-                     let remainderPeriods = subject.totalPeriods % assignment.arms.length;
-
-                     assignment.grades.forEach(grade => {
-                         assignment.arms.forEach(arm => {
-                             let numPeriods = periodsPerArm;
-                             if (remainderPeriods > 0) {
-                                 numPeriods++;
-                                 remainderPeriods--;
-                             }
-                            
-                             const className = `${grade} ${arm}`;
-                             for (let i = 0; i < numPeriods; i++) {
-                                 allRequiredSessions.push({
-                                     subject: subject.name,
-                                     teacher: teacher.name,
-                                     className: className,
-                                     classes: [className],
-                                 });
-                             }
-                         });
-                     });
-                }
             });
         });
     });
@@ -696,6 +692,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
   }
   
+  const activeTeachers = activeTimetable ? allTeachers.filter(t => t.schoolSections.includes(activeTimetable.id)) : [];
   const augmentedActiveTimetable = activeTimetable ? {
       ...activeTimetable,
       teachers: activeTeachers,
@@ -735,5 +732,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

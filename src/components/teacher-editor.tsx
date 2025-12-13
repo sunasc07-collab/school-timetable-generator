@@ -36,7 +36,7 @@ import { useEffect, useState, useMemo } from "react";
 import type { Teacher } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Badge } from "./ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -70,7 +70,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
-const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
@@ -552,5 +552,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

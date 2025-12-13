@@ -58,13 +58,11 @@ export default function TimetableGrid() {
     activeTimetable.teachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
-                if (!assignment.groupArms) {
-                    const grade = assignment.grade;
-                    if (grade) {
-                        assignment.arms.forEach(arm => {
-                            armSet.add(`${grade} ${arm}`);
-                        });
-                    }
+                const grade = assignment.grade;
+                if (grade && assignment.arms.length > 0) {
+                    assignment.arms.forEach(arm => {
+                        armSet.add(`${grade} ${arm}`);
+                    });
                 }
             });
         });

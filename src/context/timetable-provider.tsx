@@ -205,10 +205,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }[] = [];
     
     allTeachers.forEach(teacher => {
+        if (!teacher.schoolSections.includes(activeTimetable.id)) return;
+
         teacher.subjects.forEach(subject => {
             if (!subject.assignments) return;
 
             subject.assignments.forEach(assignment => {
+
                 const individualClassesForAssignment = assignment.grades.flatMap(grade => {
                     if (assignment.arms && assignment.arms.length > 0) {
                         return assignment.arms.map(arm => `${grade} ${arm}`.trim());
@@ -217,9 +220,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 });
 
                 if (individualClassesForAssignment.length === 0) return;
-                
-                const relevantForThisTimetable = teacher.schoolSections.includes(activeTimetable.id);
-                if (!relevantForThisTimetable) return;
 
                 const numClasses = individualClassesForAssignment.length;
                 const periodsPerClass = Math.floor(subject.totalPeriods / numClasses);
@@ -237,24 +237,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                             subject: subject.name,
                             teacher: teacher.name,
                             className: className,
-                            classes: [className],
+                            classes: [className], // Each session is for one individual class
                         });
                     }
                 });
             });
         });
     });
-
-    const relevantSessions = allRequiredSessions;
-
+    
     const classSet = new Set<string>();
-    relevantSessions.forEach(req => {
+    allRequiredSessions.forEach(req => {
         req.classes.forEach(c => classSet.add(c));
     });
     const sortedClasses = Array.from(classSet).sort();
     
     const sessionCounts: { [key: string]: number } = {};
-    relevantSessions.forEach(req => {
+    allRequiredSessions.forEach(req => {
         const key = `${req.subject}__${req.teacher}__${req.className}__${req.classes.sort().join(',')}`;
         if (!sessionCounts[key]) {
             sessionCounts[key] = 0;
@@ -713,5 +711,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

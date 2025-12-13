@@ -75,7 +75,7 @@ const ARM_OPTIONS = ["A", "B", "C", "D"];
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
     const { timetables } = useTimetable();
-    const { setValue } = useFormContext();
+    const { setValue, getValues } = useFormContext();
     
     const schoolId = useWatch({
         control,
@@ -97,8 +97,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }, [schoolId, timetables]);
     
     useEffect(() => {
-        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`, '');
-    }, [schoolId, gradeOptions, setValue, teacherIndex, assignmentIndex]);
+        const currentGrade = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`);
+        if (currentGrade && !gradeOptions.includes(currentGrade)) {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`, '');
+        }
+    }, [schoolId, gradeOptions, setValue, getValues, teacherIndex, assignmentIndex]);
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -552,7 +555,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
 
     

@@ -200,8 +200,8 @@ export default function TimetableGrid() {
                 <TableHead key={index} className="font-headline text-center align-middle">
                     {slot.isBreak ? (
                         <div className={cn(
-                            "text-center mx-auto my-2 text-muted-foreground font-medium",
-                            slot.label === "Assembly" ? "[writing-mode:vertical-rl] rotate-180" : "[writing-mode:vertical-lr]"
+                            "text-center mx-auto my-2 text-muted-foreground font-medium uppercase",
+                            "[writing-mode:vertical-lr]"
                          )}>
                             {slot.label}
                         </div>

@@ -230,12 +230,11 @@ export default function TimetableGrid() {
                                 rowCells.push(
                                     <TableCell 
                                         key={`break-${slotIndex}`} 
-                                        className="bg-muted/50 align-middle text-center p-0" 
+                                        className="p-0" 
                                         rowSpan={days.length}
                                     >
-                                        <div className="relative h-full flex items-center justify-center">
-                                          <span className="absolute inset-0 bg-background z-10"></span>
-                                          <span className="relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180">
+                                        <div className="relative h-full w-full flex items-center justify-center bg-background">
+                                          <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
                                               {slot.label}
                                           </span>
                                         </div>
@@ -243,7 +242,15 @@ export default function TimetableGrid() {
                                 );
                             }
                         } else {
-                            rowCells.push(<TableCell key={`break-${slotIndex}`} className="bg-muted/50" />);
+                            rowCells.push(
+                              <TableCell key={`break-${slotIndex}`} className="p-0">
+                                <div className="relative h-full w-full flex items-center justify-center bg-background">
+                                  <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
+                                    {slot.label}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            );
                         }
                         continue;
                     }
@@ -359,5 +366,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-

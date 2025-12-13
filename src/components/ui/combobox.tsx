@@ -33,10 +33,17 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
   const [open, setOpen] = React.useState(false);
   
   const handleSelect = (currentValue: string) => {
-    const newValue = currentValue === value ? "" : currentValue;
-    onChange(newValue);
+    onChange(currentValue === value ? "" : currentValue);
     setOpen(false);
   };
+
+  const handleCreate = (inputValue: string) => {
+    if (inputValue.trim() !== '') {
+        onChange(inputValue.trim());
+    }
+    setOpen(false);
+  };
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,7 +56,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
         >
           <span className="truncate">
           {value
-            ? options.find((option) => option.value === value)?.label ?? value
+            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label ?? value
             : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -61,6 +68,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
           if (option) {
             return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
           }
+          // Fallback for dynamically created values that might not be in options
           return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
         }}>
           <CommandInput 
@@ -68,9 +76,16 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
           />
           <CommandList>
             <CommandEmpty>
-                <CommandItem onSelect={() => handleSelect(document.querySelector<HTMLInputElement>('input[cmdk-input]')?.value || '')}>
-                  {notfoundtext}
-                </CommandItem>
+                 <button 
+                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none w-full text-left"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        const inputValue = (e.currentTarget.closest('[cmdk-root]')?.querySelector('[cmdk-input]') as HTMLInputElement)?.value;
+                        handleCreate(inputValue);
+                    }}
+                >
+                    {notfoundtext}
+                </button>
             </CommandEmpty>
             <CommandGroup>
               <ScrollArea className="h-72">

@@ -77,14 +77,14 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fieldsLength }: { index: number, control: any, remove: () => void, maxPeriodsForThisAssignment: number, fieldsLength: number }) => {
+const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fieldsLength }: { index: number, control: any, remove: (index: number) => void, maxPeriodsForThisAssignment: number, fieldsLength: number }) => {
     const { subjects, addSubject } = useTimetable();
 
     const subjectOptions = subjects.map(s => ({ label: s, value: s }));
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
-            <Button type="button" variant="ghost" size="icon" onClick={remove} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
+            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
                 <Trash2 className="h-4 w-4" />
             </Button>
             <FormField
@@ -122,7 +122,7 @@ const AssignmentRow = ({ index, control, remove, maxPeriodsForThisAssignment, fi
                                 if (value) {
                                     field.onChange(value);
                                     const formattedValue = value.charAt(0).toUpperCase() + value.slice(1);
-                                    if (!subjects.includes(formattedValue)) {
+                                    if (!subjects.includes(formattedValue) && !subjects.map(s=>s.toLowerCase()).includes(formattedValue.toLowerCase())) {
                                         addSubject(formattedValue);
                                     }
                                 }
@@ -219,7 +219,7 @@ export default function TeacherEditor() {
 
   const watchedAssignments = form.watch("assignments");
   const maxPeriods = form.watch("maxPeriods");
-  const totalAssignedPeriods = watchedAssignments.reduce((acc, a) => acc + (a.periods * a.arms.length || 0), 0);
+  const totalAssignedPeriods = watchedAssignments.reduce((acc, a) => acc + (a.periods * (a.arms?.length || 0)), 0);
   const unassignedPeriods = maxPeriods - totalAssignedPeriods;
 
   const handleOpenDialog = (teacher: Teacher | null) => {
@@ -394,7 +394,11 @@ export default function TeacherEditor() {
                                     key={field.id}
                                     index={index}
                                     control={form.control}
-                                    remove={() => remove(index)}
+                                    remove={() => {
+                                        if (fields.length > 1) {
+                                            remove(index);
+                                        }
+                                    }}
                                     maxPeriodsForThisAssignment={maxForThis}
                                     fieldsLength={fields.length}
                                 />

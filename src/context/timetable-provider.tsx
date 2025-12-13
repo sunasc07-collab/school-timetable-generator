@@ -469,17 +469,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const resolveConflicts = () => {
     if (!activeTimetable?.timetable || !activeTimetable.conflicts) return;
 
-    const currentTimetable = activeTimetable.timetable;
+    const currentTimetable = JSON.parse(JSON.stringify(activeTimetable.timetable));
     const conflicts = activeTimetable.conflicts;
     const conflictingSessionIds = new Set(conflicts.map(c => c.id));
-    
+
     const unplacedSessions: TimetableSession[] = [];
     const cleanTimetable: TimetableData = {};
     DEFAULT_DAYS.forEach(day => { cleanTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
 
     // Separate conflicting and non-conflicting sessions
     DEFAULT_DAYS.forEach(day => {
-        currentTimetable[day]?.forEach((slot, period) => {
+        currentTimetable[day]?.forEach((slot: TimetableSession[], period: number) => {
             const validSessionsInSlot = slot.filter(session => !conflictingSessionIds.has(session.id));
             const conflictingSessionsInSlot = slot.filter(session => conflictingSessionIds.has(session.id));
             
@@ -501,13 +501,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
         const slot = board[day]?.[period];
         if (!slot) return false;
-        
-        // Teacher conflict
-        if (slot.some(s => s.teacher === session.teacher)) return false; 
-        
-        // Class conflict
+        if (slot.some(s => s.teacher === session.teacher)) return false;
         if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
-        
         return true;
     }
 
@@ -679,3 +674,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

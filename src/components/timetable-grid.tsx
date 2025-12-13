@@ -30,6 +30,15 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
 
+const dayAbbreviations: { [key: string]: string } = {
+  "Monday": "Mo",
+  "Tuesday": "Tu",
+  "Wednesday": "We",
+  "Thursday": "Th",
+  "Friday": "Fr",
+};
+
+
 export default function TimetableGrid() {
   const { 
     activeTimetable,
@@ -209,8 +218,8 @@ export default function TimetableGrid() {
                         </div>
                     ) : (
                         <>
-                            <div>{slot.time}</div>
-                            <div className="text-xs font-normal">Period {slot.period}</div>
+                            <div>Period {slot.period}</div>
+                            <div className="text-xs font-normal">{slot.time}</div>
                         </>
                     )}
                 </TableHead>
@@ -233,11 +242,11 @@ export default function TimetableGrid() {
                                         className="p-0" 
                                         rowSpan={days.length}
                                     >
-                                        <div className="relative h-full w-full flex items-center justify-center bg-background">
+                                      <div className="relative h-full w-full flex items-center justify-center bg-background">
                                           <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
                                               {slot.label}
                                           </span>
-                                        </div>
+                                      </div>
                                     </TableCell>
                                 );
                             }
@@ -274,7 +283,7 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">
-                            <div className="font-bold">{day}</div>
+                            <div className="font-bold text-lg">{dayAbbreviations[day] || day}</div>
                         </TableCell>
                         {rowCells}
                     </TableRow>
@@ -366,3 +375,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

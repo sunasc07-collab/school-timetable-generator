@@ -32,18 +32,18 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 const DEFAULT_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-    { period: null, time: "7:45 - 8:10", isBreak: true, label: "Assembly" },
-    { period: 1, time: "8:10 - 8:50" },
-    { period: 2, time: "8:50 - 9:30" },
-    { period: 3, time: "9:30 - 10:10" },
-    { period: null, time: "10:10 - 10:40", isBreak: true, label: "BREAK" },
-    { period: 4, time: "10:40 - 11:20" },
-    { period: 5, time: "11:20 - 12:00" },
-    { period: 6, time: "12:00 - 12:40" },
-    { period: null, time: "12:40 - 1:30", isBreak: true, label: "BREAK" },
-    { period: 7, time: "1:30 - 2:10" },
-    { period: 8, time: "2:10 - 2:40" },
-    { period: 9, time: "2:40 - 3:10" },
+    { period: null, time: "7:30 - 7:50", isBreak: true, label: "Assembly" },
+    { period: 1, time: "8:00 - 8:40" },
+    { period: 2, time: "8:40 - 9:20" },
+    { period: 3, time: "9:20 - 10:00" },
+    { period: null, time: "10:00 - 10:20", isBreak: true, label: "SHORT BREAK" },
+    { period: 4, time: "10:20 - 11:00" },
+    { period: 5, time: "11:00 - 11:40" },
+    { period: 6, time: "11:40 - 12:20" },
+    { period: 7, time: "12:20 - 13:00" },
+    { period: null, time: "13:00 - 13:50", isBreak: true, label: "LONG BREAK" },
+    { period: 8, time: "13:50 - 14:25" },
+    { period: 9, time: "14:25 - 15:00" },
 ];
 const PERIOD_COUNT = DEFAULT_TIME_SLOTS.filter(ts => !ts.isBreak).length;
 
@@ -200,41 +200,49 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const requiredSessions: {
         subject: string;
         teacher: string;
+        className: string;
         classes: string[];
     }[] = [];
 
     activeTeachers.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
-                const classesInAssignment: string[] = [];
-                assignment.grades.forEach(grade => {
-                    assignment.arms.forEach(arm => {
-                        classesInAssignment.push(`${grade} ${arm}`);
-                    });
-                });
+                const allArmsInAssignment = assignment.grades.flatMap(grade => 
+                    assignment.arms.map(arm => `${grade} ${arm}`)
+                );
 
-                if (classesInAssignment.length > 0) {
+                if (assignment.groupArms) {
                     for (let i = 0; i < subject.totalPeriods; i++) {
                         requiredSessions.push({
                             subject: subject.name,
                             teacher: teacher.name,
-                            classes: classesInAssignment,
+                            className: allArmsInAssignment.join(', '), 
+                            classes: allArmsInAssignment,
                         });
                     }
+                } else {
+                    allArmsInAssignment.forEach(individualClass => {
+                        for (let i = 0; i < subject.totalPeriods; i++) {
+                            requiredSessions.push({
+                                subject: subject.name,
+                                teacher: teacher.name,
+                                className: individualClass,
+                                classes: [individualClass],
+                            });
+                        }
+                    });
                 }
             });
         });
     });
 
     const classSet = new Set<string>();
-    requiredSessions.forEach(req => {
-        req.classes.forEach(c => classSet.add(c));
-    });
+    activeTeachers.forEach(t => t.subjects.forEach(s => s.assignments.forEach(a => a.grades.forEach(g => a.arms.forEach(arm => classSet.add(`${g} ${arm}`))))));
     const sortedClasses = Array.from(classSet).sort();
 
     const sessionCounts: { [key: string]: number } = {};
     requiredSessions.forEach(req => {
-        const key = `${req.subject}__${req.teacher}__${req.classes.sort().join(',')}`;
+        const key = `${req.subject}__${req.teacher}__${[...req.classes].sort().join(',')}`;
         if (!sessionCounts[key]) {
             sessionCounts[key] = 0;
         }
@@ -246,7 +254,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const [subject, teacher, classesStr] = key.split('__');
         const classes = classesStr.split(',');
         let count = countValue;
-        
+
         while (count >= 2) {
             const doubleId = crypto.randomUUID();
             classes.forEach(className => {
@@ -261,7 +269,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         }
     });
-
+    
     sessionsToPlace.sort((a, b) => (b.isDouble ? 1 : 0) - (a.isDouble ? 1 : 0));
     
     const newTimetable: TimetableData = {};
@@ -659,5 +667,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

@@ -32,7 +32,7 @@ import {
 import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, Users, Pencil, Book, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { Teacher } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -68,12 +68,38 @@ const multiTeacherSchema = z.object({
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
-const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
+const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
     const { timetables } = useTimetable();
+    const { setValue } = useFormContext();
     
+    const schoolId = useWatch({
+        control,
+        name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`
+    });
+
+    const gradeOptions = useMemo(() => {
+        const selectedSchool = timetables.find(t => t.id === schoolId);
+        if (!selectedSchool) return ALL_GRADE_OPTIONS;
+
+        const schoolName = selectedSchool.name.toLowerCase();
+        if (schoolName.includes('primary')) {
+            return PRIMARY_GRADES;
+        }
+        if (schoolName.includes('secondary')) {
+            return SECONDARY_GRADES;
+        }
+        return ALL_GRADE_OPTIONS;
+    }, [schoolId, timetables]);
+    
+    useEffect(() => {
+        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`, '');
+    }, [schoolId, gradeOptions, setValue, teacherIndex, assignmentIndex]);
+
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
              <Button type="button" variant="ghost" size="icon" onClick={() => remove(assignmentIndex)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
@@ -122,7 +148,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         render={({ field }) => (
                             <FormItem>
                                 {assignmentIndex === 0 && <FormLabel>Grade</FormLabel>}
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={!schoolId}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Grade" />
@@ -130,7 +156,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                     </FormControl>
                                     <SelectContent>
                                         <ScrollArea className="h-72">
-                                          {GRADE_OPTIONS.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
+                                          {gradeOptions.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
                                         </ScrollArea>
                                     </SelectContent>
                                 </Select>

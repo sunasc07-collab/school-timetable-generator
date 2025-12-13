@@ -205,21 +205,25 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }[] = [];
     
     allTeachers.forEach(teacher => {
-      teacher.subjects.forEach(subject => {
-        // Only generate sessions for subjects assigned to the current school section
-        if (!teacher.schoolSections.includes(activeTimetable.id)) return;
+      // Only consider teachers assigned to the active timetable section for session generation
+      if (!teacher.schoolSections.includes(activeTimetable.id)) return;
 
+      teacher.subjects.forEach(subject => {
         subject.assignments.forEach(assignment => {
-          if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+          if (assignment.grades.length === 0) return;
           
           if (assignment.groupArms) {
-            const individualClasses = assignment.grades.flatMap(grade =>
-              assignment.arms.map(arm => `${grade} ${arm}`)
-            );
+            const individualClasses = assignment.grades.flatMap(grade => {
+                if (assignment.arms.length > 0) {
+                    return assignment.arms.map(arm => `${grade} ${arm}`);
+                }
+                return [grade];
+            });
+
             if (individualClasses.length === 0) return;
             
             const combinedClassName = individualClasses.length > 1 
-              ? `${assignment.grades.join(', ')} Arms ${assignment.arms.join(', ')}` 
+              ? `${assignment.grades.join(', ')}${assignment.arms.length > 0 ? ` Arms ${assignment.arms.join(', ')}` : ''}` 
               : individualClasses[0];
 
             for (let i = 0; i < subject.totalPeriods; i++) {
@@ -231,9 +235,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 });
             }
           } else { // Individual arms
-            const individualClasses = assignment.grades.flatMap(grade =>
-              assignment.arms.map(arm => `${grade} ${arm}`)
-            );
+            const individualClasses = assignment.grades.flatMap(grade => {
+                if (assignment.arms.length > 0) {
+                    return assignment.arms.map(arm => `${grade} ${arm}`);
+                }
+                return [grade];
+            });
+
             if (individualClasses.length === 0) return;
 
             const numArms = individualClasses.length;
@@ -463,7 +471,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [activeTimetable, allTeachers, timetables]);
+  }, [allTeachers, timetables, activeTimetable]);
 
 
   const clearTimetable = () => {
@@ -727,5 +735,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

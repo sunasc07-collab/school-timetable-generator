@@ -204,78 +204,71 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       classes: string[];
     }[] = [];
     
-    // Use all teachers for conflict checking, but only generate sessions for the active timetable
     allTeachers.forEach(teacher => {
-      if (!teacher.schoolSections.includes(activeTimetable.id)) return;
+        teacher.subjects.forEach(subject => {
+            if (!subject.assignments) return;
 
-      teacher.subjects.forEach(subject => {
-        subject.assignments.forEach(assignment => {
-          if (assignment.grades.length === 0) return;
-          
-          if (assignment.groupArms) {
-              assignment.grades.forEach(grade => {
-                const individualClassesForGrade = assignment.arms.length > 0 
-                  ? assignment.arms.map(arm => `${grade} ${arm}`)
-                  : [grade];
-
-                if (individualClassesForGrade.length === 0) return;
+            subject.assignments.forEach(assignment => {
+                if (!assignment.grades || assignment.grades.length === 0) return;
                 
-                const combinedClassName = individualClassesForGrade.length > 1
-                  ? `${grade} Arms ${assignment.arms.join(', ')}`
-                  : individualClassesForGrade[0];
-                
-                for (let i = 0; i < subject.totalPeriods; i++) {
-                  allRequiredSessions.push({
-                    subject: subject.name,
-                    teacher: teacher.name,
-                    className: combinedClassName,
-                    classes: individualClassesForGrade,
-                  });
-                }
-              });
-          } else { // Individual arms
-            const individualClasses = assignment.grades.flatMap(grade => {
-                if (assignment.arms.length > 0) {
-                    return assignment.arms.map(arm => `${grade} ${arm}`);
-                }
-                return [grade];
-            });
+                const individualClassesForAssignment = assignment.grades.flatMap(grade => {
+                    if (assignment.arms && assignment.arms.length > 0) {
+                        return assignment.arms.map(arm => `${grade} ${arm}`);
+                    }
+                    return [grade];
+                });
 
-            if (individualClasses.length === 0) return;
+                if (individualClassesForAssignment.length === 0) return;
 
-            const numArms = individualClasses.length;
-            const periodsPerArm = Math.floor(subject.totalPeriods / numArms);
-            let remainderPeriods = subject.totalPeriods % numArms;
+                if (assignment.groupArms) {
+                    const combinedClassName = individualClassesForAssignment.join(', ');
+                     for (let i = 0; i < subject.totalPeriods; i++) {
+                        allRequiredSessions.push({
+                            subject: subject.name,
+                            teacher: teacher.name,
+                            className: combinedClassName,
+                            classes: individualClassesForAssignment,
+                        });
+                    }
+                } else {
+                    const numArms = individualClassesForAssignment.length;
+                    const periodsPerArm = Math.floor(subject.totalPeriods / numArms);
+                    let remainderPeriods = subject.totalPeriods % numArms;
 
-            individualClasses.forEach(className => {
-                let periodsForThisArm = periodsPerArm;
-                if (remainderPeriods > 0) {
-                    periodsForThisArm++;
-                    remainderPeriods--;
-                }
-                
-                for (let i = 0; i < periodsForThisArm; i++) {
-                    allRequiredSessions.push({
-                        subject: subject.name,
-                        teacher: teacher.name,
-                        className: className,
-                        classes: [className],
+                    individualClassesForAssignment.forEach(className => {
+                        let periodsForThisArm = periodsPerArm;
+                        if (remainderPeriods > 0) {
+                            periodsForThisArm++;
+                            remainderPeriods--;
+                        }
+                        
+                        for (let i = 0; i < periodsForThisArm; i++) {
+                            allRequiredSessions.push({
+                                subject: subject.name,
+                                teacher: teacher.name,
+                                className: className,
+                                classes: [className],
+                            });
+                        }
                     });
                 }
             });
-          }
         });
-      });
+    });
+
+    const relevantSessions = allRequiredSessions.filter(session => {
+        const teacher = allTeachers.find(t => t.name === session.teacher);
+        return teacher && teacher.schoolSections.includes(activeTimetable.id);
     });
 
     const classSet = new Set<string>();
-    allRequiredSessions.forEach(req => {
-        req.classes.forEach(c => classSet.add(c))
+    relevantSessions.forEach(req => {
+        req.classes.forEach(c => classSet.add(c));
     });
     const sortedClasses = Array.from(classSet).sort();
-
+    
     const sessionCounts: { [key: string]: number } = {};
-    allRequiredSessions.forEach(req => {
+    relevantSessions.forEach(req => {
         const key = `${req.subject}__${req.teacher}__${req.className}__${req.classes.sort().join(',')}`;
         if (!sessionCounts[key]) {
             sessionCounts[key] = 0;
@@ -734,9 +727,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    
-
-    

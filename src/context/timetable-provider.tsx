@@ -209,57 +209,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!subject.assignments) return;
 
             subject.assignments.forEach(assignment => {
-                if (!assignment.grades || assignment.grades.length === 0) return;
-                
                 const individualClassesForAssignment = assignment.grades.flatMap(grade => {
                     if (assignment.arms && assignment.arms.length > 0) {
-                        return assignment.arms.map(arm => `${grade} ${arm}`);
+                        return assignment.arms.map(arm => `${grade} ${arm}`.trim());
                     }
                     return [grade];
                 });
 
                 if (individualClassesForAssignment.length === 0) return;
+                
+                const relevantForThisTimetable = teacher.schoolSections.includes(activeTimetable.id);
+                if (!relevantForThisTimetable) return;
 
-                if (assignment.groupArms) {
-                    const combinedClassName = individualClassesForAssignment.join(', ');
-                     for (let i = 0; i < subject.totalPeriods; i++) {
+                const numClasses = individualClassesForAssignment.length;
+                const periodsPerClass = Math.floor(subject.totalPeriods / numClasses);
+                let remainderPeriods = subject.totalPeriods % numClasses;
+
+                individualClassesForAssignment.forEach(className => {
+                    let periodsForThisClass = periodsPerClass;
+                    if (remainderPeriods > 0) {
+                        periodsForThisClass++;
+                        remainderPeriods--;
+                    }
+                    
+                    for (let i = 0; i < periodsForThisClass; i++) {
                         allRequiredSessions.push({
                             subject: subject.name,
                             teacher: teacher.name,
-                            className: combinedClassName,
-                            classes: individualClassesForAssignment,
+                            className: className,
+                            classes: [className],
                         });
                     }
-                } else {
-                    const numArms = individualClassesForAssignment.length;
-                    const periodsPerArm = Math.floor(subject.totalPeriods / numArms);
-                    let remainderPeriods = subject.totalPeriods % numArms;
-
-                    individualClassesForAssignment.forEach(className => {
-                        let periodsForThisArm = periodsPerArm;
-                        if (remainderPeriods > 0) {
-                            periodsForThisArm++;
-                            remainderPeriods--;
-                        }
-                        
-                        for (let i = 0; i < periodsForThisArm; i++) {
-                            allRequiredSessions.push({
-                                subject: subject.name,
-                                teacher: teacher.name,
-                                className: className,
-                                classes: [className],
-                            });
-                        }
-                    });
-                }
+                });
             });
         });
     });
 
-    const relevantSessions = allRequiredSessions.filter(session => {
-        const teacher = allTeachers.find(t => t.name === session.teacher);
-        return teacher && teacher.schoolSections.includes(activeTimetable.id);
-    });
+    const relevantSessions = allRequiredSessions;
 
     const classSet = new Set<string>();
     relevantSessions.forEach(req => {
@@ -727,3 +713,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

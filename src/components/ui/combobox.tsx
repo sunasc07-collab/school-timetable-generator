@@ -30,20 +30,22 @@ type ComboboxProps = {
 }
 
 export function Combobox({ options, value, onChange, placeholder = "Select an option", notfoundtext = "No option found." }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false);
-  
+  const [open, setOpen] = React.useState(false)
+  const [inputValue, setInputValue] = React.useState("")
+
   const handleSelect = (currentValue: string) => {
-    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue);
-    setOpen(false);
-  };
+    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue)
+    setOpen(false)
+  }
 
-  const handleCreate = (inputValue: string) => {
-    if (inputValue.trim() !== '') {
-        onChange(inputValue.trim());
+  const handleCreate = (newValue: string) => {
+    if (newValue.trim() !== "") {
+      onChange(newValue.trim());
+      setOpen(false);
     }
-    setOpen(false);
   };
 
+  const currentOption = options.find((option) => option.value.toLowerCase() === value?.toLowerCase())
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -55,36 +57,31 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
           className="w-full justify-between"
         >
           <span className="truncate">
-          {value
-            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label ?? value
-            : placeholder}
+            {currentOption ? currentOption.label : value || placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
         <Command filter={(value, search) => {
-          const option = options.find(o => o.value === value);
+          const option = options.find(o => o.value === value)
           if (option) {
-            return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+            return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
           }
-          return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+          return 0
         }}>
-          <CommandInput 
+          <CommandInput
             placeholder="Search or add new..."
+            onValueChange={setInputValue}
           />
           <CommandList>
             <CommandEmpty>
-                 <button 
-                    className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none w-full text-left"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        const inputValue = (e.currentTarget.closest('[cmdk-root]')?.querySelector('[cmdk-input]') as HTMLInputElement)?.value;
-                        handleCreate(inputValue);
-                    }}
-                >
-                    {notfoundtext}
-                </button>
+              <CommandItem
+                onSelect={() => handleCreate(inputValue)}
+                className="cursor-pointer"
+              >
+                Create "{inputValue}"
+              </CommandItem>
             </CommandEmpty>
             <CommandGroup>
               <ScrollArea className="h-72">
@@ -97,7 +94,7 @@ export function Combobox({ options, value, onChange, placeholder = "Select an op
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value.toLowerCase() === option.value.toLowerCase() ? "opacity-100" : "opacity-0"
+                        value?.toLowerCase() === option.value.toLowerCase() ? "opacity-100" : "opacity-0"
                       )}
                     />
                     {option.label}

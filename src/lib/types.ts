@@ -2,7 +2,7 @@
 
 export type SubjectAssignment = {
   id: string;
-  grade: string;
+  grades: string[];
   subject: string;
   arms: string[];
   periods: number;
@@ -64,7 +64,5 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
 };
-
-    
 
     

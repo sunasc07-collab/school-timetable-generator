@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
-  grade: z.string().min(1, "A grade is required."),
+  grades: z.array(z.string()).min(1, "At least one grade is required."),
   subject: z.string().min(1, "A subject is required."),
   arms: z.array(z.string()).min(1, "At least one arm is required."),
   periods: z.number().min(1, "Periods must be > 0").default(1),
@@ -53,7 +53,7 @@ const teacherSchema = z.object({
   maxPeriods: z.number().min(1, "Max periods must be > 0").default(20),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
 }).refine(data => {
-    const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length), 0);
+    const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length * a.grades.length), 0);
     return totalAssignedPeriods <= data.maxPeriods;
 }, {
     message: "Total assigned periods cannot exceed the teacher's maximum periods.",
@@ -93,19 +93,22 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`
     });
 
+    const selectedSchool = useMemo(() => timetables.find(t => t.id === schoolId), [schoolId, timetables]);
     const gradeOptions = useMemo(() => {
-        const selectedSchool = timetables.find(t => t.id === schoolId);
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
         return getGradeOptionsForSchool(selectedSchool.name);
-    }, [schoolId, timetables]);
+    }, [selectedSchool]);
+
+    const isSecondary = selectedSchool?.name.toLowerCase().includes('secondary');
     
     const handleSchoolChange = (newSchoolId: string) => {
-        const currentGrade = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`);
-        const selectedSchool = timetables.find(t => t.id === newSchoolId);
-        if (currentGrade && selectedSchool) {
-            const newGradeOptions = getGradeOptionsForSchool(selectedSchool.name);
-            if (!newGradeOptions.includes(currentGrade)) {
-                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`, '');
+        const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
+        const newSelectedSchool = timetables.find(t => t.id === newSchoolId);
+        if (currentGrades && newSelectedSchool) {
+            const newGradeOptions = getGradeOptionsForSchool(newSelectedSchool.name);
+            const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
+            if (stillValidGrades.length !== currentGrades.length) {
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, stillValidGrades);
             }
         }
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
@@ -155,22 +158,54 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                  <div className="grid grid-cols-[1fr_2fr_1fr] gap-x-2">
                     <FormField
                         control={control}
-                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
                         render={({ field }) => (
                             <FormItem>
-                                {assignmentIndex === 0 && <FormLabel>Grade</FormLabel>}
-                                <Select onValueChange={field.onChange} value={field.value} disabled={!schoolId}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Grade" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <ScrollArea className="h-72">
-                                          {gradeOptions.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
-                                        </ScrollArea>
-                                    </SelectContent>
-                                </Select>
+                                {assignmentIndex === 0 && <FormLabel>Grade(s)</FormLabel>}
+                                {isSecondary ? (
+                                    <div className="grid grid-cols-3 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                        {gradeOptions.map(grade => (
+                                            <FormField
+                                                key={grade}
+                                                control={control}
+                                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
+                                                render={({ field: checkboxField }) => (
+                                                    <FormItem key={grade} className="flex flex-row items-center space-x-2 space-y-0">
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={checkboxField.value?.includes(grade)}
+                                                                onCheckedChange={(checked) => {
+                                                                    const currentValue = checkboxField.value || [];
+                                                                    return checked
+                                                                        ? checkboxField.onChange([...currentValue, grade])
+                                                                        : checkboxField.onChange(currentValue.filter(value => value !== grade));
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "")}</FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <Select 
+                                        onValueChange={(value) => field.onChange([value])} 
+                                        value={field.value?.[0] || ""} 
+                                        disabled={!schoolId}
+                                    >
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Grade" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <ScrollArea className="h-72">
+                                            {gradeOptions.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
+                                            </ScrollArea>
+                                        </SelectContent>
+                                    </Select>
+                                )}
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -254,7 +289,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
   const watchedAssignments = teacherData.assignments || [];
   const maxPeriods = teacherData.maxPeriods || 0;
-  const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; }) => acc + (a.periods * (a.arms?.length || 0)), 0);
+  const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; }) => acc + (a.periods * (a.arms?.length || 0) * (a.grades?.length || 0)), 0);
   const unassignedPeriods = maxPeriods - totalAssignedPeriods;
 
   return (
@@ -327,7 +362,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
           variant="outline"
           size="sm"
           className="mt-2"
-          onClick={() => append({ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' })}
+          onClick={() => append({ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' })}
           disabled={unassignedPeriods <= 0}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -369,7 +404,7 @@ export default function TeacherEditor() {
   const getNewTeacherForm = (): TeacherFormValues => ({
     name: "",
     maxPeriods: 20,
-    assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
+    assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   });
 
   const handleOpenDialog = (teacher: Teacher | null) => {
@@ -382,12 +417,12 @@ export default function TeacherEditor() {
             maxPeriods: teacher.maxPeriods,
             assignments: teacher.assignments.length > 0 ? teacher.assignments.map(a => ({
                 id: a.id || crypto.randomUUID(),
-                grade: a.grade,
+                grades: a.grades,
                 subject: a.subject,
                 arms: a.arms,
                 periods: a.periods,
                 schoolId: a.schoolId,
-            })) : [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1, schoolId: activeTimetable.id }],
+            })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable.id }],
         }]);
     } else {
         replace([getNewTeacherForm()]);
@@ -498,7 +533,7 @@ export default function TeacherEditor() {
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
                         <div className="flex flex-col items-start">
                            <span className="font-medium">{teacher.name}</span>
-                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.filter(a => a.schoolId === activeTimetable.id).reduce((acc, a) => acc + (a.periods * a.arms.length), 0)} / {teacher.maxPeriods} periods</span>
+                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.filter(a => a.schoolId === activeTimetable.id).reduce((acc, a) => acc + (a.periods * a.arms.length * a.grades.length), 0)} / {teacher.maxPeriods} periods</span>
                         </div>
                     </AccordionTrigger>
                      <Button
@@ -537,7 +572,7 @@ export default function TeacherEditor() {
                                 <div className="flex items-center text-xs">
                                     <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
                                     <span>
-                                        {assignment.grade} - Arms {assignment.arms.join(', ')}
+                                        Grades: {assignment.grades.join(', ')} - Arms {assignment.arms.join(', ')}
                                     </span>
                                 </div>
                            </div>

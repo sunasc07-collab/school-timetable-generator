@@ -209,20 +209,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id) return;
-            const { grade, subject, arms, periods } = assignment;
-            if (!grade || !subject || arms.length === 0) return;
+            const { grades, subject, arms, periods } = assignment;
+            if (grades.length === 0 || !subject || arms.length === 0) return;
 
-            const individualClasses = arms.map(arm => `${grade} ${arm}`);
-            const className = `${grade} ${arms.join(', ')}`;
-            
-            for (let i = 0; i < periods; i++) {
-                allRequiredSessions.push({
-                    subject: subject,
-                    teacher: teacher.name,
-                    className: className,
-                    classes: individualClasses,
-                });
-            }
+            grades.forEach(grade => {
+                const individualClasses = arms.map(arm => `${grade} ${arm}`);
+                const className = `${grade} ${arms.join(', ')}`;
+                
+                for (let i = 0; i < periods; i++) {
+                    allRequiredSessions.push({
+                        subject: subject,
+                        teacher: teacher.name,
+                        className: className,
+                        classes: individualClasses,
+                    });
+                }
+            });
         });
     });
     
@@ -641,7 +643,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
 
     

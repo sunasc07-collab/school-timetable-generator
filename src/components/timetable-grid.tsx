@@ -57,12 +57,13 @@ export default function TimetableGrid() {
     
     activeTimetable.teachers.forEach(teacher => {
       teacher.assignments.forEach(assignment => {
-        const grade = assignment.grade;
-        if (grade && assignment.arms.length > 0) {
-          assignment.arms.forEach(arm => {
-            armSet.add(`${grade} ${arm}`);
-          });
-        }
+        assignment.grades.forEach(grade => {
+          if (grade && assignment.arms.length > 0) {
+            assignment.arms.forEach(arm => {
+              armSet.add(`${grade} ${arm}`);
+            });
+          }
+        });
       });
     });
     return Array.from(armSet).sort();
@@ -361,3 +362,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

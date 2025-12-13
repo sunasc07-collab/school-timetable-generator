@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useForm, useFieldArray, FormProvider } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider, useFormContext, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -174,14 +174,20 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     )
 }
 
-const TeacherForm = ({ control, index, removeTeacher, isEditing }: { control: any, index: number, removeTeacher: () => void, isEditing: boolean }) => {
+const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, removeTeacher: () => void, isEditing: boolean }) => {
+  const { control } = useFormContext<MultiTeacherFormValues>();
   const { fields, append, remove } = useFieldArray({
     control: control,
     name: `teachers.${index}.assignments`
   });
 
-  const watchedAssignments = control.getValues().teachers[index].assignments;
-  const maxPeriods = control.getValues().teachers[index].maxPeriods;
+  const teacherData = useWatch({
+    control,
+    name: `teachers.${index}`
+  });
+
+  const watchedAssignments = teacherData.assignments || [];
+  const maxPeriods = teacherData.maxPeriods || 0;
   const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; }) => acc + (a.periods * (a.arms?.length || 0)), 0);
   const unassignedPeriods = maxPeriods - totalAssignedPeriods;
 
@@ -382,7 +388,6 @@ export default function TeacherEditor() {
                       {teacherFields.map((field, index) => (
                         <TeacherForm 
                           key={field.id}
-                          control={form.control}
                           index={index}
                           removeTeacher={() => removeTeacherField(index)}
                           isEditing={!!editingTeacher}

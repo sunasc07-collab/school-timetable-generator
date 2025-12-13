@@ -204,63 +204,67 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       classes: string[];
     }[] = [];
     
-    // Consider all teachers for conflict checking, but only generate sessions for the active timetable
     allTeachers.forEach(teacher => {
-      // Only create sessions for teachers assigned to the current school section
-      if (teacher.schoolSections.includes(activeTimetable.id)) {
-        teacher.subjects.forEach(subject => {
-          subject.assignments.forEach(assignment => {
-            if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+      teacher.subjects.forEach(subject => {
+        // Only generate sessions for subjects assigned to the current school section
+        if (!teacher.schoolSections.includes(activeTimetable.id)) return;
+
+        subject.assignments.forEach(assignment => {
+          if (assignment.grades.length === 0 || assignment.arms.length === 0) return;
+          
+          if (assignment.groupArms) {
+            const individualClasses = assignment.grades.flatMap(grade =>
+              assignment.arms.map(arm => `${grade} ${arm}`)
+            );
+            if (individualClasses.length === 0) return;
             
+            const combinedClassName = individualClasses.length > 1 
+              ? `${assignment.grades.join(', ')} Arms ${assignment.arms.join(', ')}` 
+              : individualClasses[0];
+
+            for (let i = 0; i < subject.totalPeriods; i++) {
+                allRequiredSessions.push({
+                  subject: subject.name,
+                  teacher: teacher.name,
+                  className: combinedClassName,
+                  classes: individualClasses,
+                });
+            }
+          } else { // Individual arms
             const individualClasses = assignment.grades.flatMap(grade =>
               assignment.arms.map(arm => `${grade} ${arm}`)
             );
             if (individualClasses.length === 0) return;
 
-            if (assignment.groupArms) {
-              const combinedClassName = individualClasses.length > 1 
-                ? `${assignment.grades.join(', ')} Arms ${assignment.arms.join(', ')}` 
-                : individualClasses[0];
+            const numArms = individualClasses.length;
+            const periodsPerArm = Math.floor(subject.totalPeriods / numArms);
+            let remainderPeriods = subject.totalPeriods % numArms;
 
-              for (let i = 0; i < subject.totalPeriods; i++) {
-                  allRequiredSessions.push({
-                    subject: subject.name,
-                    teacher: teacher.name,
-                    className: combinedClassName,
-                    classes: individualClasses,
-                  });
-              }
-            } else { // Individual arms
-               const numArms = individualClasses.length;
-               if (numArms === 0) return;
-
-               const periodsPerArm = Math.floor(subject.totalPeriods / numArms);
-               let remainderPeriods = subject.totalPeriods % numArms;
-
-               individualClasses.forEach(className => {
-                  let periodsForThisArm = periodsPerArm;
-                  if (remainderPeriods > 0) {
-                      periodsForThisArm++;
-                      remainderPeriods--;
-                  }
-                  
-                  for (let i = 0; i < periodsForThisArm; i++) {
-                      allRequiredSessions.push({
-                          subject: subject.name,
-                          teacher: teacher.name,
-                          className: className,
-                          classes: [className],
-                      });
-                  }
-              });
-            }
-          });
+            individualClasses.forEach(className => {
+                let periodsForThisArm = periodsPerArm;
+                if (remainderPeriods > 0) {
+                    periodsForThisArm++;
+                    remainderPeriods--;
+                }
+                
+                for (let i = 0; i < periodsForThisArm; i++) {
+                    allRequiredSessions.push({
+                        subject: subject.name,
+                        teacher: teacher.name,
+                        className: className,
+                        classes: [className],
+                    });
+                }
+            });
+          }
         });
-      }
+      });
     });
 
     const classSet = new Set<string>();
-    allRequiredSessions.forEach(req => req.classes.forEach(c => classSet.add(c)));
+    allRequiredSessions.forEach(req => {
+        req.classes.forEach(c => classSet.add(c))
+    });
     const sortedClasses = Array.from(classSet).sort();
 
     const sessionCounts: { [key: string]: number } = {};
@@ -294,22 +298,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const newTimetable: TimetableData = {};
     DEFAULT_DAYS.forEach(day => { newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
 
-    // Add teacher's existing commitments from other timetables as blockers
-    const allSessionsFromOtherTimetables: TimetableSession[] = [];
-     allTeachers.forEach(teacher => {
-        timetables.forEach(tt => {
-            if (tt.id !== activeTimetable.id && teacher.schoolSections.includes(tt.id)) {
-                 Object.values(tt.timetable).forEach(daySlots => {
-                     daySlots.forEach(slot => {
-                         slot.forEach(session => {
-                             if (session.teacher === teacher.name) {
-                                 allSessionsFromOtherTimetables.push(session);
-                             }
-                         });
-                     });
-                 });
-            }
+    const allSessionsFromOtherTimetables: { session: TimetableSession; day: string; period: number }[] = [];
+    timetables.forEach(tt => {
+      if (tt.id !== activeTimetable.id) {
+        tt.days.forEach(day => {
+          const daySlots = tt.timetable[day];
+          if (daySlots) {
+            daySlots.forEach((slot, period) => {
+              slot.forEach(session => {
+                allSessionsFromOtherTimetables.push({ session, day, period });
+              });
+            });
+          }
         });
+      }
     });
 
 
@@ -319,16 +321,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false; 
         
-        // Teacher conflict in current board
         if (slot.some(s => s.teacher === session.teacher)) return false; 
         
-        // Teacher conflict with other timetables
-        const teacherScheduleForDay = allSessionsFromOtherTimetables.filter(s => s.teacher === session.teacher);
-        if (teacherScheduleForDay.some(s => board[day]?.[period]?.some(ex => ex.teacher === s.teacher))) {
-           return false;
-        }
-
-        // Class conflict
+        const teacherIsBusyElsewhere = allSessionsFromOtherTimetables.some(
+          ({ session: otherSession, day: otherDay, period: otherPeriod }) =>
+            otherSession.teacher === session.teacher && otherDay === day && otherPeriod === period
+        );
+        if (teacherIsBusyElsewhere) return false;
+        
         if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
         
         const daySessions = board[day].flat();
@@ -533,6 +533,29 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (!slot) return false;
         if (slot.some(s => s.teacher === session.teacher)) return false;
         if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
+        
+        const allSessionsFromOtherTimetables: { session: TimetableSession; day: string; period: number }[] = [];
+        timetables.forEach(tt => {
+          if (tt.id !== activeTimetable?.id) {
+            tt.days.forEach(day_ => {
+              const daySlots = tt.timetable[day_];
+              if (daySlots) {
+                daySlots.forEach((slot_, period_) => {
+                  slot_.forEach(session_ => {
+                    allSessionsFromOtherTimetables.push({ session: session_, day: day_, period: period_ });
+                  });
+                });
+              }
+            });
+          }
+        });
+        
+        const teacherIsBusyElsewhere = allSessionsFromOtherTimetables.some(
+          ({ session: otherSession, day: otherDay, period: otherPeriod }) =>
+            otherSession.teacher === session.teacher && otherDay === day && otherPeriod === period
+        );
+        if (teacherIsBusyElsewhere) return false;
+        
         return true;
     }
 
@@ -704,3 +727,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

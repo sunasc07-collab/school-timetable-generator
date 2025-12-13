@@ -37,6 +37,7 @@ import type { Teacher } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
+import { cn } from "@/lib/utils";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -60,24 +61,29 @@ const teacherSchema = z.object({
     path: ["assignments"],
 });
 
+const multiTeacherSchema = z.object({
+  teachers: z.array(teacherSchema),
+});
+
+
 type TeacherFormValues = z.infer<typeof teacherSchema>;
+type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const ARM_OPTIONS = ["A", "B", "C", "D"];
 
-const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
-
+const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
-             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
+             <Button type="button" variant="ghost" size="icon" onClick={() => remove(assignmentIndex)} className="absolute -top-2 -right-2 h-6 w-6 text-muted-foreground hover:text-destructive" disabled={fieldsLength <= 1}>
                 <Trash2 className="h-4 w-4" />
             </Button>
             <FormField
                 control={control}
-                name={`assignments.${index}.grade`}
+                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grade`}
                 render={({ field }) => (
                     <FormItem className="w-3/12">
-                        {index === 0 && <FormLabel>Grade</FormLabel>}
+                        {assignmentIndex === 0 && <FormLabel>Grade</FormLabel>}
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                                 <SelectTrigger>
@@ -96,10 +102,10 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
             />
             <FormField
                 control={control}
-                name={`assignments.${index}.subject`}
+                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.subject`}
                 render={({ field }) => (
                     <FormItem className="w-4/12 flex flex-col">
-                        {index === 0 && <FormLabel>Subject</FormLabel>}
+                        {assignmentIndex === 0 && <FormLabel>Subject</FormLabel>}
                         <FormControl>
                              <Input placeholder="Subject name" {...field} />
                         </FormControl>
@@ -109,16 +115,16 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
             />
             <FormField
                 control={control}
-                name={`assignments.${index}.arms`}
+                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                 render={({ field }) => (
                 <FormItem className="w-4/12">
-                    {index === 0 && <FormLabel>Arms</FormLabel>}
+                    {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
                         {ARM_OPTIONS.map((arm) => (
                             <FormField
                                 key={arm}
                                 control={control}
-                                name={`assignments.${index}.arms`}
+                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                                 render={({ field }) => (
                                     <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
                                         <FormControl>
@@ -144,10 +150,10 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
             />
              <FormField
                 control={control}
-                name={`assignments.${index}.periods`}
+                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.periods`}
                 render={({ field }) => (
                     <FormItem className="w-2/12">
-                        {index === 0 && <FormLabel>Periods/wk</FormLabel>}
+                        {assignmentIndex === 0 && <FormLabel>Periods/wk</FormLabel>}
                          <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
                             <FormControl>
                                 <SelectTrigger>
@@ -168,6 +174,105 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
     )
 }
 
+const TeacherForm = ({ control, index, removeTeacher, isEditing }: { control: any, index: number, removeTeacher: () => void, isEditing: boolean }) => {
+  const { fields, append, remove } = useFieldArray({
+    control: control,
+    name: `teachers.${index}.assignments`
+  });
+
+  const watchedAssignments = control.getValues().teachers[index].assignments;
+  const maxPeriods = control.getValues().teachers[index].maxPeriods;
+  const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; }) => acc + (a.periods * (a.arms?.length || 0)), 0);
+  const unassignedPeriods = maxPeriods - totalAssignedPeriods;
+
+  return (
+    <div className="space-y-6 p-4 border rounded-lg relative">
+      {!isEditing && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={removeTeacher}
+          className="absolute -top-3 -right-3 h-7 w-7 text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={control}
+          name={`teachers.${index}.name`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Teacher Name</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Mr. Smith" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={`teachers.${index}.maxPeriods`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Max Periods / week</FormLabel>
+              <FormControl>
+                <Input type="number" min="1" className="w-28" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      <div className="space-y-2 p-3 border rounded-md">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-medium">Subject Assignments</h3>
+          <Badge variant={unassignedPeriods >= 0 ? "secondary" : "destructive"}>
+            {unassignedPeriods} unassigned period{unassignedPeriods !== 1 ? 's' : ''}
+          </Badge>
+        </div>
+        <div className="space-y-3">
+          {fields.map((field, assignmentIndex) => (
+            <AssignmentRow
+              key={field.id}
+              teacherIndex={index}
+              assignmentIndex={assignmentIndex}
+              control={control}
+              remove={() => {
+                if (fields.length > 1) {
+                  remove(assignmentIndex);
+                }
+              }}
+              fieldsLength={fields.length}
+            />
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-2"
+          onClick={() => append({ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 })}
+          disabled={unassignedPeriods <= 0}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Assignment
+        </Button>
+        <FormField
+          control={control}
+          name={`teachers.${index}.assignments`}
+          render={({ fieldState }) => (
+            fieldState.error?.root?.message && <p className="text-sm font-medium text-destructive">{fieldState.error.root.message}</p>
+          )}
+        />
+      </div>
+    </div>
+  );
+};
+
 
 export default function TeacherEditor() {
   const { activeTimetable, addTeacher, removeTeacher, updateTeacher } = useTimetable();
@@ -175,31 +280,30 @@ export default function TeacherEditor() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
-  const form = useForm<TeacherFormValues>({
-    resolver: zodResolver(teacherSchema),
+  const form = useForm<MultiTeacherFormValues>({
+    resolver: zodResolver(multiTeacherSchema),
     defaultValues: {
-      name: "",
-      maxPeriods: 20,
-      assignments: [{ grade: "", subject: "", arms: [], periods: 1 }],
-      schoolId: activeTimetable ? activeTimetable.id : "",
+      teachers: [],
     },
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
     control: form.control,
-    name: "assignments"
+    name: "teachers"
   });
 
-  const watchedAssignments = form.watch("assignments");
-  const maxPeriods = form.watch("maxPeriods");
-  const totalAssignedPeriods = watchedAssignments.reduce((acc, a) => acc + (a.periods * (a.arms?.length || 0)), 0);
-  const unassignedPeriods = maxPeriods - totalAssignedPeriods;
+  const getNewTeacherForm = (schoolId: string): TeacherFormValues => ({
+    name: "",
+    maxPeriods: 20,
+    assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
+    schoolId,
+  });
 
   const handleOpenDialog = (teacher: Teacher | null) => {
     if (!activeTimetable) return;
     setEditingTeacher(teacher);
     if (teacher) {
-        form.reset({
+        replace([{
             id: teacher.id,
             name: teacher.name,
             maxPeriods: teacher.maxPeriods,
@@ -211,35 +315,33 @@ export default function TeacherEditor() {
                 periods: a.periods
             })) : [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
             schoolId: teacher.schoolId,
-        });
+        }]);
     } else {
-        form.reset({
-            name: "",
-            maxPeriods: 20,
-            assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-            schoolId: activeTimetable.id,
-        });
+        replace([getNewTeacherForm(activeTimetable.id)]);
     }
     setIsDialogOpen(true);
   }
 
-  function onSubmit(data: TeacherFormValues) {
+  function onSubmit(data: MultiTeacherFormValues) {
     if (!activeTimetable) return;
 
-    const finalData: Teacher = {
-        ...data,
-        id: editingTeacher?.id || crypto.randomUUID(),
-        assignments: data.assignments.map(a => ({
-            ...a,
-            id: a.id || crypto.randomUUID(),
-        }))
-    }
+    data.teachers.forEach(teacherData => {
+        const finalData: Teacher = {
+            ...teacherData,
+            id: teacherData.id || crypto.randomUUID(),
+            assignments: teacherData.assignments.map(a => ({
+                ...a,
+                id: a.id || crypto.randomUUID(),
+            }))
+        }
 
-    if (editingTeacher) {
-        updateTeacher(finalData);
-    } else {
-        addTeacher(finalData);
-    }
+        if (editingTeacher && finalData.id === editingTeacher.id) {
+            updateTeacher(finalData);
+        } else {
+            addTeacher(finalData);
+        }
+    });
+    
     form.reset();
     setIsDialogOpen(false);
     setEditingTeacher(null);
@@ -257,100 +359,55 @@ export default function TeacherEditor() {
     <div className="p-2 space-y-4">
       <Dialog open={isDialogOpen} onOpenChange={(open) => {
         setIsDialogOpen(open);
-        if (!open) setEditingTeacher(null);
+        if (!open) {
+          setEditingTeacher(null);
+          form.reset();
+        }
       }}>
         <DialogTrigger asChild>
           <Button className="w-full" onClick={() => handleOpenDialog(null)}>
             <Plus className="mr-2" />
-            Add Teacher
+            Add Teachers
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</DialogTitle>
+            <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teachers'}</DialogTitle>
           </DialogHeader>
             <FormProvider {...form}>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                   <ScrollArea className="h-[60vh] p-4">
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Teacher Name</FormLabel>
-                                <FormControl>
-                                <Input placeholder="e.g., Mr. Smith" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
+                    <div className="space-y-4">
+                      {teacherFields.map((field, index) => (
+                        <TeacherForm 
+                          key={field.id}
+                          control={form.control}
+                          index={index}
+                          removeTeacher={() => removeTeacherField(index)}
+                          isEditing={!!editingTeacher}
                         />
-                         <FormField
-                            control={form.control}
-                            name="maxPeriods"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Max Periods / week</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" min="1" className="w-28" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2 p-3 border rounded-md">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-medium">Subject Assignments</h3>
-                             <Badge variant={unassignedPeriods >= 0 ? "secondary" : "destructive"}>
-                                {unassignedPeriods} unassigned period{unassignedPeriods !== 1 ? 's' : ''}
-                            </Badge>
-                        </div>
-                        <div className="space-y-3">
-                           {fields.map((field, index) => (
-                                <AssignmentRow 
-                                    key={field.id}
-                                    index={index}
-                                    control={form.control}
-                                    remove={() => {
-                                        if (fields.length > 1) {
-                                            remove(index);
-                                        }
-                                    }}
-                                    fieldsLength={fields.length}
-                                />
-                           ))}
-                        </div>
-                        <Button
+                      ))}
+                      {!editingTeacher && (
+                         <Button
                             type="button"
                             variant="outline"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => append({ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 })}
-                            disabled={unassignedPeriods <= 0}
+                            className="w-full"
+                            onClick={() => appendTeacher(getNewTeacherForm(activeTimetable.id))}
                           >
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Assignment
+                            Add Another Teacher
                           </Button>
-                         <FormField
-                            control={form.control}
-                            name="assignments"
-                            render={({ fieldState }) => (
-                                fieldState.error?.root?.message && <p className="text-sm font-medium text-destructive">{fieldState.error.root.message}</p>
-                            )}
-                        />
-                      </div>
+                      )}
                     </div>
                   </ScrollArea>
                   <DialogFooter className="pt-4">
                     <DialogClose asChild>
                       <Button type="button" variant="ghost">Cancel</Button>
                     </DialogClose>
-                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">Save Teacher</Button>
+                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                        {editingTeacher ? 'Save Changes' : `Save ${teacherFields.length} Teacher(s)`}
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>

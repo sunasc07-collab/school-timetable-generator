@@ -211,36 +211,35 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!subject.assignments) return;
 
             subject.assignments.forEach(assignment => {
+                const individualClasses: string[] = [];
+                const gradePart = assignment.grades.join(', ');
+                const armPart = assignment.arms.join(', ');
 
-                const individualClassesForAssignment = assignment.grades.flatMap(grade => {
+                let className = gradePart;
+                if(armPart) {
+                    className += ` ${armPart}`;
+                }
+
+                assignment.grades.forEach(grade => {
                     if (assignment.arms && assignment.arms.length > 0) {
-                        return assignment.arms.map(arm => `${grade} ${arm}`.trim());
-                    }
-                    return [grade];
-                });
-
-                if (individualClassesForAssignment.length === 0) return;
-
-                const numClasses = individualClassesForAssignment.length;
-                const periodsPerClass = Math.floor(subject.totalPeriods / numClasses);
-                let remainderPeriods = subject.totalPeriods % numClasses;
-
-                individualClassesForAssignment.forEach(className => {
-                    let periodsForThisClass = periodsPerClass;
-                    if (remainderPeriods > 0) {
-                        periodsForThisClass++;
-                        remainderPeriods--;
-                    }
-                    
-                    for (let i = 0; i < periodsForThisClass; i++) {
-                        allRequiredSessions.push({
-                            subject: subject.name,
-                            teacher: teacher.name,
-                            className: className,
-                            classes: [className], // Each session is for one individual class
+                        assignment.arms.forEach(arm => {
+                            individualClasses.push(`${grade} ${arm}`.trim());
                         });
+                    } else {
+                        individualClasses.push(grade);
                     }
                 });
+
+                if(individualClasses.length === 0) return;
+                
+                for (let i = 0; i < subject.totalPeriods; i++) {
+                    allRequiredSessions.push({
+                        subject: subject.name,
+                        teacher: teacher.name,
+                        className: className,
+                        classes: individualClasses,
+                    });
+                }
             });
         });
     });

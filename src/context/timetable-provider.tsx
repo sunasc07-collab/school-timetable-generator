@@ -203,28 +203,49 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       classes: string[];
     }[] = [];
     
-    allTeachers.forEach(teacher => {
+    const teachersForCurrentTimetable = allTeachers.filter(teacher => teacher.schoolSections.includes(activeTimetable.id));
+
+    teachersForCurrentTimetable.forEach(teacher => {
         teacher.subjects.forEach(subject => {
             if (!subject.assignments) return;
 
             subject.assignments.forEach(assignment => {
-                const isForCurrentTimetable = teacher.schoolSections.includes(activeTimetable.id);
-                if (!isForCurrentTimetable) return;
-
                 if (assignment.grades.length === 0) return;
 
                 assignment.grades.forEach(grade => {
-                    let periodsPerClass = subject.totalPeriods;
-                    let individualClasses: string[];
+                    const periodsPerClass = subject.totalPeriods;
                     let className: string;
+                    let individualClasses: string[];
 
-                    if (assignment.groupArms) {
-                        const armPart = assignment.arms.length > 0 ? ` ${assignment.arms.join(', ')}` : '';
-                        className = `${grade}${armPart}`;
-                        individualClasses = assignment.arms.length > 0 
-                            ? assignment.arms.map(arm => `${grade} ${arm}`)
-                            : [grade];
-                        
+                    if (assignment.groupArms && assignment.arms.length > 0) {
+                        className = `${grade} ${assignment.arms.join(', ')}`;
+                        individualClasses = assignment.arms.map(arm => `${grade} ${arm}`);
+                    } else {
+                        className = grade;
+                        individualClasses = [grade];
+                    }
+                    
+                    if (assignment.arms.length > 0 && !assignment.groupArms) {
+                         const totalDivisions = assignment.arms.length;
+                         const basePeriods = Math.floor(periodsPerClass / totalDivisions);
+                         let remainder = periodsPerClass % totalDivisions;
+                         
+                         assignment.arms.forEach(arm => {
+                            let periodsForThisClass = basePeriods + (remainder > 0 ? 1 : 0);
+                            if (remainder > 0) remainder--;
+
+                            const singleClassName = `${grade} ${arm}`;
+                            for (let i = 0; i < periodsForThisClass; i++) {
+                                allRequiredSessions.push({
+                                    subject: subject.name,
+                                    teacher: teacher.name,
+                                    className: singleClassName,
+                                    classes: [singleClassName],
+                                });
+                            }
+                         });
+
+                    } else {
                         for (let i = 0; i < periodsPerClass; i++) {
                             allRequiredSessions.push({
                                 subject: subject.name,
@@ -233,32 +254,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                                 classes: individualClasses,
                             });
                         }
-                    } else {
-                        const targetClasses = assignment.arms.length > 0 ? assignment.arms : [null]; // Treat grade as a class if no arms
-                        const totalDivisions = targetClasses.length;
-                        if (totalDivisions === 0) return;
-
-                        const basePeriods = Math.floor(periodsPerClass / totalDivisions);
-                        let remainder = periodsPerClass % totalDivisions;
-
-                        targetClasses.forEach(arm => {
-                            let periodsForThisClass = basePeriods;
-                            if (remainder > 0) {
-                                periodsForThisClass++;
-                                remainder--;
-                            }
-
-                            className = arm ? `${grade} ${arm}` : grade;
-
-                            for (let i = 0; i < periodsForThisClass; i++) {
-                                allRequiredSessions.push({
-                                    subject: subject.name,
-                                    teacher: teacher.name,
-                                    className: className,
-                                    classes: [className],
-                                });
-                            }
-                        });
                     }
                 });
             });

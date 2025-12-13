@@ -143,8 +143,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           }
           return newTimetables;
       });
-      // Also remove teachers associated only with this school
-      setAllTeachers(prev => prev.filter(teacher => teacher.schoolId !== timetableId));
+      // Also remove school from teachers assigned to it
+      setAllTeachers(prev => prev.map(teacher => ({
+          ...teacher,
+          schoolIds: teacher.schoolIds.filter(id => id !== timetableId)
+      })).filter(teacher => teacher.schoolIds.length > 0)); // Remove teachers with no schools
   }
   
   const renameTimetable = (timetableId: string, newName: string) => {
@@ -153,27 +156,38 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const addTeacher = (teacherData: Teacher) => {
     setAllTeachers(prev => [...prev, teacherData]);
-    // A new teacher assignment requires regeneration
-    updateTimetable(teacherData.schoolId, { timetable: {}, conflicts: [] });
+    // A new teacher assignment requires regeneration for all assigned schools
+    teacherData.schoolIds.forEach(schoolId => {
+      updateTimetable(schoolId, { timetable: {}, conflicts: [] });
+    });
   };
 
   const removeTeacher = (teacherId: string) => {
     const teacher = allTeachers.find(t => t.id === teacherId);
     if (teacher) {
         // Clearing timetable is necessary as a teacher is removed
-        updateTimetable(teacher.schoolId, { timetable: {}, conflicts: [] });
+        teacher.schoolIds.forEach(schoolId => {
+          updateTimetable(schoolId, { timetable: {}, conflicts: [] });
+        });
     }
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
   };
   
   const updateTeacher = (teacherData: Teacher) => {
+    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
+    const oldSchoolIds = oldTeacher?.schoolIds || [];
+    const newSchoolIds = teacherData.schoolIds;
+    const allAffectedSchoolIds = [...new Set([...oldSchoolIds, ...newSchoolIds])];
+
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-    // An update to a teacher requires regeneration
-    updateTimetable(teacherData.schoolId, { timetable: {}, conflicts: [] });
+    // An update to a teacher requires regeneration for all affected schools
+    allAffectedSchoolIds.forEach(schoolId => {
+      updateTimetable(schoolId, { timetable: {}, conflicts: [] });
+    })
   };
 
   const activeTimetableRaw = timetables.find(t => t.id === activeTimetableId) || null;
-  const activeTeachers = activeTimetableRaw ? allTeachers.filter(t => t.schoolId === activeTimetableRaw.id) : [];
+  const activeTeachers = activeTimetableRaw ? allTeachers.filter(t => t.schoolIds.includes(activeTimetableRaw.id)) : [];
 
   const activeTimetable = activeTimetableRaw ? {
       ...activeTimetableRaw,

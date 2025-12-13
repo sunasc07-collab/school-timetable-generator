@@ -51,7 +51,7 @@ const teacherSchema = z.object({
   name: z.string().min(2, "Teacher name is required."),
   maxPeriods: z.number().min(1, "Max periods must be > 0").default(20),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
-  schoolId: z.string(),
+  schoolIds: z.array(z.string()).min(1, "Teacher must be assigned to at least one school."),
 }).refine(data => {
     const totalAssignedPeriods = data.assignments.reduce((sum, a) => sum + (a.periods * a.arms.length), 0);
     return totalAssignedPeriods <= data.maxPeriods;
@@ -170,7 +170,7 @@ const AssignmentRow = ({ index, control, remove, fieldsLength }: { index: number
 
 
 export default function TeacherEditor() {
-  const { activeTimetable, addTeacher, removeTeacher, updateTeacher } = useTimetable();
+  const { activeTimetable, timetables, addTeacher, removeTeacher, updateTeacher } = useTimetable();
   const currentTeachers = activeTimetable?.teachers || [];
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
@@ -181,7 +181,7 @@ export default function TeacherEditor() {
       name: "",
       maxPeriods: 20,
       assignments: [{ grade: "", subject: "", arms: [], periods: 1 }],
-      schoolId: activeTimetable ? activeTimetable.id : "",
+      schoolIds: activeTimetable ? [activeTimetable.id] : [],
     },
   });
   
@@ -210,14 +210,14 @@ export default function TeacherEditor() {
                 arms: a.arms,
                 periods: a.periods
             })) : [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-            schoolId: teacher.schoolId || activeTimetable.id,
+            schoolIds: teacher.schoolIds,
         });
     } else {
         form.reset({
             name: "",
             maxPeriods: 20,
             assignments: [{ id: crypto.randomUUID(), grade: "", subject: "", arms: [], periods: 1 }],
-            schoolId: activeTimetable.id,
+            schoolIds: [activeTimetable.id],
         });
     }
     setIsDialogOpen(true);
@@ -229,7 +229,6 @@ export default function TeacherEditor() {
     const finalData: Teacher = {
         ...data,
         id: editingTeacher?.id || crypto.randomUUID(),
-        schoolId: activeTimetable.id, // Ensure it's always the current school
         assignments: data.assignments.map(a => ({
             ...a,
             id: a.id || crypto.randomUUID(),
@@ -303,6 +302,54 @@ export default function TeacherEditor() {
                             )}
                         />
                       </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="schoolIds"
+                        render={() => (
+                          <FormItem className="space-y-3 p-3 border rounded-md">
+                            <div className="mb-4">
+                              <FormLabel className="text-base">Schools</FormLabel>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              {timetables.map((timetable) => (
+                                <FormField
+                                  key={timetable.id}
+                                  control={form.control}
+                                  name="schoolIds"
+                                  render={({ field }) => {
+                                    return (
+                                      <FormItem
+                                        key={timetable.id}
+                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={field.value?.includes(timetable.id)}
+                                            onCheckedChange={(checked) => {
+                                              return checked
+                                                ? field.onChange([...field.value, timetable.id])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                      (value) => value !== timetable.id
+                                                    )
+                                                  )
+                                            }}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                          {timetable.name}
+                                        </FormLabel>
+                                      </FormItem>
+                                    )
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       <div className="space-y-2 p-3 border rounded-md">
                         <div className="flex justify-between items-center mb-2">

@@ -120,14 +120,16 @@ export default function TimetableGrid() {
   }
 
 
-  const renderCellContent = (sessions: TimetableSession[], day: string, period: number, filterValue: string) => {
+  const renderCellContent = (day: string, period: number, filterValue: string) => {
+     const allSessionsInSlot = timetable[day]?.[period] || [];
+     
      let relevantSessions: TimetableSession[] = [];
      if (viewMode === 'class') {
-         relevantSessions = sessions.filter(s => s.className === filterValue);
+         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
      } else if (viewMode === 'teacher') {
-         relevantSessions = sessions.filter(s => s.teacher === filterValue);
+         relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
      } else if (viewMode === 'arm') {
-         relevantSessions = sessions.filter(s => s.className.includes(filterValue));
+         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
      }
      
      if (relevantSessions.length > 0) {
@@ -255,8 +257,6 @@ export default function TimetableGrid() {
                         continue;
                     }
                     
-                    const sessions = timetable[day]?.[periodIndex] || [];
-                    
                     rowCells.push(
                         <TableCell
                             key={slotIndex}
@@ -264,7 +264,7 @@ export default function TimetableGrid() {
                             onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
                             onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
                         >
-                            {renderCellContent(sessions, day, periodIndex, filterValue)}
+                            {renderCellContent(day, periodIndex, filterValue)}
                         </TableCell>
                     );
 

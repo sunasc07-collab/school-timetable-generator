@@ -29,8 +29,7 @@ export type TimetableSession = {
   teacher: string;
   isDouble: boolean;
   part?: 1 | 2;
-  classes?: string[]; // Kept for legacy/compatibility if needed anywhere else
-  groupId?: string;
+  classes: string[]; 
 };
 
 export type TimetableSlot = TimetableSession[];

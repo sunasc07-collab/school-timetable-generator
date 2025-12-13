@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { BookOpen, GraduationCap, User } from "lucide-react";
+import { useTimetable } from "@/context/timetable-provider";
 
 type TimetableItemProps = {
   session: TimetableSession;
@@ -17,6 +18,8 @@ export default function TimetableItem({
   isConflict,
   from,
 }: TimetableItemProps) {
+  const { viewMode } = useTimetable();
+
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.dataTransfer.effectAllowed = "move";
     const dragData: TimetableDragData = { session, from };
@@ -24,6 +27,9 @@ export default function TimetableItem({
   };
 
   const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
+
+  const displayClass = viewMode === 'class' ? session.teacher : session.className;
+  const displayIcon = viewMode === 'class' ? <User className="h-3 w-3 shrink-0"/> : <GraduationCap className="h-3 w-3 shrink-0"/>;
 
   return (
     <Card
@@ -45,10 +51,10 @@ export default function TimetableItem({
           <span className="truncate">{session.subject}</span>
         </div>
         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-          <GraduationCap className="h-3 w-3 shrink-0"/>
-          <span className="break-words">{session.className}</span>
+          {displayIcon}
+          <span className="break-words">{displayClass}</span>
         </div>
-        <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? '' : 'hidden')}>
           <User className="h-3 w-3 shrink-0"/>
           <span className="truncate">{session.teacher}</span>
         </div>

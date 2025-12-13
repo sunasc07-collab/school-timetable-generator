@@ -29,6 +29,7 @@ export type TimetableSession = {
   teacher: string;
   isDouble: boolean;
   part?: 1 | 2;
+  classes: string[];
 };
 
 export type TimetableSlot = TimetableSession[];
@@ -69,3 +70,5 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
 };
+
+    

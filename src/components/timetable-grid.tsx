@@ -59,11 +59,12 @@ export default function TimetableGrid() {
         teacher.subjects.forEach(subject => {
             subject.assignments.forEach(assignment => {
                 if (!assignment.groupArms) {
-                    assignment.grades.forEach(grade => {
+                    const grade = assignment.grade;
+                    if (grade) {
                         assignment.arms.forEach(arm => {
                             armSet.add(`${grade} ${arm}`);
                         });
-                    });
+                    }
                 }
             });
         });
@@ -364,9 +365,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    
-
-    
-
-    

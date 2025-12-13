@@ -612,8 +612,7 @@ export default function TeacherEditor() {
                                             <div className="flex items-center text-xs">
                                                 <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
                                                 <span>
-                                                    {assignment.grade} - 
-                                                    {groupedText}
+                                                    {assignment.grade} - {groupedText}
                                                 </span>
                                             </div>
                                         </div>

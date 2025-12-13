@@ -70,7 +70,3 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
 };
-
-    
-
-    

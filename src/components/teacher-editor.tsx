@@ -76,6 +76,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
 const NURSERY_LEVELS = ["1", "2"];
 
 const ARM_OPTIONS = ["P", "D", "L", "M"];
@@ -160,7 +161,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                 <Trash2 className="h-4 w-4" />
             </Button>
             <div className="grid grid-cols-1 gap-y-2 w-full">
-                <div className="grid grid-cols-2 gap-x-2">
+                <div className="grid grid-cols-[2fr_2fr_1fr] gap-x-2">
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`}
@@ -190,6 +191,28 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                 <FormControl>
                                      <Input placeholder="Subject name" {...field} />
                                 </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.periods`}
+                        render={({ field }) => (
+                            <FormItem>
+                                {assignmentIndex === 0 && <FormLabel>Periods/wk</FormLabel>}
+                                 <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Count" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {Array.from({ length: 10 }, (_, i) => i + 1).map(p => (
+                                            <SelectItem key={p} value={String(p)}>{p}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -320,28 +343,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         </FormItem>
                         )}
                     />
-                     <FormField
-                        control={control}
-                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.periods`}
-                        render={({ field }) => (
-                            <FormItem>
-                                {assignmentIndex === 0 && <FormLabel>Periods/wk</FormLabel>}
-                                 <Select onValueChange={(value) => field.onChange(parseInt(value))} value={String(field.value)}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Count" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {Array.from({ length: 10 }, (_, i) => i + 1).map(p => (
-                                            <SelectItem key={p} value={String(p)}>{p}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                    
                 </div>
             </div>
         </div>
@@ -693,7 +695,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
 
     

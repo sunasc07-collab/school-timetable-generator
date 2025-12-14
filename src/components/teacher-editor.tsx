@@ -117,15 +117,16 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const isALevelSchool = schoolName.includes('a-level');
     
     const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
+    const isNurseryOrKinder = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.includes('Nursery') || g.includes('Kindergarten')), [selectedGrades]);
 
     const showArms = isSecondary && !isALevelSelected;
     const hideGrades = isALevelSchool;
 
     useEffect(() => {
-        if (!showArms) {
+        if (!showArms || isNurseryOrKinder) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [showArms, setValue, teacherIndex, assignmentIndex]);
+    }, [showArms, isNurseryOrKinder, setValue, teacherIndex, assignmentIndex]);
      
     useEffect(() => {
         if(hideGrades) {
@@ -251,8 +252,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                     </div>
                                 ) : (
                                     <Select 
-                                        onValueChange={(value) => field.onChange([value])} 
-                                        value={field.value?.[0] || ""} 
+                                        onValueChange={(value) => field.onChange(value ? [value] : [])} 
+                                        value={Array.isArray(field.value) && field.value.length > 0 ? field.value[0] : ""} 
                                         disabled={!schoolId}
                                     >
                                         <FormControl>
@@ -273,7 +274,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                     />
                     </div>
                      <div className="grid grid-cols-1 gap-y-2">
-                        {showArms && (
+                        {showArms && !isNurseryOrKinder && (
                             <FormField
                                 control={control}
                                 name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -663,7 +664,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
 
     

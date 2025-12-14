@@ -216,7 +216,6 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
-                <TableHead className="font-headline text-center align-middle w-20">Assembly</TableHead>
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
@@ -284,13 +283,6 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                              <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                            {dayIndex === 0 && (
-                                <TableCell rowSpan={days.length} className="p-0 align-middle text-center">
-                                    <div className="[writing-mode:vertical-lr] transform rotate-180 h-full w-full flex items-center justify-center">
-                                        <span className="text-3xl font-bold uppercase tracking-widest text-muted-foreground">ASSEMBLY</span>
-                                    </div>
-                                </TableCell>
-                            )}
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -301,13 +293,6 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        {dayIndex === 0 && (
-                            <TableCell rowSpan={days.length} className="p-0 align-middle text-center">
-                                <div className="[writing-mode:vertical-lr] transform rotate-180 h-full w-full flex items-center justify-center">
-                                    <span className="text-3xl font-bold uppercase tracking-widest text-muted-foreground">ASSEMBLY</span>
-                                </div>
-                            </TableCell>
-                        )}
                         {rowCells}
                     </TableRow>
                 );
@@ -398,5 +383,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

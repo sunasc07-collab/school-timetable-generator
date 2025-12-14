@@ -42,7 +42,7 @@ export default function TimetableGrid() {
   } = useTimetable();
 
   const timetable = activeTimetable?.timetable || {};
-  const days = activeTimetable?.days || [];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
   const timeSlots = activeTimetable?.timeSlots || [];
   const teachers = activeTimetable?.teachers || [];
   const classes = activeTimetable?.classes || [];
@@ -124,7 +124,7 @@ export default function TimetableGrid() {
      const allSessionsInSlot = timetable[day]?.[period] || [];
      const periodsCount = timeSlots.filter(ts => !ts.isBreak).length;
 
-     if (day === 'Fr' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
+     if (day === 'Fri' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
          const isRelevantClass = viewMode === 'class' && classes.includes(filterValue);
          const isRelevantArm = viewMode === 'arm' && arms.some(arm => arm.startsWith(filterValue));
 
@@ -216,6 +216,7 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
+                 <TableHead className="w-24 font-headline text-center align-middle">Assembly</TableHead>
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
@@ -271,7 +272,7 @@ export default function TimetableGrid() {
                     periodIndex++;
                 }
 
-                if (day === 'Fr' && isSecondarySchool) {
+                if (day === 'Fri' && isSecondarySchool) {
                     const sportCell = (
                         <TableCell colSpan={2} className="p-1 align-middle text-center">
                             <div className="flex items-center justify-center h-20 w-full text-center font-bold text-lg text-muted-foreground uppercase">
@@ -283,6 +284,15 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                              <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
+                             {dayIndex === 0 && (
+                                <TableCell rowSpan={days.length} className="p-0 align-middle">
+                                    <div className="relative h-full flex items-center justify-center">
+                                         <span className="font-bold uppercase text-center text-muted-foreground/80 [writing-mode:vertical-lr] transform rotate-180 tracking-[.3em] text-[35px]">
+                                             ASSEMBLY
+                                         </span>
+                                    </div>
+                                </TableCell>
+                            )}
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -293,6 +303,15 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
+                        {dayIndex === 0 && (
+                                <TableCell rowSpan={days.length} className="p-0 align-middle">
+                                    <div className="relative h-full flex items-center justify-center">
+                                         <span className="font-bold uppercase text-center text-muted-foreground/80 [writing-mode:vertical-lr] transform rotate-180 tracking-[.3em] text-[35px]">
+                                             ASSEMBLY
+                                         </span>
+                                    </div>
+                                </TableCell>
+                            )}
                         {rowCells}
                     </TableRow>
                 );
@@ -383,3 +402,4 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+

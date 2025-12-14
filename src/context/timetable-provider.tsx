@@ -28,7 +28,7 @@ type TimetableContextType = {
 
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
 
-const DEFAULT_DAYS = ["Mo", "Tu", "We", "Th", "Fr"];
+const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
     { period: 1, time: "8:00-8:40" },
@@ -316,7 +316,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const lastTwoPeriods = [PERIOD_COUNT - 2, PERIOD_COUNT - 1];
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
-        if (day === 'Fr' && lastTwoPeriods.includes(period)) {
+        if (day === 'Fri' && lastTwoPeriods.includes(period)) {
             // Prevent any non-sports session from being placed in the last two slots on Friday.
             return session.subject.toLowerCase() === 'sports';
         }
@@ -406,7 +406,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (allowConflict) {
                  for (const day of DEFAULT_DAYS) {
                     for (let period = 0; period < PERIOD_COUNT; period++) {
-                       if (board[day][period].length < 3 && !(day === 'Fr' && lastTwoPeriods.includes(period))) return {day, period};
+                       if (board[day][period].length < 3 && !(day === 'Fri' && lastTwoPeriods.includes(period))) return {day, period};
                     }
                 }
             }
@@ -424,7 +424,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
              if (allowConflict) {
                  for (const day of DEFAULT_DAYS) {
                     for (const [p1, p2] of CONSECUTIVE_PERIODS) {
-                       if (board[day][p1].length < 3 && board[day][p2].length < 3 && !(day === 'Fr' && (lastTwoPeriods.includes(p1) || lastTwoPeriods.includes(p2)))) return {day, p1, p2};
+                       if (board[day][p1].length < 3 && board[day][p2].length < 3 && !(day === 'Fri' && (lastTwoPeriods.includes(p1) || lastTwoPeriods.includes(p2)))) return {day, p1, p2};
                     }
                 }
             }
@@ -474,8 +474,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
               isDouble: true,
               part: 2,
           };
-          finalTimetable!['Fr'][PERIOD_COUNT - 2].push(sportsSession1);
-          finalTimetable!['Fr'][PERIOD_COUNT - 1].push(sportsSession2);
+          finalTimetable!['Fri'][PERIOD_COUNT - 2].push(sportsSession1);
+          finalTimetable!['Fri'][PERIOD_COUNT - 1].push(sportsSession2);
       });
     }
 
@@ -552,7 +552,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const lastTwoPeriods = [PERIOD_COUNT - 2, PERIOD_COUNT - 1];
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
-        if (day === 'Fr' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') return false;
+        if (day === 'Fri' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') return false;
 
         const slot = board[day]?.[period];
         if (!slot) return false;
@@ -724,3 +724,4 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+

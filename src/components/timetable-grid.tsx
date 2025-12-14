@@ -222,7 +222,7 @@ export default function TimetableGrid() {
                             <span className="absolute inset-0 bg-background z-10"></span>
                              <span className={cn(
                                 "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180",
-                                slot.label?.toUpperCase() === 'ASSEMBLY' && "text-2xl font-bold"
+                                slot.label?.toUpperCase() === 'ASSEMBLY' && "text-2xl font-bold tracking-widest"
                              )}>
                                 {slot.label}
                             </span>
@@ -257,7 +257,7 @@ export default function TimetableGrid() {
                                         rowSpan={4}
                                     >
                                       <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                          <span className="font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 text-2xl">
+                                          <span className="font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 text-2xl tracking-widest">
                                               {slot.label}
                                           </span>
                                       </div>
@@ -290,6 +290,25 @@ export default function TimetableGrid() {
                     );
 
                     periodIndex++;
+                }
+
+                if (day === 'Fr' && isSecondarySchool) {
+                    const sportCell = (
+                        <TableCell colSpan={2} className="p-1 align-middle text-center">
+                            <div className="flex items-center justify-center h-20 w-full text-center font-bold text-base text-muted-foreground uppercase">
+                                SPORT
+                            </div>
+                        </TableCell>
+                    );
+                    const regularCells = rowCells.slice(0, -2);
+                    return (
+                         <TableRow key={day}>
+                             <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
+                            {regularCells}
+                            {sportCell}
+                        </TableRow>
+                    )
+
                 }
 
                 return (

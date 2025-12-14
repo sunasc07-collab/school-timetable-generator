@@ -120,6 +120,23 @@ export default function TimetableGrid() {
 
   const renderCellContent = (day: string, period: number, filterValue: string) => {
      const allSessionsInSlot = timetable[day]?.[period] || [];
+     const periodsCount = timeSlots.filter(ts => !ts.isBreak).length;
+     const isSecondarySchool = activeTimetable?.name.toLowerCase().includes('secondary');
+
+     if (day === 'Fr' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
+         const isRelevantClass = viewMode === 'class' && classes.includes(filterValue);
+         const isRelevantArm = viewMode === 'arm' && arms.some(arm => arm.startsWith(filterValue));
+
+         if(viewMode === 'class' && filterValue === 'Sports') return null;
+
+         if (isRelevantClass || isRelevantArm) {
+            return (
+                <div className="flex items-center justify-center h-20 w-full text-center font-medium text-muted-foreground">
+                    Sport
+                </div>
+            );
+         }
+    }
      
      let relevantSessions: TimetableSession[] = [];
      if (viewMode === 'class') {

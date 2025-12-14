@@ -134,11 +134,15 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }, [showArms, setValue, teacherIndex, assignmentIndex]);
      
     useEffect(() => {
-        if(hideGradesAndArms) {
-             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [isALevelSchool ? "A-Level" : "Nursery"]);
+        if(isALevelSchool) {
+             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [hideGradesAndArms, isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex]);
+         if(isNurserySchool) {
+             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["Nursery"]);
+             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+        }
+    }, [isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex]);
 
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
@@ -151,8 +155,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         const newSelectedSchool = timetables.find(t => t.id === newSchoolId);
         if (currentGrades && newSelectedSchool) {
             const newGradeOptions = getGradeOptionsForSchool(newSelectedSchool.name);
-            if(newGradeOptions.length === 0) {
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [newSelectedSchool.name.toLowerCase().includes('a-level') ? "A-Level" : "Nursery"]);
+            const newSchoolName = newSelectedSchool.name.toLowerCase();
+            if(newSchoolName.includes('a-level')) {
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
+            } else if(newSchoolName.includes('nursery')) {
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["Nursery"]);
             } else {
                 const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
                  if (stillValidGrades.length !== currentGrades.length) {
@@ -254,7 +261,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                 }}
                                                             />
                                                         </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "AL ")}</FormLabel>
+                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "")}</FormLabel>
                                                     </FormItem>
                                                 )}
                                             />
@@ -636,6 +643,10 @@ export default function TeacherEditor() {
                                         {assignment.arms.length > 0 && ` - Arms/Levels: ${assignment.arms.join(', ')}`}
                                     </span>
                                 </div>
+                                <div className="flex items-center text-xs">
+                                     <Building className="mr-2 h-3 w-3 text-primary/80" />
+                                     <span>School: {timetables.find(t => t.id === assignment.schoolId)?.name || 'Unknown'}</span>
+                                </div>
                            </div>
                         </div>
                       ))}
@@ -659,5 +670,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

@@ -198,6 +198,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
+    const schoolName = activeTimetable.name.toLowerCase();
+    const isALevelSchool = schoolName.includes('a-level');
 
     const allRequiredSessions: {
       subject: string;
@@ -210,18 +212,51 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id) return;
             const { grades, subject, arms, periods } = assignment;
+            
+            if (isALevelSchool) {
+                 for (let i = 0; i < periods; i++) {
+                    allRequiredSessions.push({
+                        subject,
+                        teacher: teacher.name,
+                        className: "A-Level",
+                        classes: ["A-Level"],
+                    });
+                }
+                return; // continue to next assignment
+            }
+
+
             const isALevel = grades.some(g => g.startsWith('A-Level'));
-            if (grades.length === 0 || !subject || (!isALevel && arms.length === 0)) return;
+            const isNursery = grades.includes("Nursery");
+
+            if (grades.length === 0 || !subject) return;
+            if (!isALevel && !isNursery && arms.length === 0) return;
 
             grades.forEach(grade => {
-                const individualClasses = isALevel ? [grade] : arms.map(arm => `${grade} ${arm}`);
-                const className = isALevel ? grade : `${grade} ${arms.join(', ')}`;
-                
+                let individualClasses: string[];
+                let classGroupName: string;
+
+                if (isALevel) {
+                    individualClasses = [grade];
+                    classGroupName = grade;
+                } else if (isNursery) {
+                    individualClasses = arms.map(arm => `${grade} ${arm}`);
+                    classGroupName = `${grade} ${arms.join(', ')}`;
+                } else {
+                     individualClasses = arms.map(arm => `${grade} ${arm}`);
+                     classGroupName = `${grade} ${arms.join(', ')}`;
+                }
+
+                if (individualClasses.length === 0) { // Non-armed grades like Kindergarten
+                    individualClasses.push(grade);
+                    classGroupName = grade;
+                }
+
                 for (let i = 0; i < periods; i++) {
                     allRequiredSessions.push({
                         subject: subject,
                         teacher: teacher.name,
-                        className: className,
+                        className: classGroupName,
                         classes: individualClasses,
                     });
                 }
@@ -644,3 +679,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -76,6 +76,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const NURSERY_LEVELS = ["1", "2"];
 
 const ARM_OPTIONS = ["P", "D", "L", "M"];
 
@@ -87,6 +88,9 @@ const getGradeOptionsForSchool = (schoolName: string) => {
     }
     if (lowerCaseSchoolName.includes('secondary')) {
         return SECONDARY_GRADES;
+    }
+     if (lowerCaseSchoolName.includes('a-level')) {
+        return [];
     }
     return ALL_GRADE_OPTIONS;
 };
@@ -106,19 +110,30 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }) || [];
 
     const selectedSchool = useMemo(() => timetables.find(t => t.id === schoolId), [schoolId, timetables]);
-    const isSecondary = selectedSchool?.name.toLowerCase().includes('secondary');
+    const schoolName = selectedSchool?.name.toLowerCase() || '';
+
+    const isSecondary = schoolName.includes('secondary');
+    const isPrimary = schoolName.includes('primary');
+    const isALevelSchool = schoolName.includes('a-level');
     
     const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
-    const isPrimarySchool = selectedSchool?.name.toLowerCase().includes('primary');
-    const isNurseryOrKindergarten = selectedGrades.some(g => ["Nursery", "Kindergarten"].includes(g));
+    const isNurseryOrKindergarten = selectedGrades.includes("Nursery") || selectedGrades.includes("Kindergarten");
+    const isNurserySelected = selectedGrades.includes("Nursery");
 
-    const hideArms = isALevelSelected || isPrimarySchool || isNurseryOrKindergarten;
-    
+    const hideArms = isALevelSelected || isPrimary || isNurseryOrKindergarten || isALevelSchool;
+    const hideGrades = isALevelSchool;
+
     useEffect(() => {
         if (hideArms) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
     }, [hideArms, setValue, teacherIndex, assignmentIndex]);
+     
+    useEffect(() => {
+        if(hideGrades) {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
+        }
+    }, [hideGrades, setValue, teacherIndex, assignmentIndex]);
 
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
@@ -180,7 +195,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                 </div>
-                 <div className="grid grid-cols-[1fr_2fr_1fr] gap-x-2">
+                 <div className={cn("grid grid-cols-[1fr_2fr_1fr] gap-x-2", hideGrades && "hidden")}>
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
@@ -235,11 +250,46 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             </FormItem>
                         )}
                     />
+                     <FormField
+                        control={control}
+                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                        render={({ field }) => (
+                        <FormItem className={cn(hideArms && "hidden", !isNurserySelected && "hidden")}>
+                            {assignmentIndex === 0 && <FormLabel>Level</FormLabel>}
+                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                {NURSERY_LEVELS.map((level) => (
+                                    <FormField
+                                        key={level}
+                                        control={control}
+                                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                        render={({ field: checkboxField }) => (
+                                            <FormItem key={level} className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={checkboxField.value?.includes(level)}
+                                                        onCheckedChange={(checked) => {
+                                                            const currentValue = checkboxField.value || [];
+                                                            return checked
+                                                                ? checkboxField.onChange([...currentValue, level])
+                                                                : checkboxField.onChange(currentValue.filter(value => value !== level));
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal text-sm"> {level} </FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                         render={({ field }) => (
-                        <FormItem className={cn(hideArms && "hidden")}>
+                        <FormItem className={cn(hideArms && "hidden", isNurserySelected && "hidden")}>
                             {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
                              <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
                                 {ARM_OPTIONS.map((arm) => (
@@ -247,16 +297,16 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                         key={arm}
                                         control={control}
                                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                        render={({ field }) => (
+                                        render={({ field: checkboxField }) => (
                                             <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
                                                 <FormControl>
                                                     <Checkbox
-                                                        checked={field.value?.includes(arm)}
+                                                        checked={checkboxField.value?.includes(arm)}
                                                         onCheckedChange={(checked) => {
-                                                            const currentValue = field.value || [];
+                                                            const currentValue = checkboxField.value || [];
                                                             return checked
-                                                                ? field.onChange([...currentValue, arm])
-                                                                : field.onChange(currentValue.filter(value => value !== arm));
+                                                                ? checkboxField.onChange([...currentValue, arm])
+                                                                : checkboxField.onChange(currentValue.filter(value => value !== arm));
                                                         }}
                                                     />
                                                 </FormControl>
@@ -467,15 +517,18 @@ export default function TeacherEditor() {
             ...teacherData,
             id: teacherData.id || crypto.randomUUID(),
             assignments: teacherData.assignments.map(a => {
-                const isALevel = a.grades.some(g => g.startsWith('A-Level'));
                 const selectedSchool = timetables.find(t => t.id === a.schoolId);
-                const isPrimary = selectedSchool?.name.toLowerCase().includes('primary');
-                const isNurseryKinder = a.grades.some(g => ['Nursery', 'Kindergarten'].includes(g));
+                const schoolName = selectedSchool?.name.toLowerCase() || '';
+
+                const isALevel = a.grades.some(g => g.startsWith('A-Level'));
+                const isPrimary = schoolName.includes('primary');
+                const isNurseryOrKinder = a.grades.some(g => ['Nursery', 'Kindergarten'].includes(g));
+                const isALevelSchool = schoolName.includes('a-level');
 
                 return {
                     ...a,
                     id: a.id || crypto.randomUUID(),
-                    arms: (isALevel || isPrimary || isNurseryKinder) ? [] : a.arms,
+                    arms: (isALevel || isPrimary || isNurseryOrKinder || isALevelSchool) ? a.arms : a.arms,
                 }
             })
         }
@@ -640,5 +693,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

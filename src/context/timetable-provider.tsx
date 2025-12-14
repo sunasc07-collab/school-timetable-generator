@@ -200,6 +200,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     if (!activeTimetable) return;
     const schoolName = activeTimetable.name.toLowerCase();
     const isALevelSchool = schoolName.includes('a-level');
+    const isNurserySchool = schoolName.includes('nursery');
 
     const allRequiredSessions: {
       subject: string;
@@ -222,7 +223,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         classes: ["A-Level"],
                     });
                 }
-                return; // continue to next assignment
+                return;
+            }
+
+            if (isNurserySchool) {
+                 for (let i = 0; i < periods; i++) {
+                    allRequiredSessions.push({
+                        subject,
+                        teacher: teacher.name,
+                        className: activeTimetable.name,
+                        classes: [activeTimetable.name],
+                    });
+                }
+                return;
             }
 
 
@@ -230,7 +243,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
             if (grades.length === 0 || !subject) return;
             if (!isALevel && !grades.some(g => g.startsWith('Nursery')) && arms.length === 0) {
-                 // allow non-armed grades like Kindergarten
                 const isNonArmedGrade = grades.some(g => !g.startsWith('Grade') || g === 'Kindergarten');
                  if (!isNonArmedGrade && !grades.some(g => g.includes('Nursery'))) {
                      return;
@@ -444,7 +456,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [allTeachers, activeTimetable?.id, activeTimetable?.teachers]);
+  }, [allTeachers, activeTimetable?.id, activeTimetable?.name, activeTimetable?.teachers]);
 
 
   const clearTimetable = () => {

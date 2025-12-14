@@ -89,7 +89,7 @@ const getGradeOptionsForSchool = (schoolName: string) => {
     if (lowerCaseSchoolName.includes('secondary')) {
         return [...SECONDARY_GRADES, ...A_LEVEL_GRADES];
     }
-     if (lowerCaseSchoolName.includes('a-level')) {
+     if (lowerCaseSchoolName.includes('a-level') || lowerCaseSchoolName.includes('nursery')) {
         return [];
     }
     return ALL_GRADE_OPTIONS;
@@ -115,24 +115,26 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const isSecondary = schoolName.includes('secondary');
     const isPrimary = schoolName.includes('primary');
     const isALevelSchool = schoolName.includes('a-level');
+    const isNurserySchool = schoolName.includes('nursery');
     
     const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
-    const isNurseryOrKinder = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.includes('Nursery') || g.includes('Kindergarten')), [selectedGrades]);
-
+    
     const showArms = isSecondary && !isALevelSelected;
-    const hideGrades = isALevelSchool;
+    const hideGradesAndArms = isALevelSchool || isNurserySchool;
 
     useEffect(() => {
-        if (!showArms || isNurseryOrKinder) {
+        if (!showArms) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [showArms, isNurseryOrKinder, setValue, teacherIndex, assignmentIndex]);
+    }, [showArms, setValue, teacherIndex, assignmentIndex]);
      
     useEffect(() => {
-        if(hideGrades) {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
+        if(hideGradesAndArms) {
+            const gradeValue = isALevelSchool ? "A-Level" : "Nursery";
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [hideGrades, setValue, teacherIndex, assignmentIndex]);
+    }, [hideGradesAndArms, isALevelSchool, setValue, teacherIndex, assignmentIndex]);
 
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
@@ -145,9 +147,14 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         const newSelectedSchool = timetables.find(t => t.id === newSchoolId);
         if (currentGrades && newSelectedSchool) {
             const newGradeOptions = getGradeOptionsForSchool(newSelectedSchool.name);
-            const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
-            if (stillValidGrades.length !== currentGrades.length) {
-                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, stillValidGrades);
+            if(newGradeOptions.length === 0) {
+                 const gradeValue = newSelectedSchool.name.toLowerCase().includes('a-level') ? "A-Level" : "Nursery";
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
+            } else {
+                const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
+                 if (stillValidGrades.length !== currentGrades.length) {
+                    setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, stillValidGrades);
+                }
             }
         }
     };
@@ -216,7 +223,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                 </div>
-                 <div className={cn("grid grid-cols-1 gap-x-2", hideGrades && "hidden")}>
+                 <div className={cn("grid grid-cols-1 gap-x-2", hideGradesAndArms && "hidden")}>
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
@@ -273,8 +280,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                     </div>
-                     <div className="grid grid-cols-1 gap-y-2">
-                        {showArms && !isNurseryOrKinder && (
+                     <div className={cn("grid grid-cols-1 gap-y-2", hideGradesAndArms && "hidden")}>
+                        {showArms && (
                             <FormField
                                 control={control}
                                 name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -495,11 +502,12 @@ export default function TeacherEditor() {
                 const isPrimary = schoolName.includes('primary');
                 const isNurseryOrKinder = a.grades.some(g => g.includes('Nursery') || g.includes('Kindergarten'));
                 const isALevelSchool = schoolName.includes('a-level');
+                const isNurserySchool = schoolName.includes('nursery');
 
                 return {
                     ...a,
                     id: a.id || crypto.randomUUID(),
-                    arms: (isALevel || isPrimary || isNurseryOrKinder || isALevelSchool) ? [] : a.arms,
+                    arms: (isALevel || isPrimary || isNurseryOrKinder || isALevelSchool || isNurserySchool) ? [] : a.arms,
                 }
             })
         }

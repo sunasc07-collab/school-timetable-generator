@@ -12,7 +12,6 @@ export type SubjectAssignment = {
 export type Teacher = {
   id: string;
   name: string;
-  maxPeriods: number;
   assignments: SubjectAssignment[];
 };
 

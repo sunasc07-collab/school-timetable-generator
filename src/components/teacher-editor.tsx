@@ -51,18 +51,7 @@ const assignmentSchema = z.object({
 const teacherSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Teacher name is required."),
-  maxPeriods: z.number().min(1, "Max periods must be > 0").default(20),
   assignments: z.array(assignmentSchema).min(1, "At least one assignment is required."),
-}).refine(data => {
-    const totalAssignedPeriods = data.assignments.reduce((sum, a) => {
-        const isALevel = a.grades.some(g => g.startsWith("A-Level"));
-        const armCount = isALevel || a.arms.length === 0 ? 1 : a.arms.length;
-        return sum + (a.periods * armCount * a.grades.length);
-    }, 0);
-    return totalAssignedPeriods <= data.maxPeriods;
-}, {
-    message: "Total assigned periods cannot exceed the teacher's maximum periods.",
-    path: ["assignments"],
 });
 
 const multiTeacherSchema = z.object({
@@ -130,11 +119,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
      
     useEffect(() => {
         if(hideGradesAndArms) {
-            const gradeValue = isALevelSchool ? "A-Level" : "Nursery";
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
+            const gradeValue = isALevelSchool ? "A-Level" : isNurserySchool ? "Nursery" : "";
+            if (gradeValue) {
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
+            }
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [hideGradesAndArms, isALevelSchool, setValue, teacherIndex, assignmentIndex]);
+    }, [hideGradesAndArms, isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex]);
 
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
@@ -148,8 +139,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         if (currentGrades && newSelectedSchool) {
             const newGradeOptions = getGradeOptionsForSchool(newSelectedSchool.name);
             if(newGradeOptions.length === 0) {
-                 const gradeValue = newSelectedSchool.name.toLowerCase().includes('a-level') ? "A-Level" : "Nursery";
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
+                 const gradeValue = newSelectedSchool.name.toLowerCase().includes('a-level') ? "A-Level" : newSelectedSchool.name.toLowerCase().includes('nursery') ? "Nursery" : "";
+                 if(gradeValue){
+                    setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
+                 }
             } else {
                 const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
                  if (stillValidGrades.length !== currentGrades.length) {
@@ -333,21 +326,18 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     name: `teachers.${index}.assignments`
   });
 
-  const teacherData = useWatch({
-    control,
-    name: `teachers.${index}`
-  });
-
   const { activeTimetable } = useTimetable();
 
-  const watchedAssignments = teacherData.assignments || [];
-  const maxPeriods = teacherData.maxPeriods || 0;
+  const watchedAssignments = useWatch({
+    control,
+    name: `teachers.${index}.assignments`,
+  }) || [];
+
   const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; }) => {
     const isALevel = a.grades?.some(g => g.startsWith("A-Level"));
     const armCount = isALevel || !a.arms || a.arms.length === 0 ? 1 : a.arms.length;
     return acc + (a.periods * armCount * (a.grades?.length || 0));
   }, 0);
-  const unassignedPeriods = maxPeriods - totalAssignedPeriods;
 
   return (
     <div className="space-y-6 p-4 border rounded-lg relative">
@@ -376,26 +366,13 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
             </FormItem>
           )}
         />
-        <FormField
-          control={control}
-          name={`teachers.${index}.maxPeriods`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Max Periods / week</FormLabel>
-              <FormControl>
-                <Input type="number" min="1" className="w-28" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </div>
 
       <div className="space-y-2 p-3 border rounded-md">
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-medium">Subject Assignments</h3>
-          <Badge variant={unassignedPeriods >= 0 ? "secondary" : "destructive"}>
-            {unassignedPeriods} unassigned period{unassignedPeriods !== 1 ? 's' : ''}
+          <Badge variant="secondary">
+            {totalAssignedPeriods} assigned period{totalAssignedPeriods !== 1 ? 's' : ''}
           </Badge>
         </div>
         <div className="space-y-3">
@@ -420,7 +397,6 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
           size="sm"
           className="mt-2"
           onClick={() => append({ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' })}
-          disabled={unassignedPeriods <= 0}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Assignment
@@ -460,7 +436,6 @@ export default function TeacherEditor() {
 
   const getNewTeacherForm = (): TeacherFormValues => ({
     name: "",
-    maxPeriods: 20,
     assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   });
 
@@ -471,7 +446,6 @@ export default function TeacherEditor() {
         replace([{
             id: teacher.id,
             name: teacher.name,
-            maxPeriods: teacher.maxPeriods,
             assignments: teacher.assignments.length > 0 ? teacher.assignments.map(a => ({
                 id: a.id || crypto.randomUUID(),
                 grades: a.grades,
@@ -606,7 +580,7 @@ export default function TeacherEditor() {
                                 const isALevel = a.grades.some(g => g.startsWith("A-Level"));
                                 const armCount = isALevel || a.arms.length === 0 ? 1 : a.arms.length;
                                 return acc + (a.periods * armCount * a.grades.length);
-                           }, 0)} / {teacher.maxPeriods} periods</span>
+                           }, 0)} periods assigned</span>
                         </div>
                     </AccordionTrigger>
                      <Button

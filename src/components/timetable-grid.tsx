@@ -216,7 +216,6 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
-                 <TableHead className="w-24 font-headline text-center align-middle">Assembly</TableHead>
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
@@ -284,15 +283,6 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                              <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                             {dayIndex === 0 && (
-                                <TableCell rowSpan={days.length} className="p-0 align-middle">
-                                    <div className="relative h-full flex items-center justify-center">
-                                         <span className="font-bold uppercase text-center text-muted-foreground/80 [writing-mode:vertical-lr] transform rotate-180 tracking-[.3em] text-[35px]">
-                                             ASSEMBLY
-                                         </span>
-                                    </div>
-                                </TableCell>
-                            )}
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -303,15 +293,6 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        {dayIndex === 0 && (
-                                <TableCell rowSpan={days.length} className="p-0 align-middle">
-                                    <div className="relative h-full flex items-center justify-center">
-                                         <span className="font-bold uppercase text-center text-muted-foreground/80 [writing-mode:vertical-lr] transform rotate-180 tracking-[.3em] text-[35px]">
-                                             ASSEMBLY
-                                         </span>
-                                    </div>
-                                </TableCell>
-                            )}
                         {rowCells}
                     </TableRow>
                 );

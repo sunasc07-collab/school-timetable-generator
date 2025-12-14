@@ -75,7 +75,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
-const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
 const NURSERY_LEVELS = ["1", "2"];
 
@@ -219,7 +219,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                 </div>
-                 <div className={cn("grid grid-cols-1 gap-x-2", hideGrades && "hidden")}>
+                 <div className={cn("grid grid-cols-1 gap-x-2", (hideGrades || isNurserySelected) && "hidden")}>
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
@@ -275,7 +275,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             </FormItem>
                         )}
                     />
-                    <div className="grid grid-cols-1 gap-y-2">
+                    </div>
+                     <div className="grid grid-cols-1 gap-y-2">
                         {showNurseryLevels && (
                             <FormField
                                 control={control}
@@ -353,7 +354,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             />
                         )}
                     </div>
-                </div>
+                
             </div>
         </div>
     )
@@ -705,5 +706,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

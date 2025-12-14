@@ -67,7 +67,8 @@ const PRIMARY_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Gr
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
 
-const ARM_OPTIONS = ["P", "D", "L", "M"];
+const JUNIOR_SECONDARY_ARMS = ["A", "Primrose"];
+const SENIOR_SECONDARY_ARMS = ["P", "D", "L", "M"];
 
 
 const getGradeOptionsForSchool = (schoolName: string) => {
@@ -102,13 +103,28 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const schoolName = selectedSchool?.name.toLowerCase() || '';
 
     const isSecondary = schoolName.includes('secondary');
-    const isPrimary = schoolName.includes('primary');
     const isALevelSchool = schoolName.includes('a-level');
     const isNurserySchool = schoolName.includes('nursery');
+
+    const hasJuniorSecondary = selectedGrades.some((g: string) => ["Grade 7", "Grade 8", "Grade 9"].includes(g));
+    const hasSeniorSecondary = selectedGrades.some((g: string) => ["Grade 10", "Grade 11", "Grade 12"].includes(g));
+    const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
+
+    let armOptions = SENIOR_SECONDARY_ARMS;
+    let showArms = false;
+    if (isSecondary && !hasALevel) {
+        if (hasJuniorSecondary && !hasSeniorSecondary) {
+            armOptions = JUNIOR_SECONDARY_ARMS;
+            showArms = true;
+        } else if (hasSeniorSecondary && !hasJuniorSecondary) {
+            armOptions = SENIOR_SECONDARY_ARMS;
+            showArms = true;
+        } else {
+            // Mixed selection or no selection, don't show arms.
+            showArms = false;
+        }
+    }
     
-    const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
-    
-    const showArms = isSecondary && !isALevelSelected;
     const hideGradesAndArms = isALevelSchool || isNurserySchool;
 
     useEffect(() => {
@@ -119,11 +135,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
      
     useEffect(() => {
         if(hideGradesAndArms) {
-            const gradeValue = isALevelSchool ? "A-Level" : isNurserySchool ? "Nursery" : "";
-            if (gradeValue) {
-                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
-            }
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [isALevelSchool ? "A-Level" : "Nursery"]);
+             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
     }, [hideGradesAndArms, isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex]);
 
@@ -139,10 +152,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         if (currentGrades && newSelectedSchool) {
             const newGradeOptions = getGradeOptionsForSchool(newSelectedSchool.name);
             if(newGradeOptions.length === 0) {
-                 const gradeValue = newSelectedSchool.name.toLowerCase().includes('a-level') ? "A-Level" : newSelectedSchool.name.toLowerCase().includes('nursery') ? "Nursery" : "";
-                 if(gradeValue){
-                    setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [gradeValue]);
-                 }
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [newSelectedSchool.name.toLowerCase().includes('a-level') ? "A-Level" : "Nursery"]);
             } else {
                 const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
                  if (stillValidGrades.length !== currentGrades.length) {
@@ -244,7 +254,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                 }}
                                                             />
                                                         </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "")}</FormLabel>
+                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "AL ")}</FormLabel>
                                                     </FormItem>
                                                 )}
                                             />
@@ -282,7 +292,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                 <FormItem>
                                     {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
                                     <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
-                                        {ARM_OPTIONS.map((arm) => (
+                                        {armOptions.map((arm) => (
                                             <FormField
                                                 key={arm}
                                                 control={control}
@@ -308,6 +318,9 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                         ))}
                                     </div>
                                     <FormMessage />
+                                    {hasJuniorSecondary && hasSeniorSecondary && (
+                                        <p className="text-xs text-muted-foreground pt-1">Mixed junior/senior selection. Arms must be configured separately.</p>
+                                    )}
                                 </FormItem>
                                 )}
                             />

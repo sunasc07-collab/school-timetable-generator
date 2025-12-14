@@ -51,7 +51,7 @@ export default function TimetableGrid() {
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
-  const isSecondarySchool = activeTimetable?.name.toLowerCase().includes('secondary');
+  const isSecondarySchool = useMemo(() => activeTimetable?.name.toLowerCase().includes('secondary'), [activeTimetable]);
 
   const arms = useMemo(() => {
     if (!activeTimetable) return [];
@@ -223,7 +223,6 @@ export default function TimetableGrid() {
                             <span className="absolute inset-0 bg-background z-10"></span>
                              <span className={cn(
                                 "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
-                                slot.label?.toUpperCase() === 'ASSEMBLY' && "text-2xl font-bold"
                              )}>
                                 {slot.label}
                             </span>
@@ -246,36 +245,15 @@ export default function TimetableGrid() {
                     const slot = timeSlots[slotIndex];
 
                     if (slot.isBreak) {
-                        if (slot.label?.toUpperCase() === 'ASSEMBLY') {
-                            if (["Tu", "We", "Th"].includes(day)) {
-                                continue;
-                            }
-                            if (day === 'Mo') {
-                                 rowCells.push(
-                                    <TableCell 
-                                        key={`break-${slotIndex}`} 
-                                        className="p-0" 
-                                        rowSpan={4}
-                                    >
-                                      <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                          <span className="font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 text-2xl tracking-[.2em]">
-                                              {slot.label}
-                                          </span>
-                                      </div>
-                                    </TableCell>
-                                );
-                            }
-                        } else {
-                            rowCells.push(
-                              <TableCell key={`break-${slotIndex}`} className="p-0">
-                                <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                  <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]">
-                                    {slot.label}
-                                  </span>
-                                </div>
-                              </TableCell>
-                            );
-                        }
+                        rowCells.push(
+                            <TableCell key={`break-${slotIndex}`} className="p-0">
+                            <div className="relative h-full w-full flex items-center justify-center bg-background">
+                                <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]">
+                                {slot.label}
+                                </span>
+                            </div>
+                            </TableCell>
+                        );
                         continue;
                     }
                     
@@ -296,7 +274,7 @@ export default function TimetableGrid() {
                 if (day === 'Fr' && isSecondarySchool) {
                     const sportCell = (
                         <TableCell colSpan={2} className="p-1 align-middle text-center">
-                            <div className="flex items-center justify-center h-20 w-full text-center font-bold text-base text-muted-foreground uppercase">
+                            <div className="flex items-center justify-center h-20 w-full text-center font-bold text-lg text-muted-foreground uppercase">
                                 SPORT
                             </div>
                         </TableCell>

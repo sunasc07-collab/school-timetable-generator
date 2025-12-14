@@ -31,7 +31,6 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 const DEFAULT_DAYS = ["Mo", "Tu", "We", "Th", "Fr"];
 
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-    { period: null, time: "7:30-7:50", isBreak: true, label: "Assembly" },
     { period: 1, time: "8:00-8:40" },
     { period: 2, time: "8:40-9:20" },
     { period: 3, time: "9:20-10:00" },

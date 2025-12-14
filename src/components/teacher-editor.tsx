@@ -125,10 +125,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const hideGrades = isALevelSchool;
 
     useEffect(() => {
-        if (hideArms) {
+        if (hideArms && !isNurserySelected) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [hideArms, setValue, teacherIndex, assignmentIndex]);
+    }, [hideArms, isNurserySelected, setValue, teacherIndex, assignmentIndex]);
      
     useEffect(() => {
         if(hideGrades) {
@@ -274,7 +274,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             </FormItem>
                         )}
                     />
-                     <div className={cn(hideArms && "hidden")}>
+                     <div className={cn(hideArms && !isNurserySelected && "hidden")}>
                         <FormField
                             control={control}
                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -528,11 +528,12 @@ export default function TeacherEditor() {
                 const isPrimary = schoolName.includes('primary');
                 const isNurseryOrKinder = a.grades.some(g => ['Nursery', 'Kindergarten'].includes(g));
                 const isALevelSchool = schoolName.includes('a-level');
+                const isNursery = a.grades.includes('Nursery');
 
                 return {
                     ...a,
                     id: a.id || crypto.randomUUID(),
-                    arms: (isALevel || isPrimary || isNurseryOrKinder || isALevelSchool) ? a.arms : a.arms,
+                    arms: (isALevel || isPrimary || (isNurseryOrKinder && !isNursery) || isALevelSchool) ? [] : a.arms,
                 }
             })
         }
@@ -671,7 +672,7 @@ export default function TeacherEditor() {
                                     <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
                                     <span>
                                         Grades: {assignment.grades.join(', ')}
-                                        {assignment.arms.length > 0 && ` - Arms ${assignment.arms.join(', ')}`}
+                                        {assignment.arms.length > 0 && ` - Arms/Levels: ${assignment.arms.join(', ')}`}
                                     </span>
                                 </div>
                            </div>

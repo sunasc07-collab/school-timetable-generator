@@ -62,7 +62,7 @@ const multiTeacherSchema = z.object({
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
-const ALL_GRADE_OPTIONS = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const ALL_GRADE_OPTIONS = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
@@ -79,7 +79,7 @@ const getGradeOptionsForSchool = (schoolName: string) => {
     if (lowerCaseSchoolName.includes('secondary')) {
         return [...SECONDARY_GRADES, ...A_LEVEL_GRADES];
     }
-     if (lowerCaseSchoolName.includes('a-level') || lowerCaseSchoolName.includes('nursery')) {
+     if (lowerCaseSchoolName.includes('a-level')) {
         return [];
     }
     return ALL_GRADE_OPTIONS;
@@ -139,10 +139,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
          if(isNurserySchool) {
-             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["Nursery"]);
+             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool?.name || "Nursery"]);
              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex]);
+    }, [isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex, selectedSchool?.name]);
 
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
@@ -159,7 +159,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
             if(newSchoolName.includes('a-level')) {
                  setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
             } else if(newSchoolName.includes('nursery')) {
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["Nursery"]);
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [newSelectedSchool.name]);
             } else {
                 const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
                  if (stillValidGrades.length !== currentGrades.length) {
@@ -261,7 +261,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                 }}
                                                             />
                                                         </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "")}</FormLabel>
+                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level Year", "Year")}</FormLabel>
                                                     </FormItem>
                                                 )}
                                             />
@@ -354,7 +354,8 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   }) || [];
 
   const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; }) => {
-    const isALevel = a.grades?.some(g => g.startsWith("A-Level"));
+    if (!a.grades) return acc;
+    const isALevel = a.grades.some(g => g.startsWith("A-Level"));
     const armCount = isALevel || !a.arms || a.arms.length === 0 ? 1 : a.arms.length;
     return acc + (a.periods * armCount * (a.grades?.length || 0));
   }, 0);
@@ -494,14 +495,14 @@ export default function TeacherEditor() {
 
                 const isALevel = a.grades.some(g => g.startsWith('A-Level'));
                 const isPrimary = schoolName.includes('primary');
-                const isNurseryOrKinder = a.grades.some(g => g.includes('Nursery') || g.includes('Kindergarten'));
+                const isKindergarten = a.grades.some(g => g.includes('Kindergarten'));
                 const isALevelSchool = schoolName.includes('a-level');
                 const isNurserySchool = schoolName.includes('nursery');
 
                 return {
                     ...a,
                     id: a.id || crypto.randomUUID(),
-                    arms: (isALevel || isPrimary || isNurseryOrKinder || isALevelSchool || isNurserySchool) ? [] : a.arms,
+                    arms: (isALevel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
                 }
             })
         }
@@ -513,7 +514,7 @@ export default function TeacherEditor() {
         }
     });
     
-    form.reset();
+    form.reset({ teachers: [getNewTeacherForm()] });
     setIsDialogOpen(false);
     setEditingTeacher(null);
   }
@@ -532,7 +533,7 @@ export default function TeacherEditor() {
         setIsDialogOpen(open);
         if (!open) {
           setEditingTeacher(null);
-          form.reset();
+          form.reset({ teachers: [] });
         }
       }}>
         <DialogTrigger asChild>
@@ -670,6 +671,8 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     
 

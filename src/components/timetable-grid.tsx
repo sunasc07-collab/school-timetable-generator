@@ -51,6 +51,8 @@ export default function TimetableGrid() {
   const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
+  const isSecondarySchool = activeTimetable?.name.toLowerCase().includes('secondary');
+
   const arms = useMemo(() => {
     if (!activeTimetable) return [];
     const armSet = new Set<string>();
@@ -121,7 +123,6 @@ export default function TimetableGrid() {
   const renderCellContent = (day: string, period: number, filterValue: string) => {
      const allSessionsInSlot = timetable[day]?.[period] || [];
      const periodsCount = timeSlots.filter(ts => !ts.isBreak).length;
-     const isSecondarySchool = activeTimetable?.name.toLowerCase().includes('secondary');
 
      if (day === 'Fr' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
          const isRelevantClass = viewMode === 'class' && classes.includes(filterValue);
@@ -221,8 +222,8 @@ export default function TimetableGrid() {
                         <div className="relative h-full flex items-center justify-center">
                             <span className="absolute inset-0 bg-background z-10"></span>
                              <span className={cn(
-                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180",
-                                slot.label?.toUpperCase() === 'ASSEMBLY' && "text-2xl font-bold tracking-widest"
+                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
+                                slot.label?.toUpperCase() === 'ASSEMBLY' && "text-2xl font-bold"
                              )}>
                                 {slot.label}
                             </span>
@@ -257,7 +258,7 @@ export default function TimetableGrid() {
                                         rowSpan={4}
                                     >
                                       <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                          <span className="font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 text-2xl tracking-widest">
+                                          <span className="font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 text-2xl tracking-[.2em]">
                                               {slot.label}
                                           </span>
                                       </div>
@@ -268,7 +269,7 @@ export default function TimetableGrid() {
                             rowCells.push(
                               <TableCell key={`break-${slotIndex}`} className="p-0">
                                 <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                  <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
+                                  <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]">
                                     {slot.label}
                                   </span>
                                 </div>

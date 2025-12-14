@@ -89,7 +89,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
-const ARM_OPTIONS = ["A", "B", "C", "D"];
+const ARM_OPTIONS = ["P", "D", "L", "M"];
 
 const getGradeOptionsForSchool = (schoolName: string) => {
     const lowerCaseSchoolName = schoolName.toLowerCase();
@@ -651,4 +651,5 @@ export default function TeacherEditor() {
   );
 }
 
+    
     

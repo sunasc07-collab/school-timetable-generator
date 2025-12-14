@@ -131,8 +131,8 @@ export default function TimetableGrid() {
 
          if (isRelevantClass || isRelevantArm) {
             return (
-                <div className="flex items-center justify-center h-20 w-full text-center font-medium text-muted-foreground">
-                    Sport
+                <div className="flex items-center justify-center h-20 w-full text-center font-bold text-lg text-muted-foreground uppercase">
+                    SPORT
                 </div>
             );
          }
@@ -379,5 +379,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

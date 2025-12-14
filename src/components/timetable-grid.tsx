@@ -220,7 +220,10 @@ export default function TimetableGrid() {
                     {slot.isBreak ? (
                         <div className="relative h-full flex items-center justify-center">
                             <span className="absolute inset-0 bg-background z-10"></span>
-                             <span className="relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180">
+                             <span className={cn(
+                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180",
+                                slot.label?.toUpperCase() === 'ASSEMBLY' && "text-2xl font-bold"
+                             )}>
                                 {slot.label}
                             </span>
                         </div>
@@ -243,15 +246,18 @@ export default function TimetableGrid() {
 
                     if (slot.isBreak) {
                         if (slot.label?.toUpperCase() === 'ASSEMBLY') {
-                            if (dayIndex === 0) { // Only render for the first day (Monday)
-                                rowCells.push(
+                            if (["Tu", "We", "Th"].includes(day)) {
+                                continue;
+                            }
+                            if (day === 'Mo') {
+                                 rowCells.push(
                                     <TableCell 
                                         key={`break-${slotIndex}`} 
                                         className="p-0" 
-                                        rowSpan={days.length}
+                                        rowSpan={4}
                                     >
                                       <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                          <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180">
+                                          <span className="font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 text-2xl">
                                               {slot.label}
                                           </span>
                                       </div>

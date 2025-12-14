@@ -207,7 +207,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                 }}
                                                             />
                                                         </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "AL ")}</FormLabel>
+                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level ", "")}</FormLabel>
                                                     </FormItem>
                                                 )}
                                             />
@@ -640,10 +640,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
-    
-
-    
 
     

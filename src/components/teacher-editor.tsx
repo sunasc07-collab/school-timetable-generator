@@ -46,19 +46,6 @@ const assignmentSchema = z.object({
   arms: z.array(z.string()),
   periods: z.number().min(1, "Periods must be > 0").default(1),
   schoolId: z.string().min(1, "A school is required."),
-}).refine(data => {
-    const isALevel = data.grades.some(g => g.startsWith("A-Level"));
-    const isPrimaryNursery = data.grades.some(g => ["Nursery", "Kindergarten"].includes(g));
-    const schoolId = data.schoolId;
-    // This logic is tricky inside zod. We'll rely on form logic to clear arms and assume this refine is for when arms are visible.
-    if (isALevel || isPrimaryNursery) {
-        return true; 
-    }
-    // A better check would involve context of all timetables, but for now we'll assume secondary schools require arms if not A-level
-    return data.arms.length > 0;
-}, {
-    message: "At least one arm is required for this grade.",
-    path: ["arms"],
 });
 
 const teacherSchema = z.object({
@@ -88,13 +75,9 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
-const JUNIOR_SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9"];
-const SENIOR_SECONDARY_GRADES = ["Grade 10", "Grade 11", "Grade 12"];
-const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
-const SECONDARY_GRADES = [...JUNIOR_SECONDARY_GRADES, ...SENIOR_SECONDARY_GRADES, ...A_LEVEL_GRADES];
+const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 
-const JUNIOR_SECONDARY_ARMS = ["A", "Primrose"];
-const SENIOR_SECONDARY_ARMS = ["P", "D", "L", "M"];
+const ARM_OPTIONS = ["P", "D", "L", "M"];
 
 
 const getGradeOptionsForSchool = (schoolName: string) => {
@@ -125,32 +108,17 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const selectedSchool = useMemo(() => timetables.find(t => t.id === schoolId), [schoolId, timetables]);
     const isSecondary = selectedSchool?.name.toLowerCase().includes('secondary');
     
-    const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => A_LEVEL_GRADES.includes(g)), [selectedGrades]);
+    const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
     const isPrimarySchool = selectedSchool?.name.toLowerCase().includes('primary');
     const isNurseryOrKindergarten = selectedGrades.some(g => ["Nursery", "Kindergarten"].includes(g));
 
     const hideArms = isALevelSelected || isPrimarySchool || isNurseryOrKindergarten;
     
-    const hasJuniorSecondary = selectedGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
-    const hasSeniorSecondary = selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
-    
-    const armOptions = useMemo(() => {
-        if (hasJuniorSecondary && !hasSeniorSecondary) return JUNIOR_SECONDARY_ARMS;
-        if (!hasJuniorSecondary && hasSeniorSecondary) return SENIOR_SECONDARY_ARMS;
-        return []; // Mixed or no secondary grades selected
-    }, [hasJuniorSecondary, hasSeniorSecondary]);
-
     useEffect(() => {
         if (hideArms) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-        } else if (isSecondary) {
-             const currentArms = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
-             const validArms = currentArms.filter((arm: string) => armOptions.includes(arm));
-             if (validArms.length !== currentArms.length) {
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, validArms);
-             }
         }
-    }, [hideArms, isSecondary, armOptions, setValue, getValues, teacherIndex, assignmentIndex]);
+    }, [hideArms, setValue, teacherIndex, assignmentIndex]);
 
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
@@ -169,8 +137,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
             }
         }
     };
-    
-    const showMixedGradeWarning = isSecondary && hasJuniorSecondary && hasSeniorSecondary;
 
 
     return (
@@ -275,8 +241,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         render={({ field }) => (
                         <FormItem className={cn(hideArms && "hidden")}>
                             {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
-                             <div className={cn("grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center", (showMixedGradeWarning || armOptions.length === 0) && "hidden")}>
-                                {armOptions.map((arm) => (
+                             <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                {ARM_OPTIONS.map((arm) => (
                                     <FormField
                                         key={arm}
                                         control={control}
@@ -300,7 +266,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                     />
                                 ))}
                             </div>
-                            {showMixedGradeWarning && <div className="text-xs text-muted-foreground p-2">Select either Junior (7-9) or Senior (10-12) grades to assign arms.</div>}
                             <FormMessage />
                         </FormItem>
                         )}
@@ -677,6 +642,8 @@ export default function TeacherEditor() {
 }
 
     
+    
+
     
 
     

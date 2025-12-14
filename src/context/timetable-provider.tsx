@@ -227,10 +227,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
 
             const isALevel = grades.some(g => g.startsWith('A-Level'));
-            const isNursery = grades.includes("Nursery");
 
             if (grades.length === 0 || !subject) return;
-            if (!isALevel && !isNursery && arms.length === 0) return;
+            if (!isALevel && !grades.some(g => g.startsWith('Nursery')) && arms.length === 0) {
+                 // allow non-armed grades like Kindergarten
+                const isNonArmedGrade = grades.some(g => !g.startsWith('Grade') || g === 'Kindergarten');
+                 if (!isNonArmedGrade && !grades.some(g => g.includes('Nursery'))) {
+                     return;
+                 }
+            }
+
 
             grades.forEach(grade => {
                 let individualClasses: string[];
@@ -239,16 +245,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (isALevel) {
                     individualClasses = [grade];
                     classGroupName = grade;
-                } else if (isNursery) {
-                    individualClasses = arms.map(arm => `${grade} ${arm}`);
-                    classGroupName = `${grade} ${arms.join(', ')}`;
-                } else {
+                } else if (arms.length > 0) {
                      individualClasses = arms.map(arm => `${grade} ${arm}`);
                      classGroupName = `${grade} ${arms.join(', ')}`;
-                }
-
-                if (individualClasses.length === 0) { // Non-armed grades like Kindergarten
-                    individualClasses.push(grade);
+                } else {
+                    individualClasses = [grade];
                     classGroupName = grade;
                 }
 

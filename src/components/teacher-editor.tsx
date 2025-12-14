@@ -73,11 +73,10 @@ const multiTeacherSchema = z.object({
 type TeacherFormValues = z.infer<typeof teacherSchema>;
 type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
-const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
-const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
-const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const ALL_GRADE_OPTIONS = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const PRIMARY_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
+const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
-const NURSERY_LEVELS = ["1", "2"];
 
 const ARM_OPTIONS = ["P", "D", "L", "M"];
 
@@ -118,18 +117,15 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const isALevelSchool = schoolName.includes('a-level');
     
     const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
-    const isNurseryOrKindergarten = selectedGrades.includes("Nursery") || selectedGrades.includes("Kindergarten");
-    const isNurserySelected = selectedGrades.includes("Nursery");
 
     const showArms = isSecondary && !isALevelSelected;
-    const showNurseryLevels = isNurserySelected;
     const hideGrades = isALevelSchool;
 
     useEffect(() => {
-        if (!showArms && !showNurseryLevels) {
+        if (!showArms) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [showArms, showNurseryLevels, setValue, teacherIndex, assignmentIndex]);
+    }, [showArms, setValue, teacherIndex, assignmentIndex]);
      
     useEffect(() => {
         if(hideGrades) {
@@ -219,7 +215,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                 </div>
-                 <div className={cn("grid grid-cols-1 gap-x-2", (hideGrades || isNurserySelected) && "hidden")}>
+                 <div className={cn("grid grid-cols-1 gap-x-2", hideGrades && "hidden")}>
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
@@ -277,44 +273,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                     />
                     </div>
                      <div className="grid grid-cols-1 gap-y-2">
-                        {showNurseryLevels && (
-                            <FormField
-                                control={control}
-                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                render={() => (
-                                    <FormItem>
-                                        {assignmentIndex === 0 && <FormLabel>Level</FormLabel>}
-                                        <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
-                                            {NURSERY_LEVELS.map((level) => (
-                                                <FormField
-                                                    key={level}
-                                                    control={control}
-                                                    name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                                    render={({ field: checkboxField }) => (
-                                                        <FormItem key={level} className="flex flex-row items-center space-x-2 space-y-0">
-                                                            <FormControl>
-                                                                <Checkbox
-                                                                    checked={checkboxField.value?.includes(level)}
-                                                                    onCheckedChange={(checked) => {
-                                                                        const currentValue = checkboxField.value || [];
-                                                                        const newValue = checked
-                                                                            ? [...currentValue, level]
-                                                                            : currentValue.filter(value => value !== level);
-                                                                        checkboxField.onChange(newValue);
-                                                                    }}
-                                                                />
-                                                            </FormControl>
-                                                            <FormLabel className="font-normal text-sm">{level}</FormLabel>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            ))}
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
                         {showArms && (
                             <FormField
                                 control={control}
@@ -534,14 +492,13 @@ export default function TeacherEditor() {
 
                 const isALevel = a.grades.some(g => g.startsWith('A-Level'));
                 const isPrimary = schoolName.includes('primary');
-                const isNurseryOrKinder = a.grades.some(g => ['Nursery', 'Kindergarten'].includes(g));
+                const isNurseryOrKinder = a.grades.some(g => g.includes('Nursery') || g.includes('Kindergarten'));
                 const isALevelSchool = schoolName.includes('a-level');
-                const isNursery = a.grades.includes('Nursery');
 
                 return {
                     ...a,
                     id: a.id || crypto.randomUUID(),
-                    arms: (isALevel || isPrimary || (isNurseryOrKinder && !isNursery) || isALevelSchool) ? [] : a.arms,
+                    arms: (isALevel || isPrimary || isNurseryOrKinder || isALevelSchool) ? [] : a.arms,
                 }
             })
         }

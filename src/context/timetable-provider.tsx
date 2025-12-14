@@ -210,11 +210,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id) return;
             const { grades, subject, arms, periods } = assignment;
-            if (grades.length === 0 || !subject || arms.length === 0) return;
+            const isALevel = grades.some(g => g.startsWith('A-Level'));
+            if (grades.length === 0 || !subject || (!isALevel && arms.length === 0)) return;
 
             grades.forEach(grade => {
-                const individualClasses = arms.map(arm => `${grade} ${arm}`);
-                const className = `${grade} ${arms.join(', ')}`;
+                const individualClasses = isALevel ? [grade] : arms.map(arm => `${grade} ${arm}`);
+                const className = isALevel ? grade : `${grade} ${arms.join(', ')}`;
                 
                 for (let i = 0; i < periods; i++) {
                     allRequiredSessions.push({
@@ -643,5 +644,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

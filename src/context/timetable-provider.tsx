@@ -198,6 +198,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
+
     const schoolName = activeTimetable.name.toLowerCase();
     const isALevelSchool = schoolName.includes('a-level');
     const isNurserySchool = schoolName.includes('nursery');
@@ -242,11 +243,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const isALevel = grades.some(g => g.startsWith('A-Level'));
 
             if (grades.length === 0 || !subject) return;
-            if (!isALevel && !grades.some(g => g.startsWith('Nursery')) && arms.length === 0) {
-                const isNonArmedGrade = grades.some(g => !g.startsWith('Grade') || g === 'Kindergarten');
-                 if (!isNonArmedGrade && !grades.some(g => g.includes('Nursery'))) {
-                     return;
-                 }
+            if (!isALevel && arms.length === 0 && !grades.some(g => g.includes('Nursery') || g.includes('Kindergarten'))) {
+                return;
             }
 
 
@@ -284,7 +282,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const sortedClasses = Array.from(classSet).sort();
     
     const sessionCounts: { [key: string]: number } = {};
-    allRequiredSessions.forEach(req => {
+    const nonSportsSessions = allRequiredSessions.filter(req => req.subject.toLowerCase() !== 'sports');
+    nonSportsSessions.forEach(req => {
         const key = `${req.subject}__${req.teacher}__${req.className}__${req.classes.sort().join(',')}`;
         if (!sessionCounts[key]) {
             sessionCounts[key] = 0;
@@ -315,8 +314,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     DEFAULT_DAYS.forEach(day => { newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
 
     const CONSECUTIVE_PERIODS = getConsecutivePeriods();
+    const lastTwoPeriods = [PERIOD_COUNT - 2, PERIOD_COUNT - 1];
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
+        if (day === 'Fr' && lastTwoPeriods.includes(period)) {
+            // Prevent any non-sports session from being placed in the last two slots on Friday.
+            return session.subject.toLowerCase() === 'sports';
+        }
+
         const slot = board[day]?.[period];
         if (!slot) return false; 
         
@@ -402,7 +407,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (allowConflict) {
                  for (const day of DEFAULT_DAYS) {
                     for (let period = 0; period < PERIOD_COUNT; period++) {
-                       if (board[day][period].length < 3) return {day, period};
+                       if (board[day][period].length < 3 && !(day === 'Fr' && lastTwoPeriods.includes(period))) return {day, period};
                     }
                 }
             }
@@ -420,7 +425,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
              if (allowConflict) {
                  for (const day of DEFAULT_DAYS) {
                     for (const [p1, p2] of CONSECUTIVE_PERIODS) {
-                       if (board[day][p1].length < 3 && board[day][p2].length < 3) return {day, p1, p2};
+                       if (board[day][p1].length < 3 && board[day][p2].length < 3 && !(day === 'Fr' && (lastTwoPeriods.includes(p1) || lastTwoPeriods.includes(p2)))) return {day, p1, p2};
                     }
                 }
             }
@@ -448,6 +453,31 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         });
+    }
+
+    if (finalTimetable) {
+      sortedClasses.forEach(className => {
+          const sportsSession1: TimetableSession = {
+              id: `${crypto.randomUUID()}-sports-${className}`,
+              subject: 'Sports',
+              teacher: 'Sports Coach',
+              className: className,
+              classes: [className],
+              isDouble: true,
+              part: 1,
+          };
+          const sportsSession2: TimetableSession = {
+              id: sportsSession1.id,
+              subject: 'Sports',
+              teacher: 'Sports Coach',
+              className: className,
+              classes: [className],
+              isDouble: true,
+              part: 2,
+          };
+          finalTimetable!['Fr'][PERIOD_COUNT - 2].push(sportsSession1);
+          finalTimetable!['Fr'][PERIOD_COUNT - 1].push(sportsSession2);
+      });
     }
 
     updateTimetable(activeTimetable.id, { 
@@ -520,8 +550,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     uniqueUnplaced.sort((a,b) => (b.isDouble ? 1:0) - (a.isDouble ? 1:0));
 
     const CONSECUTIVE_PERIODS = getConsecutivePeriods();
+    const lastTwoPeriods = [PERIOD_COUNT - 2, PERIOD_COUNT - 1];
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
+        if (day === 'Fr' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') return false;
+
         const slot = board[day]?.[period];
         if (!slot) return false;
         if (slot.some(s => s.teacher === session.teacher)) return false;
@@ -533,7 +566,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const placedIds = new Set<string>();
 
     uniqueUnplaced.forEach(session => {
-        if (placedIds.has(session.id)) return;
+        if (placedIds.has(session.id) || session.subject.toLowerCase() === 'sports') return;
 
         if (session.isDouble) {
             const partner = uniqueUnplaced.find(s => s.id === session.id && s.part !== session.part);
@@ -692,5 +725,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

@@ -43,17 +43,21 @@ const assignmentSchema = z.object({
   id: z.string().optional(),
   grades: z.array(z.string()).min(1, "At least one grade is required."),
   subject: z.string().min(1, "A subject is required."),
-  arms: z.array(z.string()).min(1, "At least one arm is required."),
+  arms: z.array(z.string()),
   periods: z.number().min(1, "Periods must be > 0").default(1),
   schoolId: z.string().min(1, "A school is required."),
 }).refine(data => {
     const isALevel = data.grades.some(g => g.startsWith("A-Level"));
-    if (isALevel) {
-        return true; // Skip arm validation for A-Levels
+    const isPrimaryNursery = data.grades.some(g => ["Nursery", "Kindergarten"].includes(g));
+    const schoolId = data.schoolId;
+    // This logic is tricky inside zod. We'll rely on form logic to clear arms and assume this refine is for when arms are visible.
+    if (isALevel || isPrimaryNursery) {
+        return true; 
     }
+    // A better check would involve context of all timetables, but for now we'll assume secondary schools require arms if not A-level
     return data.arms.length > 0;
 }, {
-    message: "At least one arm is required.",
+    message: "At least one arm is required for this grade.",
     path: ["arms"],
 });
 
@@ -65,7 +69,7 @@ const teacherSchema = z.object({
 }).refine(data => {
     const totalAssignedPeriods = data.assignments.reduce((sum, a) => {
         const isALevel = a.grades.some(g => g.startsWith("A-Level"));
-        const armCount = isALevel ? 1 : a.arms.length;
+        const armCount = isALevel || a.arms.length === 0 ? 1 : a.arms.length;
         return sum + (a.periods * armCount * a.grades.length);
     }, 0);
     return totalAssignedPeriods <= data.maxPeriods;
@@ -110,24 +114,28 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const selectedGrades = useWatch({
       control,
       name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`,
-    });
-
-    const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
-
-    useEffect(() => {
-        if (isALevelSelected) {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-        }
-    }, [isALevelSelected, setValue, teacherIndex, assignmentIndex]);
+    }) || [];
 
     const selectedSchool = useMemo(() => timetables.find(t => t.id === schoolId), [schoolId, timetables]);
+    const isSecondary = selectedSchool?.name.toLowerCase().includes('secondary');
+    
+    const isALevelSelected = useMemo(() => Array.isArray(selectedGrades) && selectedGrades.some(g => g.startsWith('A-Level')), [selectedGrades]);
+    const isPrimarySchool = selectedSchool?.name.toLowerCase().includes('primary');
+    const isNurseryOrKindergarten = selectedGrades.some(g => ["Nursery", "Kindergarten"].includes(g));
+
+    const hideArms = isALevelSelected || isPrimarySchool || isNurseryOrKindergarten;
+
+    useEffect(() => {
+        if (hideArms) {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+        }
+    }, [hideArms, setValue, teacherIndex, assignmentIndex]);
+
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
         return getGradeOptionsForSchool(selectedSchool.name);
     }, [selectedSchool]);
 
-    const isSecondary = selectedSchool?.name.toLowerCase().includes('secondary');
-    
     const handleSchoolChange = (newSchoolId: string) => {
         const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
         const newSelectedSchool = timetables.find(t => t.id === newSchoolId);
@@ -241,7 +249,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                         render={({ field }) => (
-                        <FormItem className={cn(isALevelSelected && "hidden")}>
+                        <FormItem className={cn(hideArms && "hidden")}>
                             {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
                              <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
                                 {ARM_OPTIONS.map((arm) => (
@@ -318,7 +326,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   const maxPeriods = teacherData.maxPeriods || 0;
   const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; }) => {
     const isALevel = a.grades?.some(g => g.startsWith("A-Level"));
-    const armCount = isALevel ? 1 : (a.arms?.length || 0);
+    const armCount = isALevel || !a.arms || a.arms.length === 0 ? 1 : a.arms.length;
     return acc + (a.periods * armCount * (a.grades?.length || 0));
   }, 0);
   const unassignedPeriods = maxPeriods - totalAssignedPeriods;
@@ -470,10 +478,14 @@ export default function TeacherEditor() {
             id: teacherData.id || crypto.randomUUID(),
             assignments: teacherData.assignments.map(a => {
                 const isALevel = a.grades.some(g => g.startsWith('A-Level'));
+                const selectedSchool = timetables.find(t => t.id === a.schoolId);
+                const isPrimary = selectedSchool?.name.toLowerCase().includes('primary');
+                const isNurseryKinder = a.grades.some(g => ['Nursery', 'Kindergarten'].includes(g));
+
                 return {
                     ...a,
                     id: a.id || crypto.randomUUID(),
-                    arms: isALevel ? [] : a.arms,
+                    arms: (isALevel || isPrimary || isNurseryKinder) ? [] : a.arms,
                 }
             })
         }
@@ -570,7 +582,7 @@ export default function TeacherEditor() {
                            <span className="font-medium">{teacher.name}</span>
                            <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.filter(a => a.schoolId === activeTimetable.id).reduce((acc, a) => {
                                 const isALevel = a.grades.some(g => g.startsWith("A-Level"));
-                                const armCount = isALevel ? 1 : a.arms.length;
+                                const armCount = isALevel || a.arms.length === 0 ? 1 : a.arms.length;
                                 return acc + (a.periods * armCount * a.grades.length);
                            }, 0)} / {teacher.maxPeriods} periods</span>
                         </div>
@@ -638,3 +650,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

@@ -75,7 +75,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
-const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
+const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
 const NURSERY_LEVELS = ["1", "2"];
 
@@ -88,7 +88,7 @@ const getGradeOptionsForSchool = (schoolName: string) => {
         return PRIMARY_GRADES;
     }
     if (lowerCaseSchoolName.includes('secondary')) {
-        return SECONDARY_GRADES;
+        return [...SECONDARY_GRADES, ...A_LEVEL_GRADES];
     }
      if (lowerCaseSchoolName.includes('a-level')) {
         return [];
@@ -218,7 +218,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                 </div>
-                 <div className={cn("grid grid-cols-[1fr_2fr_1fr] gap-x-2", hideGrades && "hidden")}>
+                 <div className={cn("grid grid-cols-[1fr_2fr] gap-x-2", hideGrades && "hidden")}>
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
@@ -227,7 +227,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                 {assignmentIndex === 0 && <FormLabel>Grade(s)</FormLabel>}
                                 {isSecondary ? (
                                     <div className="grid grid-cols-3 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                        {gradeOptions.map(grade => (
+                                        {[...SECONDARY_GRADES, ...A_LEVEL_GRADES].map(grade => (
                                             <FormField
                                                 key={grade}
                                                 control={control}
@@ -239,9 +239,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                 checked={checkboxField.value?.includes(grade)}
                                                                 onCheckedChange={(checked) => {
                                                                     const currentValue = checkboxField.value || [];
-                                                                    return checked
-                                                                        ? checkboxField.onChange([...currentValue, grade])
-                                                                        : checkboxField.onChange(currentValue.filter(value => value !== grade));
+                                                                    const newValue = checked
+                                                                        ? [...currentValue, grade]
+                                                                        : currentValue.filter(value => value !== grade);
+                                                                    checkboxField.onChange(newValue);
                                                                 }}
                                                             />
                                                         </FormControl>
@@ -273,77 +274,78 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             </FormItem>
                         )}
                     />
-                     <FormField
-                        control={control}
-                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                        render={({ field }) => (
-                        <FormItem className={cn(hideArms && "hidden", !isNurserySelected && "hidden")}>
-                            {assignmentIndex === 0 && <FormLabel>Level</FormLabel>}
-                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
-                                {NURSERY_LEVELS.map((level) => (
-                                    <FormField
-                                        key={level}
-                                        control={control}
-                                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                        render={({ field: checkboxField }) => (
-                                            <FormItem key={level} className="flex flex-row items-center space-x-2 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={checkboxField.value?.includes(level)}
-                                                        onCheckedChange={(checked) => {
-                                                            const currentValue = checkboxField.value || [];
-                                                            return checked
-                                                                ? checkboxField.onChange([...currentValue, level])
-                                                                : checkboxField.onChange(currentValue.filter(value => value !== level));
-                                                        }}
-                                                    />
-                                                </FormControl>
-                                                <FormLabel className="font-normal text-sm"> {level} </FormLabel>
-                                            </FormItem>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={control}
-                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                        render={({ field }) => (
-                        <FormItem className={cn(hideArms && "hidden", isNurserySelected && "hidden")}>
-                            {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
-                             <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
-                                {ARM_OPTIONS.map((arm) => (
-                                    <FormField
-                                        key={arm}
-                                        control={control}
-                                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                        render={({ field: checkboxField }) => (
-                                            <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={checkboxField.value?.includes(arm)}
-                                                        onCheckedChange={(checked) => {
-                                                            const currentValue = checkboxField.value || [];
-                                                            return checked
-                                                                ? checkboxField.onChange([...currentValue, arm])
-                                                                : checkboxField.onChange(currentValue.filter(value => value !== arm));
-                                                        }}
-                                                    />
-                                                </FormControl>
-                                                <FormLabel className="font-normal text-sm"> {arm} </FormLabel>
-                                            </FormItem>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    
+                     <div className={cn(hideArms && "hidden")}>
+                        <FormField
+                            control={control}
+                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                            render={({ field }) => (
+                            <FormItem className={cn(!isNurserySelected && "hidden")}>
+                                {assignmentIndex === 0 && <FormLabel>Level</FormLabel>}
+                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                    {NURSERY_LEVELS.map((level) => (
+                                        <FormField
+                                            key={level}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                            render={({ field: checkboxField }) => (
+                                                <FormItem key={level} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkboxField.value?.includes(level)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = checkboxField.value || [];
+                                                                return checked
+                                                                    ? checkboxField.onChange([...currentValue, level])
+                                                                    : checkboxField.onChange(currentValue.filter(value => value !== level));
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm"> {level} </FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={control}
+                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                            render={({ field }) => (
+                            <FormItem className={cn(isNurserySelected && "hidden")}>
+                                {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
+                                 <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                    {ARM_OPTIONS.map((arm) => (
+                                        <FormField
+                                            key={arm}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                            render={({ field: checkboxField }) => (
+                                                <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkboxField.value?.includes(arm)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = checkboxField.value || [];
+                                                                return checked
+                                                                    ? checkboxField.onChange([...currentValue, arm])
+                                                                    : checkboxField.onChange(currentValue.filter(value => value !== arm));
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm"> {arm} </FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

@@ -31,7 +31,6 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-    { period: null, time: "7:40-8:00", isBreak: true, label: "Assembly" },
     { period: 1, time: "8:00-8:40" },
     { period: 2, time: "8:40-9:20" },
     { period: 3, time: "9:20-10:00" },
@@ -109,10 +108,10 @@ const createNewTimetable = (name: string, id?: string): Timetable => ({
 })
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v6", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v6", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v6", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v6', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v7", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v7", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v7", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v7', 'class');
   
   useEffect(() => {
     if (timetables.length === 0) {
@@ -725,3 +724,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

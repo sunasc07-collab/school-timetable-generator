@@ -59,12 +59,17 @@ export default function TimetableGrid() {
     
     activeTimetable.teachers.forEach(teacher => {
       teacher.assignments.forEach(assignment => {
+        if (assignment.schoolId !== activeTimetable.id) return;
+        
         assignment.grades.forEach(grade => {
-          if (grade && assignment.arms.length > 0) {
-            assignment.arms.forEach(arm => {
-              armSet.add(`${grade} ${arm}`);
-            });
-          }
+            if (assignment.arms?.length > 0) {
+                assignment.arms.forEach(arm => {
+                    const fullClassName = `${grade} ${arm}`;
+                    armSet.add(fullClassName);
+                });
+            } else {
+                 armSet.add(grade);
+            }
         });
       });
     });
@@ -178,7 +183,8 @@ export default function TimetableGrid() {
     );
   }
   
-  if (teachers.length === 0) {
+  const currentTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
+  if (currentTeachers.length === 0) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
         <div>
@@ -226,7 +232,7 @@ export default function TimetableGrid() {
                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
                                 slot.label === "Short Break" && "text-2xl"
                             )}>
-                               {slot.label}
+                               {/* Empty to prevent text in header */}
                            </span>
                        </div>
                     ) : (
@@ -265,8 +271,8 @@ export default function TimetableGrid() {
                             <TableCell key={`break-${slotIndex}`} className="p-0">
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
-                                     "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
-                                     slot.label === "Short Break" && "text-2xl"
+                                     "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em] text-3xl",
+                                     slot.label === "Short Break" && "text-3xl"
                                  )}>
                                  {day === 'Wed' ? slot.label : ''}
                                  </span>

@@ -86,7 +86,7 @@ const getGradeOptionsForSchool = (schoolName: string) => {
 };
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
-    const { timetables } = useTimetable();
+    const { timetables, activeTimetable } = useTimetable();
     const { setValue, getValues } = useFormContext();
     
     const schoolId = useWatch({
@@ -126,6 +126,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }
     
     const hideGradesAndArms = isALevelSchool || isNurserySchool;
+    
+    useEffect(() => {
+        if (!getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`) && activeTimetable) {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, activeTimetable.id);
+        }
+    }, [activeTimetable, teacherIndex, assignmentIndex, setValue, getValues]);
+
 
     useEffect(() => {
         if (!showArms) {
@@ -353,17 +360,15 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     name: `teachers.${index}.assignments`,
   }) || [];
 
-  const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; }) => {
-    if (!a.grades || a.grades.length === 0) return acc;
+  const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; schoolId: string; }) => {
+    if (!a.grades || a.grades.length === 0 || a.schoolId !== activeTimetable?.id) return acc;
 
     const grades = a.grades || [];
     const arms = a.arms || [];
     const periods = a.periods || 0;
     
-    const isALevel = grades.some(g => g.startsWith("A-Level"));
-    
-    // For primary/kindergarten/nursery or A-Level, each grade is its own class.
-    if (arms.length === 0 || isALevel) {
+    // For primary/kindergarten/nursery, each grade is its own class.
+    if (arms.length === 0) {
         return acc + (periods * grades.length);
     }
     
@@ -472,7 +477,6 @@ export default function TeacherEditor() {
   });
 
   const handleOpenDialog = (teacher: Teacher | null) => {
-    if (!activeTimetable) return;
     setEditingTeacher(teacher);
     if (teacher) {
         replace([{
@@ -485,7 +489,7 @@ export default function TeacherEditor() {
                 arms: a.arms,
                 periods: a.periods,
                 schoolId: a.schoolId,
-            })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable.id }],
+            })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
         }]);
     } else {
         replace([getNewTeacherForm()]);
@@ -612,11 +616,10 @@ export default function TeacherEditor() {
                                 const grades = a.grades || [];
                                 const arms = a.arms || [];
                                 const periods = a.periods || 0;
-                                const isALevel = grades.some(g => g.startsWith("A-Level"));
-                                if (arms.length === 0 || isALevel) {
-                                    return acc + (periods * grades.length);
+                                if (arms.length > 0) {
+                                    return acc + (periods * grades.length * arms.length);
                                 }
-                                return acc + (periods * grades.length * arms.length);
+                                return acc + (periods * grades.length);
                            }, 0)} periods assigned</span>
                         </div>
                     </AccordionTrigger>

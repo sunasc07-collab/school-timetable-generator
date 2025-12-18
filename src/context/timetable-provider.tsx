@@ -198,117 +198,80 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
 
-    const schoolName = activeTimetable.name.toLowerCase();
-    const isALevelSchool = schoolName.includes('a-level');
-    const isNurserySchool = schoolName.includes('nursery');
-
     const allRequiredSessions: {
-      subject: string;
-      teacher: string;
-      className: string;
-      classes: string[];
+        subject: string;
+        teacher: string;
+        className: string;
+        classes: string[];
     }[] = [];
-    
+
     activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id) return;
             const { grades, subject, arms, periods } = assignment;
-            
-            if (isALevelSchool) {
-                 for (let i = 0; i < periods; i++) {
-                    allRequiredSessions.push({
-                        subject,
-                        teacher: teacher.name,
-                        className: "A-Level",
-                        classes: ["A-Level"],
-                    });
-                }
-                return;
-            }
-
-            if (isNurserySchool) {
-                 for (let i = 0; i < periods; i++) {
-                    allRequiredSessions.push({
-                        subject,
-                        teacher: teacher.name,
-                        className: activeTimetable.name,
-                        classes: [activeTimetable.name],
-                    });
-                }
-                return;
-            }
-
-
-            const isALevel = grades.some(g => g.startsWith('A-Level'));
 
             if (grades.length === 0 || !subject) return;
-            if (!isALevel && arms.length === 0 && !grades.some(g => g.includes('Nursery') || g.includes('Kindergarten'))) {
-                return;
-            }
 
+            const isALevel = grades.some(g => g.startsWith('A-Level'));
+            const isPrimaryEtc = !isALevel && arms.length === 0;
 
             grades.forEach(grade => {
                 let individualClasses: string[];
-                let classGroupName: string;
-
-                if (isALevel) {
+                if (isPrimaryEtc) {
                     individualClasses = [grade];
-                    classGroupName = grade;
-                } else if (arms.length > 0) {
-                     individualClasses = arms.map(arm => `${grade} ${arm}`);
-                     classGroupName = `${grade} ${arms.join(', ')}`;
-                } else {
-                    individualClasses = [grade];
-                    classGroupName = grade;
+                } else if (isALevel) {
+                     individualClasses = [grade];
+                } else { // Secondary with arms
+                    individualClasses = arms.map(arm => `${grade} ${arm}`);
                 }
 
-                for (let i = 0; i < periods; i++) {
-                    allRequiredSessions.push({
-                        subject: subject,
-                        teacher: teacher.name,
-                        className: classGroupName,
-                        classes: individualClasses,
-                    });
-                }
+                individualClasses.forEach(className => {
+                    for (let i = 0; i < periods; i++) {
+                        allRequiredSessions.push({
+                            subject: subject,
+                            teacher: teacher.name,
+                            className: className, // This is now the specific class, e.g., "Grade 7 A"
+                            classes: [className], // The session belongs to this single specific class
+                        });
+                    }
+                });
             });
         });
     });
-    
+
     const classSet = new Set<string>();
     allRequiredSessions.forEach(req => {
         req.classes.forEach(c => classSet.add(c));
     });
     const sortedClasses = Array.from(classSet).sort();
-    
+
     const sessionCounts: { [key: string]: number } = {};
-    const nonSportsSessions = allRequiredSessions.filter(req => req.subject.toLowerCase() !== 'sports');
-    nonSportsSessions.forEach(req => {
-        const key = `${req.subject}__${req.teacher}__${req.className}__${req.classes.sort().join(',')}`;
+    allRequiredSessions.forEach(req => {
+        const key = `${req.subject}__${req.teacher}__${req.className}`;
         if (!sessionCounts[key]) {
             sessionCounts[key] = 0;
         }
         sessionCounts[key]++;
     });
-    
+
     const sessionsToPlace: TimetableSession[] = [];
     Object.entries(sessionCounts).forEach(([key, countValue]) => {
-        const [subject, teacher, className, classesStr] = key.split('__');
-        const classes = classesStr.split(',');
+        const [subject, teacher, className] = key.split('__');
         let count = countValue;
 
         while (count >= 2) {
             const doubleId = crypto.randomUUID();
-            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes, isDouble: true, part: 1 });
-            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes, isDouble: true, part: 2 });
+            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes: [className], isDouble: true, part: 1 });
+            sessionsToPlace.push({ id: doubleId, subject, teacher, className, classes: [className], isDouble: true, part: 2 });
             count -= 2;
         }
         if (count > 0) {
-            sessionsToPlace.push({ id: crypto.randomUUID(), subject, teacher, className, classes, isDouble: false });
+            sessionsToPlace.push({ id: crypto.randomUUID(), subject, teacher, className, classes: [className], isDouble: false });
         }
     });
 
     sessionsToPlace.sort((a, b) => (b.isDouble ? 1 : 0) - (a.isDouble ? 1 : 0));
-    
+
     const newTimetable: TimetableData = {};
     DEFAULT_DAYS.forEach(day => { newTimetable[day] = Array.from({ length: PERIOD_COUNT }, () => []); });
 
@@ -316,29 +279,25 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const lastTwoPeriods = [PERIOD_COUNT - 2, PERIOD_COUNT - 1];
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
-        if (day === 'Fri' && lastTwoPeriods.includes(period)) {
-            // Prevent any non-sports session from being placed in the last two slots on Friday.
-            return session.subject.toLowerCase() === 'sports';
+        if (day === 'Fri' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') {
+            return false;
         }
 
         const slot = board[day]?.[period];
-        if (!slot) return false; 
-        
-        if (slot.some(s => s.teacher === session.teacher)) return false; 
-        
-        if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
-        
-        const daySessions = board[day].flat();
-        const subjectPeriodsOnDayForClass = (c: string) => daySessions.filter(s => s.classes.includes(c) && s.subject === session.subject).length;
-        
-        for (const c of session.classes) {
-          const periodsToday = subjectPeriodsOnDayForClass(c);
-          if (periodsToday >= 2 && !session.isDouble) return false;
-          if (session.isDouble && periodsToday > 0) return false;
-        }
+        if (!slot) return false;
+
+        if (slot.some(s => s.teacher === session.teacher)) return false;
+        if (slot.some(s => s.className === session.className)) return false;
+
+        const daySessionsForClass = board[day].flat().filter(s => s.className === session.className);
+        const subjectPeriodsOnDay = daySessionsForClass.filter(s => s.subject === session.subject).length;
+
+        if (session.isDouble && subjectPeriodsOnDay > 0) return false;
+        if (!session.isDouble && subjectPeriodsOnDay >= 2) return false;
 
         return true;
     }
+
 
     function solve(board: TimetableData, sessions: TimetableSession[]): TimetableData | null {
         if (sessions.length === 0) {
@@ -351,11 +310,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         if (session.isDouble) {
             const partner = remainingSessions.find(s => s.id === session.id);
-            if (!partner) return solve(board, remainingSessions);
+            if (!partner) return solve(board, remainingSessions); // Partner was already placed somehow? Skip.
 
             const otherSessions = remainingSessions.filter(s => s.id !== session.id);
             const shuffledConsecutive = CONSECUTIVE_PERIODS.slice().sort(() => Math.random() - 0.5);
-            
+
             for (const day of shuffledDays) {
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
@@ -364,19 +323,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                         const result = solve(board, otherSessions);
                         if (result) return result;
-                        
+
                         board[day][p1] = board[day][p1].filter(s => !(s.id === session.id && s.part === session.part));
                         board[day][p2] = board[day][p2].filter(s => !(s.id === partner.id && s.part === partner.part));
                     }
                 }
             }
         } else { // Single session
-            const shuffledPeriods = Array.from({length: PERIOD_COUNT}, (_, i) => i).sort(() => Math.random() - 0.5);
+            const shuffledPeriods = Array.from({ length: PERIOD_COUNT }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
                         board[day][period].push(session);
-                        
+
                         const result = solve(board, remainingSessions);
                         if (result) return result;
 
@@ -389,93 +348,96 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return null;
     }
     
-    let finalTimetable = solve(newTimetable, sessionsToPlace);
-    
+    let finalTimetable = solve(JSON.parse(JSON.stringify(newTimetable)), sessionsToPlace);
+
     if (!finalTimetable) {
+        console.warn("Could not generate a conflict-free timetable. Placing remaining sessions with potential conflicts.");
         finalTimetable = newTimetable;
         const placedIds = new Set<string>();
-        
-        const findFirstAvailableSlot = (session: TimetableSession, board: TimetableData, allowConflict=false): {day:string, period:number}|null => {
-             for (const day of DEFAULT_DAYS) {
-                for (let period = 0; period < PERIOD_COUNT; period++) {
-                    if (isValidPlacement(board, session, day, period)) {
-                        return {day, period};
-                    }
-                }
-            }
-            if (allowConflict) {
-                 for (const day of DEFAULT_DAYS) {
-                    for (let period = 0; period < PERIOD_COUNT; period++) {
-                       if (board[day][period].length < 3 && !(day === 'Fri' && lastTwoPeriods.includes(period))) return {day, period};
-                    }
-                }
-            }
-            return null;
-        }
 
-         const findFirstAvailableDoubleSlot = (s1: TimetableSession, s2: TimetableSession, board: TimetableData, allowConflict=false): {day:string, p1:number, p2:number}|null => {
-             for (const day of DEFAULT_DAYS) {
-                for (const [p1, p2] of CONSECUTIVE_PERIODS) {
-                     if (isValidPlacement(board, s1, day, p1) && isValidPlacement(board, s2, day, p2)) {
-                        return {day, p1, p2};
-                    }
+        const placeSessionWithConflicts = (session: TimetableSession, board: TimetableData) => {
+            for (const day of DEFAULT_DAYS) {
+                for (let period = 0; period < PERIOD_COUNT; period++) {
+                    if (day === 'Fri' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') continue;
+                    board[day][period].push(session);
+                    return;
                 }
             }
-             if (allowConflict) {
-                 for (const day of DEFAULT_DAYS) {
-                    for (const [p1, p2] of CONSECUTIVE_PERIODS) {
-                       if (board[day][p1].length < 3 && board[day][p2].length < 3 && !(day === 'Fri' && (lastTwoPeriods.includes(p1) || lastTwoPeriods.includes(p2)))) return {day, p1, p2};
-                    }
-                }
-            }
-            return null;
-        }
-        
+        };
+
         sessionsToPlace.forEach(session => {
             if (placedIds.has(session.id)) return;
 
             if (session.isDouble) {
                 const partner = sessionsToPlace.find(s => s.id === session.id && s.part !== session.part);
-                if(!partner) return;
+                if (!partner) return;
                 
-                const slot = findFirstAvailableDoubleSlot(session, partner, finalTimetable!, true);
-                if (slot) {
-                    finalTimetable![slot.day][slot.p1].push(session);
-                    finalTimetable![slot.day][slot.p2].push(partner);
+                let placed = false;
+                for (const day of DEFAULT_DAYS) {
+                    for (const [p1, p2] of CONSECUTIVE_PERIODS) {
+                        if (isValidPlacement(finalTimetable, session, day, p1) && isValidPlacement(finalTimetable, partner, day, p2)) {
+                            finalTimetable[day][p1].push(session);
+                            finalTimetable[day][p2].push(partner);
+                            placedIds.add(session.id);
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (placed) break;
+                }
+                if (!placed) { // Force placement
+                    placeSessionWithConflicts(session, finalTimetable);
+                    placeSessionWithConflicts(partner, finalTimetable);
                     placedIds.add(session.id);
                 }
             } else {
-                const slot = findFirstAvailableSlot(session, finalTimetable!, true);
-                if (slot) {
-                    finalTimetable![slot.day][slot.period].push(session);
+                 let placed = false;
+                for (const day of DEFAULT_DAYS) {
+                    for (let period = 0; period < PERIOD_COUNT; period++) {
+                         if (isValidPlacement(finalTimetable, session, day, period)) {
+                            finalTimetable[day][period].push(session);
+                            placedIds.add(session.id);
+                            placed = true;
+                            break;
+                        }
+                    }
+                     if (placed) break;
+                }
+                 if (!placed) { // Force placement
+                    placeSessionWithConflicts(session, finalTimetable);
                     placedIds.add(session.id);
                 }
             }
         });
     }
 
-    if (finalTimetable) {
+    const schoolName = activeTimetable.name.toLowerCase();
+    const isSecondary = schoolName.includes('secondary');
+
+    if (finalTimetable && isSecondary) {
       sortedClasses.forEach(className => {
-          const sportsSession1: TimetableSession = {
-              id: `${crypto.randomUUID()}-sports-${className}`,
-              subject: 'Sports',
-              teacher: 'Sports Coach',
-              className: className,
-              classes: [className],
-              isDouble: true,
-              part: 1,
-          };
-          const sportsSession2: TimetableSession = {
-              id: sportsSession1.id,
-              subject: 'Sports',
-              teacher: 'Sports Coach',
-              className: className,
-              classes: [className],
-              isDouble: true,
-              part: 2,
-          };
-          finalTimetable!['Fri'][PERIOD_COUNT - 2].push(sportsSession1);
-          finalTimetable!['Fri'][PERIOD_COUNT - 1].push(sportsSession2);
+          if (!className.toLowerCase().includes('a-level')) {
+              const sportsSession1: TimetableSession = {
+                  id: `${crypto.randomUUID()}-sports-${className}`,
+                  subject: 'Sports',
+                  teacher: 'Sports Coach',
+                  className: className,
+                  classes: [className],
+                  isDouble: true,
+                  part: 1,
+              };
+              const sportsSession2: TimetableSession = {
+                  id: sportsSession1.id,
+                  subject: 'Sports',
+                  teacher: 'Sports Coach',
+                  className: className,
+                  classes: [className],
+                  isDouble: true,
+                  part: 2,
+              };
+              finalTimetable['Fri'][PERIOD_COUNT - 2].push(sportsSession1);
+              finalTimetable['Fri'][PERIOD_COUNT - 1].push(sportsSession2);
+          }
       });
     }
 
@@ -485,7 +447,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIME_SLOTS
     });
-  }, [allTeachers, activeTimetable?.id, activeTimetable?.name, activeTimetable?.teachers]);
+}, [allTeachers, activeTimetable?.id, activeTimetable?.name, activeTimetable?.teachers, timetables]);
 
 
   const clearTimetable = () => {
@@ -557,7 +519,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
         if (slot.some(s => s.teacher === session.teacher)) return false;
-        if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
+        if (slot.some(s => s.className === session.className)) return false;
         
         return true;
     }

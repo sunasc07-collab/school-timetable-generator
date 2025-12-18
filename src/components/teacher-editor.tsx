@@ -354,10 +354,21 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   }) || [];
 
   const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; }) => {
-    if (!a.grades) return acc;
-    const isALevel = a.grades.some(g => g.startsWith("A-Level"));
-    const armCount = isALevel || !a.arms || a.arms.length === 0 ? 1 : a.arms.length;
-    return acc + (a.periods * armCount * (a.grades?.length || 0));
+    if (!a.grades || a.grades.length === 0) return acc;
+
+    const grades = a.grades || [];
+    const arms = a.arms || [];
+    const periods = a.periods || 0;
+    
+    const isALevel = grades.some(g => g.startsWith("A-Level"));
+    
+    // For primary/kindergarten/nursery or A-Level, each grade is its own class.
+    if (arms.length === 0 || isALevel) {
+        return acc + (periods * grades.length);
+    }
+    
+    // For secondary with arms, total is periods * grades * arms
+    return acc + (periods * grades.length * arms.length);
   }, 0);
 
   return (
@@ -598,9 +609,14 @@ export default function TeacherEditor() {
                         <div className="flex flex-col items-start">
                            <span className="font-medium">{teacher.name}</span>
                            <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.filter(a => a.schoolId === activeTimetable.id).reduce((acc, a) => {
-                                const isALevel = a.grades.some(g => g.startsWith("A-Level"));
-                                const armCount = isALevel || a.arms.length === 0 ? 1 : a.arms.length;
-                                return acc + (a.periods * armCount * a.grades.length);
+                                const grades = a.grades || [];
+                                const arms = a.arms || [];
+                                const periods = a.periods || 0;
+                                const isALevel = grades.some(g => g.startsWith("A-Level"));
+                                if (arms.length === 0 || isALevel) {
+                                    return acc + (periods * grades.length);
+                                }
+                                return acc + (periods * grades.length * arms.length);
                            }, 0)} periods assigned</span>
                         </div>
                     </AccordionTrigger>
@@ -671,9 +687,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
-
-    
 
     

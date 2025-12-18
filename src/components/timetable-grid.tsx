@@ -185,7 +185,7 @@ export default function TimetableGrid() {
     );
   }
   
-  const currentTeachers = activeTimetable.teachers;
+  const currentTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
   if (currentTeachers.length === 0) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
@@ -274,7 +274,8 @@ export default function TimetableGrid() {
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
                                      "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em] text-3xl",
-                                     slot.label === "Short Break" && "text-3xl"
+                                     slot.label === "Short Break" && "text-3xl",
+                                     slot.label === "Lunch Break" && "text-3xl"
                                  )}>
                                  {day === 'Wed' ? slot.label : ''}
                                  </span>
@@ -410,8 +411,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    
-
-    
-

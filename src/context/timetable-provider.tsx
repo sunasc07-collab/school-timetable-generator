@@ -38,6 +38,7 @@ const DEFAULT_TIME_SLOTS: TimeSlot[] = [
     { period: 4, time: "10:20-11:00" },
     { period: 5, time: "11:00-11:40" },
     { period: 6, time: "11:40-12:20" },
+    { period: null, time: "12:20-13:50", isBreak: true, label: "Lunch Break" },
     { period: 7, time: "13:50-14:25" },
     { period: 8, time: "14:25-15:00" },
     { period: 9, time: "15:00-15:30" },
@@ -214,29 +215,41 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (grades.length === 0 || !subject) return;
 
             const isALevel = grades.some(g => g.startsWith('A-Level'));
-            const isPrimaryEtc = !isALevel && arms.length === 0;
+            
+            const effectiveGrades = grades.filter(g => {
+                const schoolName = timetables.find(t => t.id === assignment.schoolId)?.name.toLowerCase() || '';
+                if(schoolName.includes('a-level')) return g === 'A-Level';
+                if(schoolName.includes('nursery')) return g === timetables.find(t => t.id === assignment.schoolId)?.name;
+                return true;
+            });
 
-            grades.forEach(grade => {
-                let individualClasses: string[];
-                if (isPrimaryEtc) {
-                    individualClasses = [grade];
-                } else if (isALevel) {
-                     individualClasses = [grade];
-                } else { // Secondary with arms
-                    individualClasses = arms.map(arm => `${grade} ${arm}`);
-                }
-
-                individualClasses.forEach(className => {
-                    for (let i = 0; i < periods; i++) {
+            if (arms.length > 0 && !isALevel) {
+                 effectiveGrades.forEach(grade => {
+                    arms.forEach(arm => {
+                        const className = `${grade} ${arm}`;
+                        for (let i = 0; i < periods; i++) {
+                            allRequiredSessions.push({
+                                subject: subject,
+                                teacher: teacher.name,
+                                className: className,
+                                classes: [className],
+                            });
+                        }
+                    });
+                });
+            } else {
+                 effectiveGrades.forEach(grade => {
+                    const className = grade;
+                     for (let i = 0; i < periods; i++) {
                         allRequiredSessions.push({
                             subject: subject,
                             teacher: teacher.name,
-                            className: className, // This is now the specific class, e.g., "Grade 7 A"
-                            classes: [className], // The session belongs to this single specific class
+                            className: className,
+                            classes: [className],
                         });
                     }
                 });
-            });
+            }
         });
     });
 
@@ -690,4 +703,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-

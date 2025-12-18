@@ -83,10 +83,10 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
 }
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v9", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v9", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v9", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v9', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v10", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v10", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v10", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v10', 'class');
   
   useEffect(() => {
     if (timetables.length === 0) {
@@ -216,7 +216,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       className: string;
       periods: number;
     }[] = [];
-
+    
     activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id) return;
@@ -427,8 +427,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
 
     updateTimetable(activeTimetable.id, { 
-        timetable: finalTimetable || newTimetable,
-        classes: sortedClasses
+        timetable: finalTimetable || {},
+        classes: sortedClasses,
+        conflicts: [],
     });
 }, [allTeachers, activeTimetable, timetables, setTimetables]);
 

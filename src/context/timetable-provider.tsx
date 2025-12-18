@@ -286,31 +286,34 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return true;
     }
 
-    function solve(board: TimetableData, sessions: TimetableSession[]): TimetableData | null {
+    function solve(board: TimetableData, sessions: TimetableSession[]): [boolean, TimetableData] {
         if (sessions.length === 0) {
-            return board;
+            return [true, board];
         }
-    
+
         const session = sessions[0];
         const remainingSessions = sessions.slice(1);
         const shuffledDays = days.slice().sort(() => Math.random() - 0.5);
-    
+
         if (session.isDouble) {
             const partner = remainingSessions.find(s => s.id === session.id);
-            if (!partner) return solve(board, remainingSessions); // Partner already placed, skip.
-    
+            if (!partner) return solve(board, remainingSessions); // Partner already placed
+
             const otherSessions = remainingSessions.filter(s => s.id !== session.id);
             const shuffledConsecutive = CONSECUTIVE_PERIODS.slice().sort(() => Math.random() - 0.5);
-    
+
             for (const day of shuffledDays) {
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
-                        const newBoard = JSON.parse(JSON.stringify(board));
-                        newBoard[day][p1].push(session);
-                        newBoard[day][p2].push(partner);
-                        
-                        const result = solve(newBoard, otherSessions);
-                        if (result) return result;
+                        board[day][p1].push(session);
+                        board[day][p2].push(partner);
+
+                        const [solved, finalBoard] = solve(board, otherSessions);
+                        if (solved) return [true, finalBoard];
+
+                        // Backtrack
+                        board[day][p1] = board[day][p1].filter(s => !(s.id === session.id && s.part === session.part));
+                        board[day][p2] = board[day][p2].filter(s => !(s.id === partner.id && s.part === partner.part));
                     }
                 }
             }
@@ -319,28 +322,31 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
-                        const newBoard = JSON.parse(JSON.stringify(board));
-                        newBoard[day][period].push(session);
+                        board[day][period].push(session);
                         
-                        const result = solve(newBoard, remainingSessions);
-                        if (result) return result;
+                        const [solved, finalBoard] = solve(board, remainingSessions);
+                        if (solved) return [true, finalBoard];
+
+                        // Backtrack
+                        board[day][period] = board[day][period].filter(s => !(s.id === session.id && s.part === session.part));
                     }
                 }
             }
         }
-    
-        // If session couldn't be placed, try solving for the rest
-        return solve(board, remainingSessions);
+
+        return [false, board]; // Return false if this session couldn't be placed
     }
-    
-    let solvedBoard = solve(JSON.parse(JSON.stringify(newTimetable)), sessionsToPlace);
-    let finalTimetable = solvedBoard || JSON.parse(JSON.stringify(newTimetable));
+
+    const [isSolved, solvedBoard] = solve(newTimetable, sessionsToPlace);
+    let finalTimetable = solvedBoard;
+
 
     const placedSessionIds = new Set<string>();
     Object.values(finalTimetable).forEach(day => day.forEach(slot => slot.forEach(session => placedSessionIds.add(session.id))));
 
     const unplacedSessions = sessionsToPlace.filter(s => !placedSessionIds.has(s.id));
-
+    
+    // Force-place unplaced sessions
     unplacedSessions.forEach(session => {
         let placed = false;
         for (const day of days) {
@@ -635,3 +641,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

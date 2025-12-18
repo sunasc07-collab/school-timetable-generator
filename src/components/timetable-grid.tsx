@@ -220,14 +220,15 @@ export default function TimetableGrid() {
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
-                        <div className="relative h-full flex items-center justify-center">
-                            <span className="absolute inset-0 bg-background z-10"></span>
-                             <span className={cn(
-                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
-                             )}>
-                                {slot.label}
-                            </span>
-                        </div>
+                         <div className="relative h-full flex items-center justify-center">
+                           <span className="absolute inset-0 bg-background z-10"></span>
+                            <span className={cn(
+                               "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
+                                slot.label === "Short Break" && "text-2xl"
+                            )}>
+                               {slot.label}
+                           </span>
+                       </div>
                     ) : (
                         <>
                             <div>Period {slot.period}</div>
@@ -262,11 +263,14 @@ export default function TimetableGrid() {
                     if (slot.isBreak) {
                         rowCells.push(
                             <TableCell key={`break-${slotIndex}`} className="p-0">
-                            <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                <span className="font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]">
-                                {slot.label}
-                                </span>
-                            </div>
+                             <div className="relative h-full w-full flex items-center justify-center bg-background">
+                                 <span className={cn(
+                                     "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
+                                     slot.label === "Short Break" && "text-2xl"
+                                 )}>
+                                 {day === 'Wed' ? slot.label : ''}
+                                 </span>
+                             </div>
                             </TableCell>
                         );
                         continue;

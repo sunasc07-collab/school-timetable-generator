@@ -34,6 +34,7 @@ const DEFAULT_TIME_SLOTS: TimeSlot[] = [
     { period: 1, time: "8:00-8:40" },
     { period: 2, time: "8:40-9:20" },
     { period: 3, time: "9:20-10:00" },
+    { period: null, time: "10:00-10:20", isBreak: true, label: "Short Break" },
     { period: 4, time: "10:20-11:00" },
     { period: 5, time: "11:00-11:40" },
     { period: 6, time: "11:40-12:20" },
@@ -46,9 +47,11 @@ const PERIOD_COUNT = DEFAULT_TIME_SLOTS.filter(ts => !ts.isBreak).length;
 const getConsecutivePeriods = (): number[][] => {
     const consecutive: number[][] = [];
     const teachingPeriods: number[] = [];
+    let periodCounter = 0;
     DEFAULT_TIME_SLOTS.forEach(slot => {
         if(slot.period !== null) {
-            teachingPeriods.push(slot.period - 1);
+            teachingPeriods.push(periodCounter);
+            periodCounter++;
         }
     });
 
@@ -61,7 +64,7 @@ const getConsecutivePeriods = (): number[][] => {
         const nextSlot = DEFAULT_TIME_SLOTS[currentSlotIndex + 1];
 
         if(nextSlot && nextSlot.period !== null) {
-             const nextPeriodIndex = nextSlot.period -1;
+             const nextPeriodIndex = teachingPeriods[i+1];
              consecutive.push([currentPeriodIndex, nextPeriodIndex]);
         }
     }
@@ -608,14 +611,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         
         const doublePeriodParts = new Map<string, {session: TimetableSession, day: string, period: number}>();
         for (const day of timetable.days) {
-            for (let period = 0; period < PERIOD_COUNT; period++) {
-                const slotSessions = timetable.timetable[day]?.[period] || [];
+            let periodIndex = 0;
+            for (const slot of timetable.timeSlots) {
+                if(slot.isBreak) continue;
+                const slotSessions = timetable.timetable[day]?.[periodIndex] || [];
                 for (const session of slotSessions) {
                     if (session.isDouble) {
                         const key = `${session.id}-${session.part}`;
-                        doublePeriodParts.set(key, { session, day, period });
+                        doublePeriodParts.set(key, { session, day, period: periodIndex });
                     }
                 }
+                periodIndex++;
             }
         }
 
@@ -684,3 +690,4 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+

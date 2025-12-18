@@ -42,7 +42,7 @@ export default function TimetableGrid() {
   } = useTimetable();
 
   const timetable = activeTimetable?.timetable || {};
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const days = activeTimetable?.days || [];
   const timeSlots = activeTimetable?.timeSlots || [];
   const teachers = activeTimetable?.teachers || [];
   const classes = activeTimetable?.classes || [];
@@ -402,5 +402,7 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    
 
     

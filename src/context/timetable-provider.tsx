@@ -30,46 +30,6 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
-const DEFAULT_TIME_SLOTS: TimeSlot[] = [
-    { period: 1, time: "8:00-8:40" },
-    { period: 2, time: "8:40-9:20" },
-    { period: 3, time: "9:20-10:00" },
-    { period: 4, time: "10:20-11:00" },
-    { period: 5, time: "11:00-11:40" },
-    { period: 6, time: "11:40-12:20" },
-    { period: 7, time: "13:50-14:25" },
-    { period: 8, time: "14:25-15:00" },
-    { period: 9, time: "15:00-15:30" },
-];
-const PERIOD_COUNT = DEFAULT_TIME_SLOTS.filter(ts => !ts.isBreak).length;
-
-const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
-    const consecutive: number[][] = [];
-    const teachingPeriods: number[] = [];
-    let periodCounter = 0;
-    slots.forEach(slot => {
-        if(slot.period !== null) {
-            teachingPeriods.push(periodCounter);
-            periodCounter++;
-        }
-    });
-
-    for(let i = 0; i < teachingPeriods.length - 1; i++){
-        const currentPeriodIndex = teachingPeriods[i];
-        
-        const currentSlotIndex = slots.findIndex(s => s.period === currentPeriodIndex + 1);
-        if (currentSlotIndex === -1 || currentSlotIndex + 1 >= slots.length) continue;
-
-        const nextSlot = slots[currentSlotIndex + 1];
-
-        if(nextSlot && nextSlot.period !== null) {
-             const nextPeriodIndex = teachingPeriods[i+1];
-             consecutive.push([currentPeriodIndex, nextPeriodIndex]);
-        }
-    }
-    return consecutive;
-}
-
 const usePersistentState = <T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
         if (typeof window === 'undefined') {
@@ -220,6 +180,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       ...activeTimetableRaw,
       teachers: activeTeachers,
   } : null;
+
+  const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
+    const consecutive: number[][] = [];
+    const teachingPeriods: { originalIndex: number, newIndex: number}[] = [];
+    let periodCounter = 0;
+    slots.forEach((slot, originalIndex) => {
+        if(!slot.isBreak) {
+            teachingPeriods.push({ originalIndex: originalIndex, newIndex: periodCounter });
+            periodCounter++;
+        }
+    });
+
+    for(let i = 0; i < teachingPeriods.length - 1; i++){
+        const current = teachingPeriods[i];
+        const next = teachingPeriods[i+1];
+        
+        if (current.originalIndex + 1 === next.originalIndex) {
+             consecutive.push([current.newIndex, next.newIndex]);
+        }
+    }
+    return consecutive;
+  }
   
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
@@ -232,7 +214,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       subject: string;
       teacher: string;
       className: string;
-      classes: string[];
       periods: number;
     }[] = [];
 
@@ -243,28 +224,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const { grades, subject, arms, periods } = assignment;
             if (grades.length === 0 || !subject || periods <= 0) return;
 
-            const school = timetables.find(t => t.id === assignment.schoolId);
-            const schoolName = school?.name.toLowerCase() || '';
-
-            const isSecondary = schoolName.includes('secondary');
-            const isALevel = grades.some(g => g.startsWith('A-Level'));
-            
-            const createsMultipleClasses = isSecondary && !isALevel && arms.length > 0;
-
-            if (createsMultipleClasses) {
-                 grades.forEach(grade => {
+            grades.forEach(grade => {
+                if (arms && arms.length > 0) {
                     arms.forEach(arm => {
                         const className = `${grade} ${arm}`;
-                         allRequiredSessions.push({ subject, teacher: teacher.name, className, classes: [className], periods });
+                        allRequiredSessions.push({ subject, teacher: teacher.name, className, periods });
                     });
-                });
-            } else {
-                 grades.forEach(grade => {
-                    // For non-secondary or A-level, or if no arms are specified, each grade is a class
+                } else {
                     const className = grade;
-                    allRequiredSessions.push({ subject, teacher: teacher.name, className, classes: [className], periods });
-                 });
-            }
+                    allRequiredSessions.push({ subject, teacher: teacher.name, className, periods });
+                }
+            });
         });
     });
     
@@ -277,12 +247,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         let remainingPeriods = req.periods;
         while (remainingPeriods >= 2) {
             const doubleId = crypto.randomUUID();
-            sessionsToPlace.push({ id: doubleId, subject: req.subject, teacher: req.teacher, className: req.className, classes: req.classes, isDouble: true, part: 1 });
-            sessionsToPlace.push({ id: doubleId, subject: req.subject, teacher: req.teacher, className: req.className, classes: req.classes, isDouble: true, part: 2 });
+            sessionsToPlace.push({ id: doubleId, subject: req.subject, teacher: req.teacher, className: req.className, classes: [req.className], isDouble: true, part: 1 });
+            sessionsToPlace.push({ id: doubleId, subject: req.subject, teacher: req.teacher, className: req.className, classes: [req.className], isDouble: true, part: 2 });
             remainingPeriods -= 2;
         }
         if (remainingPeriods > 0) {
-            sessionsToPlace.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher, className: req.className, classes: req.classes, isDouble: false });
+            sessionsToPlace.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher, className: req.className, classes: [req.className], isDouble: false });
         }
     });
 
@@ -706,6 +676,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-
-    

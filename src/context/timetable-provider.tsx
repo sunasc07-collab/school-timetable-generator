@@ -286,36 +286,31 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return true;
     }
 
-
-    let partiallySolvedBoard = JSON.parse(JSON.stringify(newTimetable));
-    const placedSessionIds = new Set<string>();
-
-    function solve(board: TimetableData, sessions: TimetableSession[]): boolean {
+    function solve(board: TimetableData, sessions: TimetableSession[]): TimetableData | null {
         if (sessions.length === 0) {
-            return true;
+            return board;
         }
-
+    
         const session = sessions[0];
         const remainingSessions = sessions.slice(1);
         const shuffledDays = days.slice().sort(() => Math.random() - 0.5);
-
+    
         if (session.isDouble) {
             const partner = remainingSessions.find(s => s.id === session.id);
-            if (!partner) return solve(board, remainingSessions); // Partner was already placed somehow? Skip.
-
+            if (!partner) return solve(board, remainingSessions); // Partner already placed, skip.
+    
             const otherSessions = remainingSessions.filter(s => s.id !== session.id);
             const shuffledConsecutive = CONSECUTIVE_PERIODS.slice().sort(() => Math.random() - 0.5);
-
+    
             for (const day of shuffledDays) {
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
-                        board[day][p1].push(session);
-                        board[day][p2].push(partner);
-
-                        if (solve(board, otherSessions)) return true;
-
-                        board[day][p1] = board[day][p1].filter(s => !(s.id === session.id && s.part === session.part));
-                        board[day][p2] = board[day][p2].filter(s => !(s.id === partner.id && s.part === partner.part));
+                        const newBoard = JSON.parse(JSON.stringify(board));
+                        newBoard[day][p1].push(session);
+                        newBoard[day][p2].push(partner);
+                        
+                        const result = solve(newBoard, otherSessions);
+                        if (result) return result;
                     }
                 }
             }
@@ -324,42 +319,41 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
-                        board[day][period].push(session);
-
-                        if (solve(board, remainingSessions)) return true;
-
-                        board[day][period] = board[day][period].filter(s => s.id !== session.id);
+                        const newBoard = JSON.parse(JSON.stringify(board));
+                        newBoard[day][period].push(session);
+                        
+                        const result = solve(newBoard, remainingSessions);
+                        if (result) return result;
                     }
                 }
             }
         }
-        return false;
+    
+        // If session couldn't be placed, try solving for the rest
+        return solve(board, remainingSessions);
     }
     
-    solve(partiallySolvedBoard, sessionsToPlace);
-    
-    // At this point, partiallySolvedBoard contains a conflict-free placement of as many sessions as possible.
-    // Now, we identify unplaced sessions and force-place them.
-    const placedSessions = new Set<string>();
-    Object.values(partiallySolvedBoard).forEach(day => day.forEach(slot => slot.forEach(session => placedSessions.add(session.id))));
+    let solvedBoard = solve(JSON.parse(JSON.stringify(newTimetable)), sessionsToPlace);
+    let finalTimetable = solvedBoard || JSON.parse(JSON.stringify(newTimetable));
 
-    const unplacedSessions = sessionsToPlace.filter(s => !placedSessions.has(s.id));
+    const placedSessionIds = new Set<string>();
+    Object.values(finalTimetable).forEach(day => day.forEach(slot => slot.forEach(session => placedSessionIds.add(session.id))));
+
+    const unplacedSessions = sessionsToPlace.filter(s => !placedSessionIds.has(s.id));
 
     unplacedSessions.forEach(session => {
         let placed = false;
         for (const day of days) {
             for (let period = 0; period < periodCount; period++) {
-                if (isSecondary && day === 'Fri' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') continue;
-                
-                partiallySolvedBoard[day][period].push(session);
+                 if (isSecondary && day === 'Fri' && lastTwoPeriods.includes(period)) continue;
+                // Force place it in the first slot found, even with conflicts.
+                finalTimetable[day][period].push(session);
                 placed = true;
                 break;
             }
             if(placed) break;
         }
     });
-
-    let finalTimetable = partiallySolvedBoard;
 
     if (finalTimetable && isSecondary) {
       sortedClasses.forEach(className => {

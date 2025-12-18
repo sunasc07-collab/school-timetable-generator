@@ -216,6 +216,7 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
+                <TableHead className="w-12 p-0"></TableHead>
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
@@ -241,6 +242,20 @@ export default function TimetableGrid() {
             {days.map((day, dayIndex) => {
                 const rowCells = [];
                 let periodIndex = 0;
+                
+                // Add assembly cell only for the first row to make it span
+                if (dayIndex === 0) {
+                    rowCells.push(
+                        <TableCell key="assembly" rowSpan={days.length} className="p-0 align-middle">
+                            <div className="flex items-center justify-center h-full w-12 bg-muted/30">
+                                <h3 className="text-4xl font-bold text-muted-foreground/80 transform -rotate-90 whitespace-nowrap">
+                                    ASSEMBLY
+                                </h3>
+                            </div>
+                        </TableCell>
+                    );
+                }
+
                 for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
                     const slot = timeSlots[slotIndex];
 

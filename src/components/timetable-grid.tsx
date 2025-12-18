@@ -33,6 +33,7 @@ import ClientOnly from "./client-only";
 export default function TimetableGrid() {
   const { 
     activeTimetable,
+    timetables,
     moveSession, 
     isConflict, 
     generateTimetable, 
@@ -41,6 +42,7 @@ export default function TimetableGrid() {
     resolveConflicts 
   } = useTimetable();
 
+  const allTeachers = timetables.flatMap(t => (t as any).teachers || []);
   const timetable = activeTimetable?.timetable || {};
   const days = activeTimetable?.days || [];
   const timeSlots = activeTimetable?.timeSlots || [];
@@ -183,7 +185,7 @@ export default function TimetableGrid() {
     );
   }
   
-  const currentTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
+  const currentTeachers = activeTimetable.teachers;
   if (currentTeachers.length === 0) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
@@ -412,3 +414,4 @@ export default function TimetableGrid() {
     
 
     
+

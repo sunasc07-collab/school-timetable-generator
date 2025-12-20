@@ -261,7 +261,7 @@ export default function TimetableGrid() {
                                      slot.label === "Short Break" && "text-3xl",
                                      slot.label === "Lunch Break" && "text-3xl"
                                  )}>
-                                 {day === 'Wed' ? slot.label : ''}
+                                 {day === 'Wed' && slot.label === 'Short Break' ? slot.label : ''}
                                  </span>
                              </div>
                             </TableCell>

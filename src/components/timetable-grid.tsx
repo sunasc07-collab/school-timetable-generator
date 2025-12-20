@@ -227,7 +227,7 @@ export default function TimetableGrid() {
                                  <span className={cn(
                                      "font-bold text-muted-foreground uppercase tracking-widest text-[35px] [writing-mode:vertical-lr] transform rotate-180",
                                  )}>
-                                 {['Tue', 'Wed', 'Thu'].includes(day) ? slot.label : ''}
+                                 {day === 'Wed' ? slot.label : ''}
                                  </span>
                              </div>
                             </TableCell>
@@ -341,3 +341,4 @@ export default function TimetableGrid() {
   );
 }
 
+    

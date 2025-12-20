@@ -54,27 +54,28 @@ export default function TimetableGrid() {
   const isSecondarySchool = useMemo(() => activeTimetable?.name.toLowerCase().includes('secondary'), [activeTimetable]);
 
   const arms = useMemo(() => {
-    if (!activeTimetable) return [];
+    if (!activeTimetable || viewMode !== 'arm') return [];
     const armSet = new Set<string>();
     
     activeTimetable.teachers.forEach(teacher => {
       teacher.assignments.forEach(assignment => {
-        if (assignment.schoolId !== activeTimetable.id) return;
+        if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
         
         assignment.grades.forEach(grade => {
-            if (assignment.arms?.length > 0) {
-                assignment.arms.forEach(arm => {
-                    const fullClassName = `${grade} ${arm}`;
-                    armSet.add(fullClassName);
-                });
-            } else {
-                 armSet.add(grade);
-            }
+            assignment.arms.forEach(arm => {
+                const fullClassName = `${grade} ${arm}`;
+                armSet.add(fullClassName);
+            });
         });
       });
     });
+    // For schools without arms, we want to show the classes in the arm view
+    if (armSet.size === 0) {
+        return classes;
+    }
+
     return Array.from(armSet).sort();
-  }, [activeTimetable]);
+  }, [activeTimetable, viewMode, classes]);
 
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
@@ -115,12 +116,14 @@ export default function TimetableGrid() {
      const periodsCount = timeSlots.filter(ts => !ts.isBreak).length;
 
      if (day === 'Fri' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
-         const isRelevantClass = viewMode === 'class' && classes.includes(filterValue);
-         const isRelevantArm = viewMode === 'arm' && arms.some(arm => arm.startsWith(filterValue));
+         let isRelevantItem = false;
+         if (viewMode === 'class' && filterValue === 'Sports') return null;
 
-         if(viewMode === 'class' && filterValue === 'Sports') return null;
+         if (viewMode === 'class' && classes.includes(filterValue)) isRelevantItem = true;
+         if (viewMode === 'arm' && classes.some(c => c.startsWith(filterValue))) isRelevantItem = true;
 
-         if (isRelevantClass || isRelevantArm) {
+
+         if (isRelevantItem) {
             return (
                 <div className="flex items-center justify-center h-20 w-full text-center font-bold text-lg text-muted-foreground uppercase">
                     SPORT

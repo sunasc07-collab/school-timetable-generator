@@ -221,7 +221,7 @@ export default function TimetableGrid() {
                              <div className="h-full w-full bg-background">
                                  {day === 'Wed' && (
                                      <span className={cn(
-                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase tracking-widest text-[35px] [writing-mode:vertical-lr] transform rotate-180",
+                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase tracking-widest text-[35px]",
                                      )}>
                                          {slot.label}
                                      </span>
@@ -337,5 +337,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

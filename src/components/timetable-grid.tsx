@@ -216,7 +216,6 @@ export default function TimetableGrid() {
                            <span className="absolute inset-0 bg-background z-10"></span>
                             <span className={cn(
                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
-                                slot.label === "Short Break" && "text-2xl"
                             )}>
                                {/* Empty to prevent text in header */}
                            </span>
@@ -258,10 +257,9 @@ export default function TimetableGrid() {
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
                                      "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform -rotate-90 tracking-[.2em] text-3xl",
-                                     slot.label === "Short Break" && "text-3xl",
                                      slot.label === "Lunch Break" && "text-3xl"
                                  )}>
-                                 {day === 'Wed' && slot.label === 'Short Break' ? slot.label : ''}
+                                 {day === 'Wed' && slot.label === 'Lunch Break' ? slot.label : ''}
                                  </span>
                              </div>
                             </TableCell>
@@ -374,3 +372,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

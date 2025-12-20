@@ -62,12 +62,6 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
       { period: 1, time: '8:00-8:40' },
       { period: 2, time: '8:40-9:20' },
       { period: 3, time: '9:20-10:00' },
-      {
-        period: null,
-        time: '10:00-10:20',
-        isBreak: true,
-        label: 'Short Break',
-      },
       { period: 4, time: '10:20-11:00' },
       { period: 5, time: '11:00-11:40' },
       { period: 6, time: '11:40-12:20' },
@@ -100,6 +94,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const resetTimetableForSchool = useCallback((schoolId: string) => {
     setTimetables(prev => {
+        const schoolExists = prev.some(t => t.id === schoolId);
+        if (!schoolExists) return prev;
+
         return prev.map(t => {
             if (t.id === schoolId) {
                 return {
@@ -310,13 +307,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const shuffledDays = [...days].sort(() => Math.random() - 0.5);
 
         if (session.isDouble) {
-            const partner = sessions.find(s => s.id === session.id && s.part !== session.part);
-            if (!partner) { // Should not happen if data is consistent
+            const partnerIndex = sessions.findIndex(s => s.id === session.id && s.part !== session.part);
+            if (partnerIndex === -1) { // Partner not found, treat as single or skip
                  const remainingSessions = sessions.slice(1);
                  return solve(board, remainingSessions);
             }
+            const partner = sessions[partnerIndex];
             
-            const otherSessions = sessions.filter(s => s.id !== session.id);
+            const otherSessions = sessions.filter((s, i) => i !== 0 && i !== partnerIndex);
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
             for (const day of shuffledDays) {
@@ -666,3 +664,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

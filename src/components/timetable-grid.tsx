@@ -53,28 +53,28 @@ export default function TimetableGrid() {
 
   const arms = useMemo(() => {
     if (!activeTimetable || viewMode !== 'arm') return [];
-
+    
     const armSet = new Set<string>();
     let hasAnyArms = false;
     
     activeTimetable.teachers.forEach(teacher => {
-      teacher.assignments.forEach(assignment => {
-        if (assignment.schoolId !== activeTimetable.id) return;
-        
-        if (assignment.arms && assignment.arms.length > 0) {
-            hasAnyArms = true;
-            assignment.grades.forEach(grade => {
-                assignment.arms.forEach(arm => {
-                    const fullClassName = `${grade} ${arm}`;
-                    armSet.add(fullClassName);
+        teacher.assignments.forEach(assignment => {
+            if (assignment.schoolId !== activeTimetable.id) return;
+            
+            if (assignment.arms && assignment.arms.length > 0) {
+                hasAnyArms = true;
+                assignment.grades.forEach(grade => {
+                    assignment.arms.forEach(arm => {
+                        const fullClassName = `${grade} ${arm}`;
+                        armSet.add(fullClassName);
+                    });
                 });
-            });
-        }
-      });
+            }
+        });
     });
 
     if (!hasAnyArms) {
-        return classes;
+        return classes.sort();
     }
 
     return Array.from(armSet).sort();
@@ -217,7 +217,7 @@ export default function TimetableGrid() {
                             <span className={cn(
                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
                             )}>
-                               {/* Empty to prevent text in header */}
+                               {day === 'Wed' && slot.label}
                            </span>
                        </div>
                     ) : (
@@ -259,7 +259,7 @@ export default function TimetableGrid() {
                                      "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform -rotate-90 tracking-[.2em] text-3xl",
                                      slot.label === "Lunch Break" && "text-3xl"
                                  )}>
-                                 {day === 'Wed' && slot.label === 'Lunch Break' ? slot.label : ''}
+                                 {day === 'Wed' ? slot.label : ''}
                                  </span>
                              </div>
                             </TableCell>

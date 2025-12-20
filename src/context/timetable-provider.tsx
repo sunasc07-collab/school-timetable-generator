@@ -29,6 +29,18 @@ type TimetableContextType = {
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DEFAULT_TIMESLOTS: TimeSlot[] = [
+    { period: 1, time: '8:00-8:40' },
+    { period: 2, time: '8:40-9:20' },
+    { period: 3, time: '9:20-10:00' },
+    { period: 4, time: '10:00-10:40' },
+    { period: 5, time: '10:40-11:20' },
+    { period: 6, time: '11:20-12:00' },
+    { period: 7, time: '12:00-12:40' },
+    { period: 8, time: '12:40-13:20' },
+    { period: 9, time: '13:20-14:00' },
+];
+
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
@@ -58,17 +70,6 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
 };
 
 const createNewTimetable = (name: string, id?: string): Timetable => {
-    const timeSlots: TimeSlot[] = [
-      { period: 1, time: '8:00-8:40' },
-      { period: 2, time: '8:40-9:20' },
-      { period: 3, time: '9:20-10:00' },
-      { period: 4, time: '10:00-10:40' },
-      { period: 5, time: '10:40-11:20' },
-      { period: 6, time: '11:20-12:00' },
-      { period: 7, time: '12:00-12:40' },
-      { period: 8, time: '12:40-13:20' },
-      { period: 9, time: '13:20-14:00' },
-    ];
     return {
         id: id || crypto.randomUUID(),
         name,
@@ -76,7 +77,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         classes: [],
         conflicts: [],
         days: DEFAULT_DAYS,
-        timeSlots: timeSlots,
+        timeSlots: DEFAULT_TIMESLOTS,
     };
 }
 
@@ -86,6 +87,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v10", null);
   const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v10', 'class');
   
+  // Force update timeSlots for all existing timetables on load
+  useEffect(() => {
+    setTimetables(prev => 
+      prev.map(t => ({
+        ...t,
+        timeSlots: DEFAULT_TIMESLOTS
+      }))
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const resetTimetableForSchool = useCallback((schoolId: string) => {
     setTimetables(prev => {
         const schoolExists = prev.some(t => t.id === schoolId);
@@ -658,3 +671,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+
+    

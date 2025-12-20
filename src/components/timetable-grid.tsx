@@ -53,10 +53,10 @@ export default function TimetableGrid() {
 
   const arms = useMemo(() => {
     if (!activeTimetable || viewMode !== 'arm') return [];
-    
+
     const armSet = new Set<string>();
     let hasAnyArms = false;
-    
+
     activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id) return;
@@ -72,8 +72,9 @@ export default function TimetableGrid() {
             }
         });
     });
-
-    if (!hasAnyArms) {
+    
+    // If no assignments have arms, but we are in a secondary school context, show classes as "arms"
+    if (!hasAnyArms && classes.length > 0) {
         return classes.sort();
     }
 
@@ -217,7 +218,6 @@ export default function TimetableGrid() {
                             <span className={cn(
                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
                             )}>
-                               {day === 'Wed' && slot.label}
                            </span>
                        </div>
                     ) : (
@@ -372,5 +372,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

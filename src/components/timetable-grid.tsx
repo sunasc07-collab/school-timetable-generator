@@ -116,7 +116,7 @@ export default function TimetableGrid() {
 
 
   const renderCellContent = (day: string, period: number, filterValue: string) => {
-     const allSessionsInSlot = (timetable[day]?.[period] || []).filter(s => s.subject.toLowerCase() !== 'assembly');
+     const allSessionsInSlot = timetable[day]?.[period] || [];
      const periodsCount = timeSlots.filter(ts => !ts.isBreak).length;
 
      if (day === 'Fri' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {

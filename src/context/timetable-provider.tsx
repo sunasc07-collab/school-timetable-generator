@@ -59,17 +59,27 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
 
 const createNewTimetable = (name: string, id?: string): Timetable => {
     const timeSlots: TimeSlot[] = [
-        { period: 1, time: "8:00-8:40" },
-        { period: 2, time: "8:40-9:20" },
-        { period: 3, time: "9:20-10:00" },
-        { period: null, time: "10:00-10:20", isBreak: true, label: "Short Break" },
-        { period: 4, time: "10:20-11:00" },
-        { period: 5, time: "11:00-11:40" },
-        { period: 6, time: "11:40-12:20" },
-        { period: null, time: "12:20-13:50", isBreak: true, label: "Lunch Break" },
-        { period: 7, time: "13:50-14:25" },
-        { period: 8, time: "14:25-15:00" },
-        { period: 9, time: "15:00-15:30" },
+      { period: 1, time: '8:00-8:40' },
+      { period: 2, time: '8:40-9:20' },
+      { period: 3, time: '9:20-10:00' },
+      {
+        period: null,
+        time: '10:00-10:20',
+        isBreak: true,
+        label: 'Short Break',
+      },
+      { period: 4, time: '10:20-11:00' },
+      { period: 5, time: '11:00-11:40' },
+      { period: 6, time: '11:40-12:20' },
+      {
+        period: null,
+        time: '12:20-13:50',
+        isBreak: true,
+        label: 'Lunch Break',
+      },
+      { period: 7, time: '13:50-14:25' },
+      { period: 8, time: '14:25-15:00' },
+      { period: 9, time: '15:00-15:30' },
     ];
     return {
         id: id || crypto.randomUUID(),
@@ -104,12 +114,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
   
   const resetTimetableForSchool = (schoolId: string) => {
-    setTimetables(prev => prev.map(t => t.id === schoolId ? {
-      ...t,
-      timetable: {},
-      classes: [],
-      conflicts: [],
-    } : t));
+    setTimetables(prev => {
+        return prev.map(t => {
+            if (t.id === schoolId) {
+                const newT = { ...t };
+                newT.timetable = {};
+                newT.classes = [];
+                newT.conflicts = [];
+                return newT;
+            }
+            return t;
+        });
+    });
   };
 
 
@@ -339,12 +355,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const [isSolved, solvedBoard] = solve(JSON.parse(JSON.stringify(newTimetable)), sessionsToPlace);
     let finalTimetable = solvedBoard;
     
-    const placedSessionIds = new Set<string>();
-    Object.values(finalTimetable).forEach(day => day.forEach(slot => slot.forEach(session => placedSessionIds.add(session.id))));
+    if (!isSolved) {
+        const placedSessionIds = new Set<string>();
+        Object.values(finalTimetable).forEach(day => day.forEach(slot => slot.forEach(session => placedSessionIds.add(session.id))));
 
-    const unplacedSessions = sessionsToPlace.filter(s => !placedSessionIds.has(s.id));
-    
-    if (unplacedSessions.length > 0) {
+        const unplacedSessions = sessionsToPlace.filter(s => !placedSessionIds.has(s.id));
+        
         unplacedSessions.forEach(session => {
             let placed = false;
             for (const day of days) {
@@ -371,6 +387,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         });
     }
+
 
     if (finalTimetable && isSecondary) {
       sortedClasses.forEach(className => {
@@ -652,7 +669,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
 
     

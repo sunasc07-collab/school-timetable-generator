@@ -29,7 +29,7 @@ type TimetableContextType = {
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const DEFAULT_TIMESLOTS: TimeSlot[] = [
+const DEFAULT_TIMESLOTS_WITH_BREAK: TimeSlot[] = [
     { period: 1, time: '8:00-8:40' },
     { period: 2, time: '8:40-9:20' },
     { period: 3, time: '9:20-10:00' },
@@ -41,7 +41,6 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 8, time: '13:00-13:40' },
     { period: 9, time: '13:40-14:20' },
 ];
-
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
@@ -78,7 +77,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         classes: [],
         conflicts: [],
         days: DEFAULT_DAYS,
-        timeSlots: DEFAULT_TIMESLOTS,
+        timeSlots: DEFAULT_TIMESLOTS_WITH_BREAK,
     };
 }
 
@@ -88,13 +87,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v10", null);
   const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v10', 'class');
   
-  // Force update timeSlots for all existing timetables on load
   useEffect(() => {
     setTimetables(prev => 
-      prev.map(t => ({
-        ...t,
-        timeSlots: DEFAULT_TIMESLOTS
-      }))
+      prev.map(t => {
+        const hasBreak = t.timeSlots.some(ts => ts.isBreak);
+        return {
+          ...t,
+          timeSlots: hasBreak ? DEFAULT_TIMESLOTS_WITH_BREAK : t.timeSlots
+        }
+      })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -234,6 +235,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
 
     const allRequiredSessions: { subject: string; teacher: string; className: string; periods: number; }[] = [];
+    let hasAssembly = false;
     
     teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
@@ -241,6 +243,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
             const { grades, subject, arms, periods } = assignment;
             if (!grades || grades.length === 0 || !subject || !periods || periods <= 0) return;
+            
+            if (subject.toLowerCase() === 'assembly') {
+              hasAssembly = true;
+              return; // Assembly is handled separately
+            }
 
             grades.forEach(grade => {
                 if (arms && arms.length > 0) {
@@ -290,7 +297,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
 
         const slot = board[day]?.[period];
-        if (!slot) return false; // Should not happen
+        if (!slot) return false;
 
         if (slot.some(s => s.teacher === session.teacher)) return false;
         if (slot.some(s => s.className === session.className)) return false;
@@ -298,9 +305,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const daySessionsForClass = board[day].flat().filter(s => s.className === session.className);
         const subjectPeriodsOnDay = daySessionsForClass.filter(s => s.subject === session.subject).length;
 
-        // Prevent more than one double-period of the same subject on the same day
         if (session.isDouble && subjectPeriodsOnDay > 0) return false;
-        // Prevent more than 2 single periods of the same subject on the same day
         if (!session.isDouble && subjectPeriodsOnDay >= 2) return false;
 
         return true;
@@ -316,7 +321,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         if (session.isDouble) {
             const partnerIndex = sessions.findIndex(s => s.id === session.id && s.part !== session.part);
-            if (partnerIndex === -1) { // Partner not found, treat as single or skip
+            if (partnerIndex === -1) { 
                  const remainingSessions = sessions.slice(1);
                  return solve(board, remainingSessions);
             }
@@ -361,19 +366,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     let finalTimetable = solvedBoard;
     
     if (!isSolved) {
-        // Find which sessions were not placed
         const placedSessionIds = new Set<string>();
         Object.values(finalTimetable).forEach(daySlots => daySlots.forEach(slot => slot.forEach(s => placedSessionIds.add(s.id))));
         
         const unplacedSessions = sessionsToPlace.filter(s => !placedSessionIds.has(s.id));
         
-        // Force-place the remaining sessions
         unplacedSessions.forEach(session => {
             let placed = false;
              for (const day of days) {
                 for (let period = 0; period < periodCount; period++) {
                      if (isSecondary && day === 'Fri' && lastTwoPeriods.includes(period)) continue;
-                     if(finalTimetable[day][period].length === 0){ // Prioritize empty slots
+                     if(finalTimetable[day][period].length === 0){
                         finalTimetable[day][period].push(session);
                         placed = true;
                         break;
@@ -381,7 +384,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
                 if(placed) break;
             }
-            if (!placed) { // Force-place it in the first slot found, even with conflicts.
+            if (!placed) {
                  for (const day of days) {
                     for (let period = 0; period < periodCount; period++) {
                         if (isSecondary && day === 'Fri' && lastTwoPeriods.includes(period)) continue;
@@ -393,6 +396,39 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         });
+    }
+
+    if (hasAssembly) {
+      const assemblySession: TimetableSession = {
+        id: crypto.randomUUID(),
+        subject: 'Assembly',
+        className: 'All Classes',
+        teacher: 'Administration',
+        isDouble: false,
+        classes: sortedClasses,
+      };
+
+      let assemblyPlaced = false;
+      const firstPeriod = 0;
+      for (const day of ['Mon', 'Fri']) { // Prioritize Mon/Fri first period
+        if (finalTimetable[day][firstPeriod].length === 0) {
+          finalTimetable[day][firstPeriod].push(assemblySession);
+          assemblyPlaced = true;
+          break;
+        }
+      }
+      if (!assemblyPlaced) { // Fallback to any day, first period
+        for (const day of days) {
+          if (finalTimetable[day][firstPeriod].length === 0) {
+            finalTimetable[day][firstPeriod].push(assemblySession);
+            assemblyPlaced = true;
+            break;
+          }
+        }
+      }
+       if (!assemblyPlaced) { // Force placement if still not placed
+          finalTimetable['Mon'][firstPeriod].push(assemblySession);
+      }
     }
 
     if (finalTimetable && isSecondary) {
@@ -502,7 +538,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         const slot = board[day]?.[period];
         if (!slot) return false;
-        if (slot.some(s => s.teacher === session.teacher)) return false;
+        if (slot.some(s => s.teacher === session.teacher && s.subject !== 'Assembly')) return false;
+        
+        if (session.subject === 'Assembly') {
+          return true; // Assembly can be with other classes
+        }
+
         if (slot.some(s => s.className === session.className)) return false;
         
         return true;
@@ -570,6 +611,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const classesInSlot = new Set<string>();
                 
                 for (const session of slotSessions) {
+                    if (session.subject === 'Assembly') continue;
+
                     if (teachersInSlot.has(session.teacher)) {
                         slotSessions.forEach(s => {
                             if (s.teacher === session.teacher) identifiedConflicts.set(s.id, { id: s.id, type: 'teacher', message: `Teacher ${s.teacher} is double-booked.` });
@@ -672,8 +715,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-
-    
 
     

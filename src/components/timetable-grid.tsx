@@ -53,32 +53,28 @@ export default function TimetableGrid() {
 
   const arms = useMemo(() => {
     if (!activeTimetable || viewMode !== 'arm') return [];
-
+    
     const armSet = new Set<string>();
-    let hasAnyArms = false;
-
+    
     activeTimetable.teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
-            if (assignment.schoolId !== activeTimetable.id) return;
+            if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
             
-            if (assignment.arms && assignment.arms.length > 0) {
-                hasAnyArms = true;
-                assignment.grades.forEach(grade => {
-                    assignment.arms.forEach(arm => {
-                        const fullClassName = `${grade} ${arm}`;
-                        armSet.add(fullClassName);
-                    });
+            assignment.grades.forEach(grade => {
+                assignment.arms.forEach(arm => {
+                    const fullClassName = `${grade} ${arm}`;
+                    armSet.add(fullClassName);
                 });
-            }
+            });
         });
     });
-    
-    // If no assignments have arms, but we are in a secondary school context, show classes as "arms"
-    if (!hasAnyArms && classes.length > 0) {
-        return classes.sort();
-    }
 
-    return Array.from(armSet).sort();
+    if (armSet.size > 0) {
+        return Array.from(armSet).sort();
+    }
+    
+    // Fallback for schools without arms - just show the classes.
+    return classes.sort();
   }, [activeTimetable, viewMode, classes]);
 
 
@@ -125,7 +121,6 @@ export default function TimetableGrid() {
 
          if (viewMode === 'class' && classes.includes(filterValue)) isRelevantItem = true;
          if (viewMode === 'arm' && arms.includes(filterValue)) isRelevantItem = true;
-
 
          if (isRelevantItem) {
             return (
@@ -242,7 +237,7 @@ export default function TimetableGrid() {
                             <TableCell key={`break-${slotIndex}`} className="p-0">
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
-                                     "font-medium text-muted-foreground uppercase tracking-widest text-lg"
+                                     "font-medium text-muted-foreground uppercase tracking-widest text-lg [writing-mode:vertical-lr] transform rotate-180",
                                  )}>
                                  {day === 'Wed' ? slot.label : ''}
                                  </span>

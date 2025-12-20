@@ -209,14 +209,13 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
-                <TableHead className="w-12 p-0"></TableHead>
                 {timeSlots.map((slot, index) => (
                 <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
                     {slot.isBreak ? (
                          <div className="relative h-full flex items-center justify-center">
                            <span className="absolute inset-0 bg-background z-10"></span>
                             <span className={cn(
-                               "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
+                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
                             )}>
                            </span>
                        </div>
@@ -235,19 +234,6 @@ export default function TimetableGrid() {
                 const rowCells = [];
                 let periodIndex = 0;
                 
-                // Add assembly cell only for the first row to make it span
-                if (dayIndex === 0) {
-                    rowCells.push(
-                        <TableCell key="assembly" rowSpan={days.length} className="p-0 align-middle">
-                            <div className="flex items-center justify-center h-full w-12 bg-muted/30">
-                                <h3 className="text-4xl font-bold text-muted-foreground/80 transform -rotate-90 whitespace-nowrap">
-                                    ASSEMBLY
-                                </h3>
-                            </div>
-                        </TableCell>
-                    );
-                }
-
                 for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
                     const slot = timeSlots[slotIndex];
 
@@ -256,7 +242,7 @@ export default function TimetableGrid() {
                             <TableCell key={`break-${slotIndex}`} className="p-0">
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
-                                     "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform -rotate-90 tracking-[.2em] text-3xl"
+                                     "font-medium text-muted-foreground uppercase tracking-widest text-lg transform rotate-90"
                                  )}>
                                  {day === 'Wed' ? slot.label : ''}
                                  </span>
@@ -371,5 +357,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

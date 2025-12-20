@@ -55,22 +55,27 @@ export default function TimetableGrid() {
 
   const arms = useMemo(() => {
     if (!activeTimetable || viewMode !== 'arm') return [];
+
     const armSet = new Set<string>();
+    let hasAnyArms = false;
     
     activeTimetable.teachers.forEach(teacher => {
       teacher.assignments.forEach(assignment => {
-        if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
+        if (assignment.schoolId !== activeTimetable.id) return;
         
-        assignment.grades.forEach(grade => {
-            assignment.arms.forEach(arm => {
-                const fullClassName = `${grade} ${arm}`;
-                armSet.add(fullClassName);
+        if (assignment.arms && assignment.arms.length > 0) {
+            hasAnyArms = true;
+            assignment.grades.forEach(grade => {
+                assignment.arms.forEach(arm => {
+                    const fullClassName = `${grade} ${arm}`;
+                    armSet.add(fullClassName);
+                });
             });
-        });
+        }
       });
     });
-    // For schools without arms, we want to show the classes in the arm view
-    if (armSet.size === 0) {
+
+    if (!hasAnyArms) {
         return classes;
     }
 
@@ -120,7 +125,7 @@ export default function TimetableGrid() {
          if (viewMode === 'class' && filterValue === 'Sports') return null;
 
          if (viewMode === 'class' && classes.includes(filterValue)) isRelevantItem = true;
-         if (viewMode === 'arm' && classes.some(c => c.startsWith(filterValue))) isRelevantItem = true;
+         if (viewMode === 'arm' && arms.includes(filterValue)) isRelevantItem = true;
 
 
          if (isRelevantItem) {
@@ -138,7 +143,7 @@ export default function TimetableGrid() {
      } else if (viewMode === 'teacher') {
          relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
      } else if (viewMode === 'arm') {
-         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
+         relevantSessions = allSessionsInSlot.filter(s => s.className === filterValue);
      }
      
      if (relevantSessions.length > 0) {
@@ -372,5 +377,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

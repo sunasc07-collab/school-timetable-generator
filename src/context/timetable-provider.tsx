@@ -307,43 +307,41 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
 
         const session = sessions[0];
-        const remainingSessions = sessions.slice(1);
         const shuffledDays = [...days].sort(() => Math.random() - 0.5);
 
         if (session.isDouble) {
-            const partner = remainingSessions.find(s => s.id === session.id);
-            if (!partner) return solve(board, remainingSessions);
-
-            const otherSessions = remainingSessions.filter(s => s.id !== session.id);
+            const partner = sessions.find(s => s.id === session.id && s.part !== session.part);
+            if (!partner) { // Should not happen if data is consistent
+                 const remainingSessions = sessions.slice(1);
+                 return solve(board, remainingSessions);
+            }
+            
+            const otherSessions = sessions.filter(s => s.id !== session.id);
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
             for (const day of shuffledDays) {
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
-                        board[day][p1].push(session);
-                        board[day][p2].push(partner);
+                        const newBoard = JSON.parse(JSON.stringify(board));
+                        newBoard[day][p1].push(session);
+                        newBoard[day][p2].push(partner);
 
-                        const [solved, finalBoard] = solve(board, otherSessions);
+                        const [solved, finalBoard] = solve(newBoard, otherSessions);
                         if (solved) return [true, finalBoard];
-
-                        // Backtrack
-                        board[day][p1].pop();
-                        board[day][p2].pop();
                     }
                 }
             }
         } else { // Single session
+            const remainingSessions = sessions.slice(1);
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
-                        board[day][period].push(session);
+                        const newBoard = JSON.parse(JSON.stringify(board));
+                        newBoard[day][period].push(session);
                         
-                        const [solved, finalBoard] = solve(board, remainingSessions);
+                        const [solved, finalBoard] = solve(newBoard, remainingSessions);
                         if (solved) return [true, finalBoard];
-
-                        // Backtrack
-                        board[day][period].pop();
                     }
                 }
             }
@@ -352,7 +350,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return [false, board];
     }
     
-    // Use a deep copy of the initial board for the solver
     let boardCopy = JSON.parse(JSON.stringify(newTimetable));
     const [isSolved, solvedBoard] = solve(boardCopy, sessionsToPlace);
     let finalTimetable = solvedBoard;
@@ -669,6 +666,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-
-    

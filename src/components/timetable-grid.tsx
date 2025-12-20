@@ -242,7 +242,7 @@ export default function TimetableGrid() {
                             <TableCell key={`break-${slotIndex}`} className="p-0">
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
-                                     "font-medium text-muted-foreground uppercase tracking-widest text-lg transform rotate-90"
+                                     "font-medium text-muted-foreground uppercase tracking-widest text-lg"
                                  )}>
                                  {day === 'Wed' ? slot.label : ''}
                                  </span>
@@ -357,3 +357,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

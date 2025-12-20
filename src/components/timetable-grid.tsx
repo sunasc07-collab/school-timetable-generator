@@ -53,10 +53,10 @@ export default function TimetableGrid() {
 
   const arms = useMemo(() => {
     if (!activeTimetable || viewMode !== 'arm') return [];
-    
+
     const armSet = new Set<string>();
     
-    activeTimetable.teachers.forEach(teacher => {
+    (activeTimetable.teachers || []).forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
             
@@ -112,35 +112,21 @@ export default function TimetableGrid() {
 
   const renderCellContent = (day: string, period: number, filterValue: string) => {
      const allSessionsInSlot = timetable[day]?.[period] || [];
-     const periodsCount = timeSlots.filter(ts => !ts.isBreak).length;
-
-     if (day === 'Fri' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
-         let isRelevantItem = false;
-         if (viewMode === 'class' && classes.includes(filterValue)) isRelevantItem = true;
-         if (viewMode === 'arm' && arms.includes(filterValue)) isRelevantItem = true;
-
-         if (isRelevantItem) {
-            return (
-                <div className="flex items-center justify-center h-20 w-full text-center font-bold text-lg text-muted-foreground uppercase">
-                    SPORT
-                </div>
-            );
-         }
-    }
      
      let relevantSessions: TimetableSession[] = [];
-     if (viewMode === 'class') {
-         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
-     } else if (viewMode === 'teacher') {
-         relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
-     } else if (viewMode === 'arm') {
-         relevantSessions = allSessionsInSlot.filter(s => {
-            if (s.subject === 'Assembly') {
-                return s.classes.includes(filterValue);
-            }
-            return s.className === filterValue;
-        });
-     }
+      if (viewMode === 'class') {
+          relevantSessions = allSessionsInSlot.filter(s => {
+              if (s.subject === 'Assembly') return true;
+              return s.classes.includes(filterValue);
+          });
+      } else if (viewMode === 'teacher') {
+          relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
+      } else if (viewMode === 'arm') {
+          relevantSessions = allSessionsInSlot.filter(s => {
+              if (s.subject === 'Assembly') return true;
+              return s.className === filterValue;
+          });
+      }
      
      if (relevantSessions.length > 0) {
       return (
@@ -241,7 +227,7 @@ export default function TimetableGrid() {
                                  <span className={cn(
                                      "font-medium text-muted-foreground uppercase tracking-widest text-lg [writing-mode:vertical-lr] transform rotate-180",
                                  )}>
-                                 {day === 'Wed' ? slot.label : ''}
+                                 {['Tue', 'Wed', 'Thu'].includes(day) ? slot.label : ''}
                                  </span>
                              </div>
                             </TableCell>

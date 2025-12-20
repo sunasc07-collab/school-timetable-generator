@@ -69,11 +69,10 @@ export default function TimetableGrid() {
         });
     });
 
-    if (armSet.size > 0) {
-        return Array.from(armSet).sort();
-    }
-    
-    // Fallback for schools without arms - just show the classes.
+    const sortedArms = Array.from(armSet).sort();
+    if (sortedArms.length > 0) return sortedArms;
+
+    // Fallback for schools without defined arms but with classes.
     return classes.sort();
   }, [activeTimetable, viewMode, classes]);
 
@@ -117,8 +116,6 @@ export default function TimetableGrid() {
 
      if (day === 'Fri' && (period === periodsCount - 2 || period === periodsCount - 1) && isSecondarySchool) {
          let isRelevantItem = false;
-         if (viewMode === 'class' && filterValue === 'Sports') return null;
-
          if (viewMode === 'class' && classes.includes(filterValue)) isRelevantItem = true;
          if (viewMode === 'arm' && arms.includes(filterValue)) isRelevantItem = true;
 
@@ -137,7 +134,12 @@ export default function TimetableGrid() {
      } else if (viewMode === 'teacher') {
          relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
      } else if (viewMode === 'arm') {
-         relevantSessions = allSessionsInSlot.filter(s => s.className === filterValue);
+         relevantSessions = allSessionsInSlot.filter(s => {
+            if (s.subject === 'Assembly') {
+                return s.classes.includes(filterValue);
+            }
+            return s.className === filterValue;
+        });
      }
      
      if (relevantSessions.length > 0) {
@@ -352,5 +354,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

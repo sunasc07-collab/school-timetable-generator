@@ -29,7 +29,7 @@ type TimetableContextType = {
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-const DEFAULT_TIMESLOTS_WITH_BREAK: TimeSlot[] = [
+const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 1, time: '8:00-8:40' },
     { period: 2, time: '8:40-9:20' },
     { period: 3, time: '9:20-10:00' },
@@ -77,7 +77,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         classes: [],
         conflicts: [],
         days: DEFAULT_DAYS,
-        timeSlots: DEFAULT_TIMESLOTS_WITH_BREAK,
+        timeSlots: DEFAULT_TIMESLOTS,
     };
 }
 
@@ -89,13 +89,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     setTimetables(prev => 
-      prev.map(t => {
-        const hasBreak = t.timeSlots.some(ts => ts.isBreak);
-        return {
-          ...t,
-          timeSlots: hasBreak ? DEFAULT_TIMESLOTS_WITH_BREAK : t.timeSlots
-        }
-      })
+      prev.map(t => ({
+        ...t,
+        timeSlots: DEFAULT_TIMESLOTS,
+      }))
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -402,7 +399,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       const assemblySession: TimetableSession = {
         id: crypto.randomUUID(),
         subject: 'Assembly',
-        className: 'All Classes',
+        className: 'Assembly',
         teacher: 'Administration',
         isDouble: false,
         classes: sortedClasses,
@@ -410,23 +407,23 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
       let assemblyPlaced = false;
       const firstPeriod = 0;
-      for (const day of ['Mon', 'Fri']) { // Prioritize Mon/Fri first period
-        if (finalTimetable[day][firstPeriod].length === 0) {
+      for (const day of ['Mon', 'Fri']) {
+        if (finalTimetable[day]?.[firstPeriod].length === 0) {
           finalTimetable[day][firstPeriod].push(assemblySession);
           assemblyPlaced = true;
           break;
         }
       }
-      if (!assemblyPlaced) { // Fallback to any day, first period
+      if (!assemblyPlaced) {
         for (const day of days) {
-          if (finalTimetable[day][firstPeriod].length === 0) {
+          if (finalTimetable[day]?.[firstPeriod].length === 0) {
             finalTimetable[day][firstPeriod].push(assemblySession);
             assemblyPlaced = true;
             break;
           }
         }
       }
-       if (!assemblyPlaced) { // Force placement if still not placed
+       if (!assemblyPlaced) {
           finalTimetable['Mon'][firstPeriod].push(assemblySession);
       }
     }
@@ -541,10 +538,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (slot.some(s => s.teacher === session.teacher && s.subject !== 'Assembly')) return false;
         
         if (session.subject === 'Assembly') {
-          return true; // Assembly can be with other classes
+          // Check if any other class is already having assembly
+          return !slot.some(s => s.subject === 'Assembly');
         }
 
-        if (slot.some(s => s.className === session.className)) return false;
+        if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
         
         return true;
     }
@@ -715,5 +713,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

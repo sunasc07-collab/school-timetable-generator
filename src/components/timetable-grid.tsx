@@ -36,7 +36,6 @@ export default function TimetableGrid() {
     timetables,
     moveSession, 
     isConflict, 
-    generateTimetable, 
     viewMode, 
     clearTimetable, 
     resolveConflicts 
@@ -50,7 +49,6 @@ export default function TimetableGrid() {
   const classes = activeTimetable?.classes || [];
   const conflicts = activeTimetable?.conflicts || [];
   
-  const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const isSecondarySchool = useMemo(() => activeTimetable?.name.toLowerCase().includes('secondary'), [activeTimetable]);
@@ -100,21 +98,6 @@ export default function TimetableGrid() {
     }
   };
   
-  const handleRegenerateClick = () => {
-    if (!activeTimetable) return;
-    if (Object.keys(timetable).length > 0) {
-      setIsRegenerateConfirmOpen(true);
-    } else {
-      generateTimetable();
-    }
-  };
-  
-  const handleConfirmRegenerate = () => {
-    if (!activeTimetable) return;
-    generateTimetable();
-    setIsRegenerateConfirmOpen(false);
-  };
-
   const handleClearClick = () => {
      if (!activeTimetable) return;
     setIsClearConfirmOpen(true);
@@ -205,12 +188,8 @@ export default function TimetableGrid() {
         <div>
           <h3 className="text-lg font-semibold font-headline">Timetable not generated</h3>
           <p className="text-muted-foreground mt-2 mb-4">
-            Click the button below to generate a timetable based on the current teacher and subject configuration.
+            Click the "Generate Timetable" button in the header to create a schedule.
           </p>
-          <Button onClick={handleRegenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Zap className="mr-2 h-4 w-4" />
-            Generate Timetable
-          </Button>
         </div>
       </div>
     );
@@ -273,7 +252,7 @@ export default function TimetableGrid() {
                             <TableCell key={`break-${slotIndex}`} className="p-0">
                              <div className="relative h-full w-full flex items-center justify-center bg-background">
                                  <span className={cn(
-                                     "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em] text-3xl",
+                                     "font-medium text-muted-foreground uppercase [writing-mode:vertical-lr] transform -rotate-90 tracking-[.2em] text-3xl",
                                      slot.label === "Short Break" && "text-3xl",
                                      slot.label === "Lunch Break" && "text-3xl"
                                  )}>
@@ -342,23 +321,6 @@ export default function TimetableGrid() {
 
   return (
     <ClientOnly>
-       <AlertDialog open={isRegenerateConfirmOpen} onOpenChange={setIsRegenerateConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Re-generating the timetable will discard any manual changes you've made. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmRegenerate}>
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -396,13 +358,9 @@ export default function TimetableGrid() {
                     Resolve Conflicts
                   </Button>
                 )}
-                <Button onClick={handleClearClick} variant="destructive">
+                <Button onClick={handleClearClick} variant="destructive" disabled={Object.keys(timetable).length === 0}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Clear Timetable
-                </Button>
-                <Button onClick={handleRegenerateClick} variant="outline">
-                    <Zap className="mr-2 h-4 w-4" />
-                    Re-generate Timetable
                 </Button>
             </div>
         </div>
@@ -411,3 +369,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
-import { Download, Printer, View, Plus, Trash2, Edit } from "lucide-react";
+import { Download, Printer, View, Plus, Trash2, Edit, Zap } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import {
@@ -31,7 +31,7 @@ import { Input } from "./ui/input";
 import { useState } from "react";
 import type { ViewMode } from "@/lib/types";
 
-type DialogState = 'add' | 'rename' | 'remove' | null;
+type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
 export default function Header() {
   const { 
@@ -42,7 +42,8 @@ export default function Header() {
     removeTimetable,
     renameTimetable,
     viewMode, 
-    setViewMode 
+    setViewMode,
+    generateTimetable
   } = useTimetable();
   
   const [dialogOpen, setDialogOpen] = useState<DialogState>(null);
@@ -91,6 +92,21 @@ export default function Header() {
         removeTimetable(timetableToEdit);
         closeDialog();
     }
+  };
+  
+  const handleGenerateClick = () => {
+    if (!activeTimetable) return;
+    if (Object.keys(timetable).length > 0) {
+      openDialog('regenerate');
+    } else {
+      generateTimetable();
+    }
+  };
+
+  const handleConfirmRegenerate = () => {
+    if (!activeTimetable) return;
+    generateTimetable();
+    closeDialog();
   };
 
 
@@ -307,6 +323,23 @@ export default function Header() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AlertDialog open={dialogOpen === 'regenerate'} onOpenChange={(isOpen) => !isOpen && closeDialog()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Re-generating the timetable will discard any manual changes you've made. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRegenerate}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2">
@@ -348,6 +381,11 @@ export default function Header() {
             </DropdownMenuContent>
         </DropdownMenu>
 
+        <Button onClick={handleGenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!activeTimetable || teachers.length === 0}>
+            <Zap className="mr-2 h-4 w-4" />
+            Generate Timetable
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline">
@@ -372,7 +410,7 @@ export default function Header() {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="default" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!currentTimetable || Object.keys(timetable).length === 0}>
+            <Button variant="default" className="bg-primary hover:bg-primary/90" disabled={!currentTimetable || Object.keys(timetable).length === 0}>
               <Download className="mr-2 h-4 w-4" />
               Download PDF
             </Button>
@@ -391,3 +429,5 @@ export default function Header() {
     </>
   );
 }
+
+    

@@ -114,18 +114,13 @@ export default function TimetableGrid() {
      const allSessionsInSlot = timetable[day]?.[period] || [];
      
      let relevantSessions: TimetableSession[] = [];
-      if (viewMode === 'class') {
-          relevantSessions = allSessionsInSlot.filter(s => {
-              if (s.subject === 'Assembly') return true;
-              return s.classes.includes(filterValue);
-          });
-      } else if (viewMode === 'teacher') {
-          relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
-      } else if (viewMode === 'arm') {
+      if (viewMode === 'class' || viewMode === 'arm') {
           relevantSessions = allSessionsInSlot.filter(s => {
               if (s.subject === 'Assembly') return true;
               return s.className === filterValue;
           });
+      } else if (viewMode === 'teacher') {
+          relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
       }
      
      if (relevantSessions.length > 0) {
@@ -222,13 +217,15 @@ export default function TimetableGrid() {
 
                     if (slot.isBreak) {
                         rowCells.push(
-                            <TableCell key={`break-${slotIndex}`} className="p-0">
-                             <div className="relative h-full w-full flex items-center justify-center bg-background">
-                                 <span className={cn(
-                                     "font-bold text-muted-foreground uppercase tracking-widest text-[35px] [writing-mode:vertical-lr] transform rotate-180",
-                                 )}>
-                                 {day === 'Wed' ? slot.label : ''}
-                                 </span>
+                            <TableCell key={`break-${slotIndex}`} className="p-0 relative">
+                             <div className="h-full w-full bg-background">
+                                 {day === 'Wed' && (
+                                     <span className={cn(
+                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase tracking-widest text-[35px] scale-y-[3] [writing-mode:vertical-lr] transform rotate-180",
+                                     )}>
+                                         {slot.label}
+                                     </span>
+                                 )}
                              </div>
                             </TableCell>
                         );
@@ -340,5 +337,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

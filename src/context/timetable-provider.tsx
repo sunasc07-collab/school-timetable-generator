@@ -30,7 +30,7 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
-const usePersistentState = <T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
+const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
         if (typeof window === 'undefined') {
             return defaultValue;
@@ -102,6 +102,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const updateTimetable = (timetableId: string, updates: Partial<Timetable>) => {
       setTimetables(prev => prev.map(t => t.id === timetableId ? { ...t, ...updates } : t));
   }
+  
+  const resetTimetableForSchool = (schoolId: string) => {
+    setTimetables(prev => prev.map(t => t.id === schoolId ? {
+      ...t,
+      timetable: {},
+      classes: [],
+      conflicts: [],
+    } : t));
+  };
+
 
   const addTimetable = (name: string) => {
       const newTimetable = createNewTimetable(name);
@@ -133,10 +143,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setAllTeachers(prev => [...prev, teacherData]);
     const schoolIds = new Set(teacherData.assignments.map(a => a.schoolId));
     schoolIds.forEach(schoolId => {
-      const timetable = timetables.find(t => t.id === schoolId);
-      if (timetable) {
-        updateTimetable(schoolId, { timetable: {}, conflicts: [], classes: [] });
-      }
+        resetTimetableForSchool(schoolId);
     });
   };
 
@@ -145,7 +152,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     if (teacher) {
         const schoolIds = new Set(teacher.assignments.map(a => a.schoolId));
         schoolIds.forEach(schoolId => {
-            updateTimetable(schoolId, { timetable: {}, conflicts: [], classes: [] });
+            resetTimetableForSchool(schoolId);
         });
     }
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
@@ -164,10 +171,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
 
     schoolIdsToReset.forEach(schoolId => {
-        const timetable = timetables.find(t => t.id === schoolId);
-        if (timetable) {
-            updateTimetable(schoolId, { timetable: {}, conflicts: [], classes: [] });
-        }
+       resetTimetableForSchool(schoolId);
     });
   };
 
@@ -648,5 +652,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

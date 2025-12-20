@@ -116,7 +116,9 @@ export default function TimetableGrid() {
      let relevantSessions: TimetableSession[] = [];
       if (viewMode === 'class' || viewMode === 'arm') {
           relevantSessions = allSessionsInSlot.filter(s => {
-              if (s.subject === 'Assembly') return true;
+              if (s.subject === 'Assembly') {
+                 return s.classes.includes(filterValue);
+              }
               return s.className === filterValue;
           });
       } else if (viewMode === 'teacher') {
@@ -221,7 +223,7 @@ export default function TimetableGrid() {
                              <div className="h-full w-full bg-background">
                                  {day === 'Wed' && (
                                      <span className={cn(
-                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase tracking-widest text-[35px]",
+                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase tracking-widest text-[35px] [writing-mode:vertical-lr] transform rotate-180",
                                      )}>
                                          {slot.label}
                                      </span>

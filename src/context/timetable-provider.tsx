@@ -263,8 +263,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         if (optionGroup) {
             const uniqueClasses = [...new Set(classNames)];
+            
             const representativeSession: TimetableSession = {
-                id: crypto.randomUUID(),
+                id: req.id, // Use assignment ID to group sessions from the same assignment
                 subject,
                 teacher,
                 className: uniqueClasses.join(', '), // For display
@@ -279,7 +280,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (!optionGroups.has(groupKey)) {
                     optionGroups.set(groupKey, []);
                 }
-                optionGroups.get(groupKey)!.push({ ...representativeSession, id: crypto.randomUUID() });
+                optionGroups.get(groupKey)!.push({ ...representativeSession, id: `${req.id}-${i}` });
             }
             return;
         }
@@ -318,7 +319,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const sizeB = Array.isArray(b) ? b.length : (('session' in b) ? 2 : 1);
         if (sizeB !== sizeA) return sizeB - sizeA;
 
-        // Prioritize core subjects
         const isCoreA = (Array.isArray(a) ? a[0].isCore : ('session' in a ? a.session.isCore : a.isCore)) || false;
         const isCoreB = (Array.isArray(b) ? b[0].isCore : ('session' in b ? b.session.isCore : b.isCore)) || false;
 
@@ -350,31 +350,25 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
         
-        // 1. Teacher conflict
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
 
-        // 2. Class conflict
         for (const c of session.classes) {
             const sessionsForThisClassInSlot = slot.filter(s => s.classes.includes(c));
             if (sessionsForThisClassInSlot.length === 0) continue;
 
-            // If new session is core, slot must be empty for that class.
             if(session.isCore) return false;
 
-            // If slot has a core session, new session (which must be optional) cannot be placed.
             if (sessionsForThisClassInSlot.some(s => s.isCore)) return false;
             
-            // If new session is optional, check against other optionals in slot.
             if(session.optionGroup) {
                 if (sessionsForThisClassInSlot.some(s => s.optionGroup === session.optionGroup)) {
-                    return false; // Cannot have two from the same option group
+                    return false;
                 }
             }
         }
         
-        // 3. Subject per day limit for each class in the session (max 2 per day for same subject)
         for (const c of session.classes) {
             const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
             if (subjectsOnDayForClass.length >= 2) {
@@ -518,14 +512,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const resolveConflicts = () => {
-    // This function is now disabled
+    if (!activeTimetable || conflicts.length === 0) return;
   };
 
   useEffect(() => {
      if (!activeTimetable?.timetable || !activeTimetable.id) return;
      updateTimetable(activeTimetable.id, { conflicts: [] });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTimetable?.timetable, activeTimetable?.id, setTimetables]);
+  }, [activeTimetable?.timetable, activeTimetable?.id]);
 
   const isConflict = (sessionId: string) => {
     return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
@@ -564,3 +558,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

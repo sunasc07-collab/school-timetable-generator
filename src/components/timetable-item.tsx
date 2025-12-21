@@ -55,7 +55,7 @@ export default function TimetableItem({
           {displayIcon}
           <span className="break-words">{displayValue}</span>
         </div>
-         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? '' : 'hidden')}>
+         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? 'hidden' : 'hidden')}>
           <User className="h-3 w-3 shrink-0"/>
           <span className="truncate">{session.teacher}</span>
         </div>
@@ -63,3 +63,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+    

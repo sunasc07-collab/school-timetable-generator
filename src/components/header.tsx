@@ -15,7 +15,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -30,6 +29,7 @@ import {
 import { Input } from "./ui/input";
 import { useState } from "react";
 import type { ViewMode, TimetableSession } from "@/lib/types";
+import { DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
@@ -152,9 +152,10 @@ export default function Header() {
             if (startY > 180) { // Check if new page is needed
                 doc.addPage();
                 startY = 20;
+                doc.text(title, 14, 10);
             }
         }
-        doc.text(`${itemName}'s Timetable`, 14, startY - 5);
+        doc.text(itemName, 14, startY - 5);
         
         const head = [[ 'Time', ...days]];
 
@@ -162,12 +163,11 @@ export default function Header() {
         const mergedCells = new Set<string>();
 
         timeSlots.forEach((slot, rowIndex) => {
-            const row: any[] = [slot.time];
+            const rowData: any[] = [slot.time];
             
             days.forEach((day, colIndex) => {
                 const cellKey = `${rowIndex}-${colIndex}`;
                 if (mergedCells.has(cellKey)) {
-                    row.push(null);
                     return;
                 }
 
@@ -179,7 +179,7 @@ export default function Header() {
                 }
 
                 if (slot.isBreak) {
-                    row.push({ content: slot.label, styles: { fillColor: [245, 245, 245] } });
+                    rowData.push({ content: '', styles: { fillColor: [255, 255, 255] } });
                     return;
                 }
 
@@ -196,12 +196,13 @@ export default function Header() {
                 if (session) {
                     sessionContent = type === 'class' ? `${session.subject}\n${session.teacher}` : `${session.subject}\n${session.className}`;
                     let rowSpan = 1;
+                    let colSpan = 1;
 
                     if (session.isDouble && session.part === 1) {
                          const nextRowIndex = rowIndex + 1;
                          if (nextRowIndex < timeSlots.length) {
                             const nextSlotPeriodIndex = periodIndex + 1;
-                            const nextSlotSessions = timetable[day]?.[nextSlotPeriodIndex] || [];
+                             const nextSlotSessions = timetable[day]?.[nextSlotPeriodIndex] || [];
                             const partnerSession = nextSlotSessions.find(s => s.id === session!.id && s.part === 2);
                             if (partnerSession) {
                                 rowSpan = 2;
@@ -210,29 +211,23 @@ export default function Header() {
                          }
                     }
                     if(session.isDouble && session.part === 2) {
-                       row.push(null);
                        return;
                     }
 
-                    row.push({
+                    rowData.push({
                         content: sessionContent,
                         rowSpan: rowSpan,
-                        styles: { fillColor: getSubjectColor(session.subject) }
+                        colSpan: colSpan,
+                        styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
                     });
                 } else {
-                    row.push('');
+                    rowData.push('');
                 }
             });
-            body.push(row);
+            body.push(rowData);
         });
 
-        // Filter out rows where all day cells are null (due to rowspan)
-        const finalBody = body.map(row => {
-            const newRow = row.filter(cell => cell !== null);
-            return newRow;
-        });
-
-        autoTable(doc, {
+        (doc as any).autoTable({
             head: head,
             body: body,
             startY: startY,
@@ -246,23 +241,51 @@ export default function Header() {
                 lineColor: [220, 220, 220],
             },
             headStyles: {
-                fillColor: [230, 245, 240], // Light green header
+                fillColor: [230, 245, 240],
                 textColor: [50, 50, 50],
                 fontStyle: "bold",
             },
-            didDrawCell: (data) => {
-                if (data.section === 'body' && data.cell.raw && typeof data.cell.raw === 'object' && 'styles' in data.cell.raw && data.cell.raw.styles?.fillColor) {
+            didDrawCell: (data: any) => {
+                if (data.section === 'body' && data.cell.raw && data.cell.raw.styles && data.cell.raw.styles.fillColor) {
                     doc.setFillColor(...(data.cell.raw.styles.fillColor as [number, number, number]));
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     doc.setTextColor(0, 0, 0);
                     if (data.cell.raw.content) {
-                       doc.text(data.cell.raw.content.toString(), data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                       const textLines = doc.splitTextToSize(data.cell.raw.content.toString(), data.cell.width - 4);
+                       doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
                             halign: 'center',
                             valign: 'middle'
                        });
                     }
                 }
+                if (data.section === 'body' && timeSlots[data.row.index].isBreak) {
+                    const slot = timeSlots[data.row.index];
+                    doc.setFillColor(245, 245, 245);
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+
+                    const textOptions: any = {
+                        align: 'center',
+                        angle: -90
+                    };
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(150);
+
+                    const textY = data.cell.y + data.cell.height / 2;
+                    let textX = data.cell.x + data.cell.width / 2;
+
+                    if (slot.label) {
+                      doc.text(slot.label.replace('-', ' '), textY, textX, null, -90);
+                    }
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(0);
+                }
             },
+            willDrawCell: (data: any) => {
+                 if (data.section === 'body' && timeSlots[data.row.index].isBreak) {
+                    data.cell.styles.lineWidth = 0;
+                 }
+            }
         });
     });
 
@@ -435,3 +458,5 @@ export default function Header() {
     </>
   );
 }
+
+    

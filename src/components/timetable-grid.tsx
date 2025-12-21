@@ -189,11 +189,11 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
-                <TableHead className="w-32"></TableHead>
+                <TableHead className="w-32 border-x-0"></TableHead>
                 {timeSlots.map((slot, index) => {
                   if (slot.isBreak) {
                      return (
-                      <TableHead key={index} className="w-10 p-0 font-headline text-center align-middle">
+                      <TableHead key={index} className="w-10 p-0 font-headline text-center align-middle border-x-0">
                         <div className="text-xs font-normal h-full">{slot.time}</div>
                       </TableHead>
                     );
@@ -226,7 +226,7 @@ export default function TimetableGrid() {
                         }
                         
                         rowCells.push(
-                            <TableCell key={slotIndex} className="p-0 relative">
+                            <TableCell key={slotIndex} className="p-0 relative border-x-0">
                                 <div className={cn(
                                         "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center justify-center gap-4 h-full",
                                         "absolute inset-0"
@@ -264,7 +264,7 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                             <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                            <TableCell className="w-32 relative">
+                            <TableCell className="w-32 relative border-x-0">
                                 {day === 'Wed' && (
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <span className="text-[35px] font-bold text-muted-foreground/80 transform -rotate-90 uppercase">Assembly</span>
@@ -281,7 +281,7 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        <TableCell className="w-32 relative">
+                        <TableCell className="w-32 relative border-x-0">
                             {day === 'Wed' && (
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <span className="text-[35px] font-bold text-muted-foreground/80 transform -rotate-90 uppercase">Assembly</span>
@@ -357,3 +357,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

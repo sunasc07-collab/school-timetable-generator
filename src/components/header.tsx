@@ -110,158 +110,97 @@ export default function Header() {
   };
 
 
-  const handleDownloadClassPdf = () => {
+  const generatePdf = (type: 'class' | 'teacher') => {
     if (!currentTimetable) return;
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.text(`School Timetable - ${currentTimetable.name} - By Class`, 14, 10);
+    const title = type === 'class' ? `School Timetable - ${currentTimetable.name} - By Class` : `School Timetable - ${currentTimetable.name} - By Teacher`;
+    doc.text(title, 14, 10);
     let startY = 20;
 
-    classes.forEach((className, classIndex) => {
-      if (classIndex > 0) {
-          const lastTable = (doc as any).lastAutoTable;
-          if (lastTable) {
-            startY = lastTable.finalY + 15;
-          }
-          if (startY > 180) { // Check if new page is needed
-              doc.addPage();
-              startY = 20;
-          }
-      }
-      doc.text(className, 14, startY - 5);
+    const listToIterate = type === 'class' ? classes : teachers;
 
-      const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
-
-      const body: (string | null)[][] = [];
-      
-      days.forEach(day => {
-          const row: (string | null)[] = [day];
-          let periodIndex = 0;
-          
-          timeSlots.forEach(slot => {
-            if (slot.isBreak) {
-              row.push(null);
-            } else {
-              const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-              const classSession = sessionsInSlot.find(s => s.className === className);
-              if (classSession) {
-                row.push(`${classSession.subject}\n${classSession.teacher}`);
-              } else {
-                row.push("");
-              }
-              periodIndex++;
+    listToIterate.forEach((item, index) => {
+        const itemName = type === 'class' ? item as string : (item as any).name;
+        if (index > 0) {
+            const lastTable = (doc as any).lastAutoTable;
+            if (lastTable) {
+                startY = lastTable.finalY + 15;
             }
-          });
-          body.push(row);
-      });
-      
-       const columnStyles: { [key: number]: any } = {};
-       timeSlots.forEach((slot, index) => {
-         if (slot.isBreak) {
-           columnStyles[index + 1] = {
-             fillColor: [230, 230, 230]
-           };
-         }
-       });
-
-      (doc as any).autoTable({
-        head: head,
-        body: body,
-        startY: startY,
-        theme: "grid",
-        styles: {
-          fontSize: 7,
-          cellPadding: 2,
-          valign: "middle",
-          halign: "center",
-        },
-        headStyles: {
-          fillColor: [41, 128, 185],
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        columnStyles: columnStyles,
-      });
-
-    });
-
-    doc.save(`${currentTimetable.name}-class-timetables.pdf`);
-  };
-
-  const handleDownloadTeacherPdf = () => {
-    if (!currentTimetable) return;
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.text(`School Timetable - ${currentTimetable.name} - By Teacher`, 14, 10);
-    let startY = 20;
-
-    teachers.forEach((teacher: any, teacherIndex: number) => {
-      if (teacherIndex > 0) {
-           const lastTable = (doc as any).lastAutoTable;
-          if (lastTable) {
-            startY = lastTable.finalY + 15;
-          }
-          if (startY > 180) { // Check if new page is needed
-              doc.addPage();
-              startY = 20;
-          }
-      }
-      doc.text(teacher.name, 14, startY - 5);
-
-      const head = [["Day", ...timeSlots.map(slot => slot.label || slot.time)]];
-      const body: (string | null)[][] = [];
-      
-      days.forEach(day => {
-          const row: (string | null)[] = [day];
-          let periodIndex = 0;
-          
-          timeSlots.forEach(slot => {
-            if (slot.isBreak) {
-              row.push(null);
-            } else {
-              const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-              const teacherSession = sessionsInSlot.find(s => s.teacher === teacher.name);
-              if (teacherSession) {
-                row.push(`${teacherSession.subject}\n${teacherSession.className}`);
-              } else {
-                row.push("");
-              }
-              periodIndex++;
+            if (startY > 180) { // Check if new page is needed
+                doc.addPage();
+                startY = 20;
             }
-          });
-          body.push(row);
-      });
-      
-      const columnStyles: { [key: number]: any } = {};
-      timeSlots.forEach((slot, index) => {
-        if (slot.isBreak) {
-          columnStyles[index + 1] = {
-            fillColor: [230, 230, 230]
-          };
         }
-      });
+        doc.text(itemName, 14, startY - 5);
+        
+        const headContent = ["Day", "Assembly", ...timeSlots.map(slot => slot.label || `P${slot.period}\n${slot.time}`)];
+        const head = [headContent];
 
-      (doc as any).autoTable({
-        head: head,
-        body: body,
-        startY: startY,
-        theme: "grid",
-        styles: {
-          fontSize: 7,
-          cellPadding: 2,
-          valign: "middle",
-          halign: "center",
-        },
-        headStyles: {
-          fillColor: [41, 128, 185],
-          textColor: 255,
-          fontStyle: "bold",
-        },
-        columnStyles: columnStyles,
-      });
+        const body: (string | null)[][] = [];
+        const columnStyles: { [key: number]: any } = { 1: { cellWidth: 20 }};
+
+        days.forEach(day => {
+            const row: (string | null)[] = [day];
+            
+            // Assembly Column
+            row.push(day === 'Wed' ? 'ASSEMBLY' : '');
+            
+            let periodIndex = 0;
+            timeSlots.forEach(slot => {
+                if (slot.isBreak) {
+                    row.push(slot.label || '');
+                } else {
+                    const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+                    let sessionContent = "";
+                    if (type === 'class') {
+                        const classSession = sessionsInSlot.find(s => s.className === itemName);
+                        if (classSession) {
+                            sessionContent = `${classSession.subject}\n${classSession.teacher}`;
+                        }
+                    } else {
+                        const teacherSession = sessionsInSlot.find(s => s.teacher === itemName);
+                        if (teacherSession) {
+                             sessionContent = `${teacherSession.subject}\n${teacherSession.className}`;
+                        }
+                    }
+                    row.push(sessionContent);
+                    periodIndex++;
+                }
+            });
+            body.push(row);
+        });
+
+        (doc as any).autoTable({
+            head: head,
+            body: body,
+            startY: startY,
+            theme: "grid",
+            styles: {
+                fontSize: 7,
+                cellPadding: 1.5,
+                valign: "middle",
+                halign: "center",
+                lineWidth: 0.1,
+            },
+            headStyles: {
+                fillColor: [41, 128, 185],
+                textColor: 255,
+                fontStyle: "bold",
+            },
+            columnStyles: columnStyles,
+            didParseCell: (data: any) => {
+                if(data.cell.section === 'body') {
+                    if (data.cell.text[0] === 'ASSEMBLY' || data.cell.text[0] === 'LUNCH' || data.cell.text[0] === 'SHORT-BREAK') {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [230, 230, 230];
+                    }
+                }
+            }
+        });
     });
 
-    doc.save(`${currentTimetable.name}-teacher-timetables.pdf`);
+    doc.save(`${currentTimetable.name}-${type}-timetables.pdf`);
   };
-
 
   return (
     <>
@@ -416,10 +355,10 @@ export default function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleDownloadClassPdf}>
+            <DropdownMenuItem onClick={() => generatePdf('class')}>
               Class Timetables
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDownloadTeacherPdf}>
+            <DropdownMenuItem onClick={() => generatePdf('teacher')}>
               Teacher Timetables
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -107,6 +107,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
       name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`,
     }) || [];
 
+    const subjectType = useWatch({
+        control,
+        name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`
+    })
+
     const selectedSchool = useMemo(() => timetables.find(t => t.id === schoolId), [schoolId, timetables]);
     const schoolName = selectedSchool?.name.toLowerCase() || '';
 
@@ -187,6 +192,22 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     
     // @ts-ignore
     const assignmentErrors = errors?.teachers?.[teacherIndex]?.assignments?.[assignmentIndex];
+
+    const handleSubjectTypeChange = (type: string) => {
+        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`, type);
+        if (type === 'core') {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, true);
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
+        } else {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, false);
+        }
+        trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
+    }
+
+    const handleOptionGroupChange = (group: string) => {
+        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, group);
+        trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
+    }
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -309,59 +330,54 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                     />
                     </div>
                     {hasSeniorSecondary && (
-                        <div className="space-y-3">
-                            <FormField
-                                control={control}
-                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`}
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={(checked) => {
-                                                    field.onChange(checked);
-                                                    if (checked) {
-                                                        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
-                                                    }
-                                                    trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
-                                                }}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="font-normal text-sm">Core Subject (single period for all students in grade/arm)</FormLabel>
-                                    </FormItem>
-                                )}
-                            />
-                             <div className="space-y-2">
-                                <Label className="text-sm">Option Groups (for subjects taken by different students at the same time)</Label>
-                                <div className="grid grid-cols-5 gap-2 p-2 border rounded-md">
-                                    {OPTION_GROUPS.map((group) => (
-                                        <FormField
-                                            key={group}
-                                            control={control}
-                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
-                                            render={({ field }) => (
-                                                <FormItem className="flex items-center space-x-2 space-y-0">
-                                                    <FormControl>
-                                                        <Checkbox
-                                                            checked={field.value === group}
-                                                            onCheckedChange={(checked) => {
-                                                                field.onChange(checked ? group : null);
-                                                                if (checked) {
-                                                                    setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, false);
-                                                                }
-                                                                trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
-                                                            }}
-                                                        />
-                                                    </FormControl>
-                                                    <FormLabel className="font-normal text-sm">Option {group}</FormLabel>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    ))}
-                                </div>
-                                {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive">{assignmentErrors.isCore.message as string}</p>}
-                            </div>
-                        </div>
+                         <div className="grid grid-cols-2 gap-2">
+                             <FormField
+                                 control={control}
+                                 name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`}
+                                 render={({ field }) => (
+                                     <FormItem>
+                                         <FormLabel>Subject Type</FormLabel>
+                                         <Select onValueChange={handleSubjectTypeChange} value={field.value}>
+                                             <FormControl>
+                                                 <SelectTrigger>
+                                                     <SelectValue placeholder="Select type" />
+                                                 </SelectTrigger>
+                                             </FormControl>
+                                             <SelectContent>
+                                                 <SelectItem value="core">Core Subject</SelectItem>
+                                                 <SelectItem value="optional">Optional Subject</SelectItem>
+                                             </SelectContent>
+                                         </Select>
+                                         <FormMessage />
+                                     </FormItem>
+                                 )}
+                             />
+                             {subjectType === 'optional' && (
+                                 <FormField
+                                     control={control}
+                                     name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
+                                     render={({ field }) => (
+                                         <FormItem>
+                                             <FormLabel>Option Group</FormLabel>
+                                             <Select onValueChange={handleOptionGroupChange} value={field.value || ""}>
+                                                 <FormControl>
+                                                     <SelectTrigger>
+                                                         <SelectValue placeholder="Select group" />
+                                                     </SelectTrigger>
+                                                 </FormControl>
+                                                 <SelectContent>
+                                                     {OPTION_GROUPS.map(group => (
+                                                         <SelectItem key={group} value={group}>Option {group}</SelectItem>
+                                                     ))}
+                                                 </SelectContent>
+                                             </Select>
+                                             <FormMessage />
+                                         </FormItem>
+                                     )}
+                                 />
+                             )}
+                              {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.isCore.message as string}</p>}
+                         </div>
                     )}
                      <div className={cn("grid grid-cols-1 gap-y-2", hideGradesAndArms && "hidden")}>
                         {showArms && (
@@ -499,7 +515,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
           variant="outline"
           size="sm"
           className="mt-2"
-          onClick={() => append({ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '', isCore: true, optionGroup: null })}
+          onClick={() => append({ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' })}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Assignment
@@ -539,26 +555,22 @@ export default function TeacherEditor() {
 
   const getNewTeacherForm = (): TeacherFormValues => ({
     name: "",
-    assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '', isCore: true, optionGroup: null }],
+    assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   });
 
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
     if (teacher) {
-        replace([{
+        const teacherFormData = {
             id: teacher.id,
             name: teacher.name,
             assignments: teacher.assignments.length > 0 ? teacher.assignments.map(a => ({
+                ...a,
                 id: a.id || crypto.randomUUID(),
-                grades: a.grades,
-                subject: a.subject,
-                arms: a.arms,
-                periods: a.periods,
-                schoolId: a.schoolId,
-                isCore: a.isCore,
-                optionGroup: a.optionGroup,
-            })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '', isCore: true, optionGroup: null }],
-        }]);
+                subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
+            })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
+        };
+        replace([teacherFormData]);
     } else {
         replace([getNewTeacherForm()]);
     }
@@ -761,3 +773,6 @@ export default function TeacherEditor() {
   );
 }
 
+
+
+    

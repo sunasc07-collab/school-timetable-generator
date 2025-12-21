@@ -214,10 +214,17 @@ export default function TimetableGrid() {
                     if (slot.isBreak) {
                         rowCells.push(
                             <TableCell key={slotIndex} className="p-0 relative">
-                                {day === 'Wed' && (
+                                {day === 'Thu' && (
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <span className="font-bold text-[20px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
-                                            {slot.label}
+                                            BREAK
+                                        </span>
+                                    </div>
+                                )}
+                                {day === 'Fri' && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="font-bold text-[20px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                                            SHORT
                                         </span>
                                     </div>
                                 )}

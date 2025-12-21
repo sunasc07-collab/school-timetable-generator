@@ -116,10 +116,7 @@ export default function TimetableGrid() {
      let relevantSessions: TimetableSession[] = [];
      if (viewMode === 'class' || viewMode === 'arm') {
         relevantSessions = allSessionsInSlot.filter(s => {
-            if (s.subject === 'Assembly') {
-               return s.classes.includes(filterValue);
-            }
-            return s.className === filterValue;
+            return s.classes.includes(filterValue);
         });
     } else if (viewMode === 'teacher') {
         relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);

@@ -15,6 +15,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -29,7 +30,6 @@ import {
 import { Input } from "./ui/input";
 import { useState } from "react";
 import type { ViewMode, TimetableSession } from "@/lib/types";
-import { DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
@@ -157,7 +157,10 @@ export default function Header() {
         }
         doc.text(itemName, 14, startY - 5);
         
-        const head = [[ 'Time', ...days]];
+        const headContent = ['Time', ...days];
+        const breakIndices = timeSlots.map((slot, i) => slot.isBreak ? i : -1).filter(i => i !== -1);
+        const head = [headContent];
+
 
         const body: any[][] = [];
         const mergedCells = new Set<string>();
@@ -196,7 +199,6 @@ export default function Header() {
                 if (session) {
                     sessionContent = type === 'class' ? `${session.subject}\n${session.teacher}` : `${session.subject}\n${session.className}`;
                     let rowSpan = 1;
-                    let colSpan = 1;
 
                     if (session.isDouble && session.part === 1) {
                          const nextRowIndex = rowIndex + 1;
@@ -217,7 +219,6 @@ export default function Header() {
                     rowData.push({
                         content: sessionContent,
                         rowSpan: rowSpan,
-                        colSpan: colSpan,
                         styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
                     });
                 } else {
@@ -227,7 +228,7 @@ export default function Header() {
             body.push(rowData);
         });
 
-        (doc as any).autoTable({
+        autoTable(doc, {
             head: head,
             body: body,
             startY: startY,
@@ -241,51 +242,27 @@ export default function Header() {
                 lineColor: [220, 220, 220],
             },
             headStyles: {
-                fillColor: [230, 245, 240],
+                fillColor: [240, 240, 240],
                 textColor: [50, 50, 50],
                 fontStyle: "bold",
             },
             didDrawCell: (data: any) => {
-                if (data.section === 'body' && data.cell.raw && data.cell.raw.styles && data.cell.raw.styles.fillColor) {
-                    doc.setFillColor(...(data.cell.raw.styles.fillColor as [number, number, number]));
+                if (data.section === 'body' && data.cell.raw && (data.cell.raw as any).styles && (data.cell.raw as any).styles.fillColor) {
+                    doc.setFillColor(...((data.cell.raw as any).styles.fillColor as [number, number, number]));
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     doc.setTextColor(0, 0, 0);
                     if (data.cell.raw.content) {
-                       const textLines = doc.splitTextToSize(data.cell.raw.content.toString(), data.cell.width - 4);
+                       const textLines = doc.splitTextToSize(String(data.cell.raw.content), data.cell.width - 4);
                        doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
                             halign: 'center',
                             valign: 'middle'
                        });
                     }
                 }
-                if (data.section === 'body' && timeSlots[data.row.index].isBreak) {
-                    const slot = timeSlots[data.row.index];
-                    doc.setFillColor(245, 245, 245);
-                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-
-                    const textOptions: any = {
-                        align: 'center',
-                        angle: -90
-                    };
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(150);
-
-                    const textY = data.cell.y + data.cell.height / 2;
-                    let textX = data.cell.x + data.cell.width / 2;
-
-                    if (slot.label) {
-                      doc.text(slot.label.replace('-', ' '), textY, textX, null, -90);
-                    }
-
-                    doc.setFont('helvetica', 'normal');
-                    doc.setTextColor(0);
-                }
-            },
-            willDrawCell: (data: any) => {
                  if (data.section === 'body' && timeSlots[data.row.index].isBreak) {
                     data.cell.styles.lineWidth = 0;
                  }
-            }
+            },
         });
     });
 

@@ -174,32 +174,41 @@ export default function Header() {
             head: head,
             body: body,
             startY: startY,
-            theme: "grid",
+            theme: "striped",
             styles: {
                 fontSize: 7,
                 cellPadding: 1.5,
                 valign: "middle",
                 halign: "center",
-                lineWidth: 0.1,
+                lineWidth: { top: 0.1, right: 0, bottom: 0.1, left: 0 },
             },
             headStyles: {
                 fillColor: [41, 128, 185],
                 textColor: 255,
                 fontStyle: "bold",
+                lineWidth: { top: 0.1, right: 0, bottom: 0.1, left: 0 },
+            },
+            willDrawCell: (data: any) => {
+                 data.cell.styles.lineWidth = { 
+                    top: data.cell.styles.lineWidth,
+                    right: 0,
+                    bottom: data.cell.styles.lineWidth,
+                    left: 0,
+                };
             },
             didDrawCell: (data: any) => {
-                // Remove border for Assembly column
-                if (data.column.index === 1) {
-                    data.cell.styles.lineWidth = 0;
+                const isBreakOrAssembly = (colIndex: number) => {
+                    if (colIndex === 1) return true;
+                    const slotIndex = colIndex - 2;
+                    if (slotIndex >= 0 && slotIndex < timeSlots.length) {
+                        return timeSlots[slotIndex]?.isBreak;
+                    }
+                    return false;
                 }
 
-                // Remove borders for Break columns
-                const slotIndex = data.column.index - 2;
-                if (slotIndex >= 0 && slotIndex < timeSlots.length) {
-                    const slot = timeSlots[slotIndex];
-                    if (slot?.isBreak) {
-                        data.cell.styles.lineWidth = 0;
-                    }
+                if (isBreakOrAssembly(data.column.index)) {
+                   data.cell.styles.lineWidth = { top: 0, right: 0, bottom: 0, left: 0 };
+                   return;
                 }
             }
         });

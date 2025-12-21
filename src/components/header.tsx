@@ -119,7 +119,6 @@ export default function Header() {
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
-    const teachingSlots = timeSlots.filter(slot => !slot.isBreak);
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as any).name;
@@ -135,8 +134,8 @@ export default function Header() {
         }
         doc.text(itemName, 14, startY - 5);
         
-        const headContent = ["Day", "Assembly", ...timeSlots.map(slot => {
-            if (slot.isBreak) return `${slot.label}\n${slot.time}`;
+        const headContent = ["Day", "", ...timeSlots.map(slot => {
+            if (slot.isBreak) return "";
             return `P${slot.period}\n${slot.time}`;
         })];
         const head = [headContent];
@@ -189,9 +188,9 @@ export default function Header() {
                 fontStyle: "bold",
             },
             didDrawCell: (data: any) => {
-                if(data.cell.section === 'body') {
-                    if (data.row.index === 2 && data.column.index === 1) { // Wednesday Assembly
-                        const text = "Assembly";
+                if (data.cell.section === 'body' && data.column.index === 1) { // Assembly column
+                    if (data.row.index === 2) { // Centered on Wednesday
+                        const text = "ASSEMBLY";
                         const { x, y, width, height } = data.cell;
                         doc.saveGraphicsState();
                         doc.setFont('helvetica', 'bold');
@@ -203,6 +202,7 @@ export default function Header() {
                         });
                         doc.restoreGraphicsState();
                     }
+                    data.cell.styles.lineWidth = 0; // Remove cell border for all assembly rows
                 }
 
                 if (data.cell.section === 'body' && data.column.index > 1) {
@@ -219,20 +219,11 @@ export default function Header() {
                             align: 'center'
                         });
                         doc.restoreGraphicsState();
+                        data.cell.styles.lineWidth = 0; // Remove cell border for break columns
                     }
                 }
                 
                 if(data.cell.section === 'head') {
-                    const slot = timeSlots[data.column.index - 2];
-                     if (slot?.isBreak) {
-                        data.cell.styles.lineWidth = 0;
-                     }
-                      if (data.column.index === 1) { // Assembly column
-                        data.cell.styles.lineWidth = 0;
-                    }
-                }
-
-                if (data.cell.section === 'body') {
                     const slot = timeSlots[data.column.index - 2];
                      if (slot?.isBreak) {
                         data.cell.styles.lineWidth = 0;
@@ -414,5 +405,3 @@ export default function Header() {
     </>
   );
 }
-
-    

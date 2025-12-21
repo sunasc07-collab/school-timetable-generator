@@ -213,17 +213,21 @@ export default function TimetableGrid() {
 
                     if (slot.isBreak) {
                         let breakText = null;
-                        if (day === 'Tue') {
+                        if (day === 'Tue' && slot.label === 'SHORT-BREAK') {
                             breakText = "BREAK";
-                        } else if (day === 'Wed') {
+                        } else if (day === 'Wed' && slot.label === 'SHORT-BREAK') {
                             breakText = "SHORT";
+                        } else if (day === 'Wed' && slot.label === 'LUNCH') {
+                            breakText = "LUNCH";
                         }
 
                         rowCells.push(
                             <TableCell key={slotIndex} className="p-0 relative">
                                 {breakText && (
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="font-bold text-[22px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                                        <span className={cn("font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest",
+                                          slot.label === 'LUNCH' ? 'text-[35px]' : 'text-[22px] font-bold'
+                                        )}>
                                             {breakText}
                                         </span>
                                     </div>
@@ -353,3 +357,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

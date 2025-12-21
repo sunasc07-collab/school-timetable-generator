@@ -30,16 +30,15 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const DEFAULT_TIMESLOTS: TimeSlot[] = [
-    { period: 1, time: '8:00-8:40' },
-    { period: 2, time: '8:40-9:20' },
-    { period: 3, time: '9:20-10:00' },
-    { period: null, time: '10:00-10:30', isBreak: true, label: 'SHORT-BREAK' },
-    { period: 4, time: '10:30-11:10' },
-    { period: 5, time: '11:10-11:50' },
-    { period: 6, time: '11:50-12:30' },
-    { period: 7, time: '12:30-13:10' },
-    { period: 8, time: '13:10-13:50' },
-    { period: 9, time: '13:50-14:30' },
+    { period: 1, time: '8:00-8:45' },
+    { period: 2, time: '8:45-9:30' },
+    { period: 3, time: '9:30-10:15' },
+    { period: 4, time: '10:15-10:45', isBreak: true, label: 'SHORT-BREAK' },
+    { period: 5, time: '10:45-11:30' },
+    { period: 6, time: '11:30-12:15' },
+    { period: 7, time: '12:15-13:00' },
+    { period: 8, time: '13:00-13:45' },
+    { period: 9, time: '13:45-14:30' },
 ];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
@@ -714,9 +713,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    
-
-    

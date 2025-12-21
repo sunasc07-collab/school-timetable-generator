@@ -44,6 +44,7 @@ export default function TimetableItem({
       title={title}
     >
        {session.isDouble && <div className="absolute top-0 right-1 text-xs text-muted-foreground opacity-70">D</div>}
+       {session.optionGroup && <div className="absolute top-0.5 left-0.5 text-xs text-primary bg-primary/10 border border-primary/20 rounded-full h-4 w-4 flex items-center justify-center font-bold">{session.optionGroup}</div>}
        {isConflict && <div className="absolute top-0 left-1 text-xs text-destructive-foreground bg-destructive rounded-full h-4 w-4 flex items-center justify-center font-bold ring-2 ring-white">!</div>}
       <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
         <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>

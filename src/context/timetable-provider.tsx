@@ -325,33 +325,34 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const isSecondary = schoolName.toLowerCase().includes('secondary');
 
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
-        if (isSecondary && day === 'Fri' && lastTwoPeriods.includes(period) && session.subject.toLowerCase() !== 'sports') return false;
-
         const slot = board[day]?.[period];
         if (!slot) return false;
         
-        // 1. Check for teacher conflict
+        // 1. Teacher conflict
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
 
-        // 2. Check for class conflict
+        // 2. Class conflict
         const sessionsForClass = slot.filter(s => s.className === session.className);
         if (sessionsForClass.length > 0) {
-            // If the session we're trying to place is core, it's a conflict.
-            if (session.isCore || !session.optionGroup) {
+            const isPlacingCore = session.isCore || !session.optionGroup;
+            // A core subject cannot be placed if there's anything else for that class.
+            if (isPlacingCore) {
                 return false;
             }
-            // If there's already a core subject, it's a conflict.
-            if (sessionsForClass.some(s => s.isCore || !s.optionGroup)) {
-                return false;
+            // If the subject being placed is optional, check against what's already there.
+            const hasCoreInSlot = sessionsForClass.some(s => s.isCore || !s.optionGroup);
+            if(hasCoreInSlot) {
+                return false; // Can't add an optional if a core is there.
             }
-            // If it's an optional subject, check for same option group conflict.
-            if (sessionsForClass.some(s => s.optionGroup === session.optionGroup)) {
+            // An optional subject cannot be placed if another subject from the same option group is already there.
+            if (session.optionGroup && sessionsForClass.some(s => s.optionGroup === session.optionGroup)) {
                 return false;
             }
         }
         
+        // 3. Subject per day limit
         const subjectsOnDayForClass = board[day].flat().filter(s => s.className === session.className && s.subject === session.subject);
         if (subjectsOnDayForClass.length >= 2) {
              return false;
@@ -641,11 +642,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     const optionGroups = new Set<string>();
                     
                     let conflict = false;
-                    if (hasCoreSubject) {
+                    // If there's a core subject, it conflicts with anything else.
+                    if (hasCoreSubject && classSessions.length > 1) {
                         conflict = true;
-                    } else {
+                    } else if (!hasCoreSubject) { // This block only has optional subjects
                         for(const session of classSessions) {
                             if (session.optionGroup) {
+                                // If we've already seen this option group, it's a conflict.
                                 if (optionGroups.has(session.optionGroup)) {
                                     conflict = true;
                                     break;

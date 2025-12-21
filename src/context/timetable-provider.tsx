@@ -36,11 +36,11 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 4, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK' },
     { period: 5, time: '10:20-11:00' },
     { period: 6, time: '11:00-11:40' },
-    { period: 7, time: '11:40-12:15' },
-    { period: null, time: '12:15-13:05', isBreak: true, label: 'LUNCH' },
-    { period: 8, time: '13:05-13:45' },
-    { period: 9, time: '13:45-14:20' },
-    { period: 10, time: '14:20-14:50' },
+    { period: 7, time: '11:40-12:20' },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'LUNCH' },
+    { period: 8, time: '13:00-13:40' },
+    { period: 9, time: '13:40-14:15' },
+    { period: 10, time: '14:15-14:45' },
 ];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {

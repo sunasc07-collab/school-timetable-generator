@@ -212,26 +212,30 @@ export default function TimetableGrid() {
                     const slot = timeSlots[slotIndex];
 
                     if (slot.isBreak) {
-                        let breakText = null;
-                        if (day === 'Tue' && slot.label === 'SHORT-BREAK') {
-                            breakText = "BREAK";
-                        } else if (day === 'Wed' && slot.label === 'SHORT-BREAK') {
-                            breakText = "SHORT";
-                        } else if (day === 'Wed' && slot.label === 'LUNCH') {
+                        let breakText: React.ReactNode = null;
+                        
+                        if (slot.label === 'SHORT-BREAK') {
+                            if (day === 'Tue') breakText = "BREAK";
+                            if (day === 'Wed') breakText = "SHORT";
+                        } else if (slot.label === 'LUNCH' && day === 'Wed') {
                             breakText = "LUNCH";
                         }
+                        
+                        const isShortBreak = slot.label === 'SHORT-BREAK';
+                        const isLunch = slot.label === 'LUNCH';
 
                         rowCells.push(
                             <TableCell key={slotIndex} className="p-0 relative">
-                                {breakText && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className={cn("font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest",
-                                          slot.label === 'LUNCH' ? 'text-[35px]' : 'text-[22px] font-bold'
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className={cn(
+                                            "font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center gap-4",
+                                            isShortBreak && "text-[22px]",
+                                            isLunch && "text-[35px]"
                                         )}>
-                                            {breakText}
-                                        </span>
+                                        {breakText && <span>{breakText}</span>}
+                                        <span className="text-xs font-normal">{slot.time}</span>
                                     </div>
-                                )}
+                                </div>
                            </TableCell>
                         );
                         continue;
@@ -357,5 +361,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

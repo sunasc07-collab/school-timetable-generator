@@ -189,50 +189,29 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
+                <TableHead className="w-10 p-0"></TableHead>
                 {timeSlots.map((slot, index) => (
-                <TableHead key={index} className={cn("font-headline text-center align-middle", slot.isBreak && "w-10 p-0")}>
-                    {slot.isBreak ? (
-                         <div className="relative h-full flex items-center justify-center">
-                           <span className="absolute inset-0 bg-background z-10"></span>
-                            <span className={cn(
-                                "relative z-20 font-medium text-muted-foreground uppercase text-center [writing-mode:vertical-lr] transform rotate-180 tracking-[.2em]",
-                            )}>
-                           </span>
-                       </div>
-                    ) : (
-                        <>
-                            <div>Period {slot.period}</div>
-                            <div className="text-xs font-normal">{slot.time}</div>
-                        </>
-                    )}
+                <TableHead key={index} className={cn("font-headline text-center align-middle")}>
+                    <div>Period {slot.period}</div>
+                    <div className="text-xs font-normal">{slot.time}</div>
                 </TableHead>
                 ))}
             </TableRow>
             </TableHeader>
             <TableBody>
-            {days.map((day, dayIndex) => {
+            {days.map((day) => {
                 const rowCells = [];
                 let periodIndex = 0;
                 
                 for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
                     const slot = timeSlots[slotIndex];
-
-                    if (slot.isBreak) {
-                        rowCells.push(
-                            <TableCell key={`break-${slotIndex}`} className="p-0 relative">
-                             <div className="h-full w-full bg-background">
-                             </div>
-                            </TableCell>
-                        );
-                        continue;
-                    }
                     
                     rowCells.push(
                         <TableCell
                             key={slotIndex}
                             className={cn("p-1 align-top", "hover:bg-muted/50 transition-colors")}
-                            onDragOver={(e) => !slot.isBreak && handleDragOver(e)}
-                            onDrop={(e) => !slot.isBreak && handleDrop(e, day, periodIndex)}
+                            onDragOver={(e) => handleDragOver(e)}
+                            onDrop={(e) => handleDrop(e, day, periodIndex)}
                         >
                             {renderCellContent(day, periodIndex, filterValue)}
                         </TableCell>
@@ -240,6 +219,19 @@ export default function TimetableGrid() {
 
                     periodIndex++;
                 }
+                
+                const assemblyCell = (
+                   <TableCell className="p-0 relative">
+                     {day === 'Wed' && (
+                       <div className="absolute inset-0 flex items-center justify-center">
+                         <span className="font-bold text-lg text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                           ASSEMBLY
+                         </span>
+                       </div>
+                     )}
+                   </TableCell>
+                );
+
 
                 if (day === 'Fri' && isSecondarySchool) {
                     const sportCell = (
@@ -252,7 +244,8 @@ export default function TimetableGrid() {
                     const regularCells = rowCells.slice(0, -2);
                     return (
                          <TableRow key={day}>
-                             <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
+                            <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
+                            {assemblyCell}
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -263,6 +256,7 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
+                        {assemblyCell}
                         {rowCells}
                     </TableRow>
                 );

@@ -120,10 +120,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     
     const isALevelSchool = schoolName.includes('a-level');
     const isNurserySchool = schoolName.includes('nursery');
+    
+    const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
 
     const hasJuniorSecondary = selectedGrades.some((g: string) => ["Grade 7", "Grade 8", "Grade 9"].includes(g));
     const hasSeniorSecondary = Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
-    const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
 
     let armOptions = SENIOR_SECONDARY_ARMS;
     let showArms = false;
@@ -437,27 +438,26 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   });
 
   const { activeTimetable } = useTimetable();
+  
+  const teacherName = useWatch({ control, name: `teachers.${index}.name` });
 
-  const watchedAssignments = useWatch({
-    control,
-    name: `teachers.${index}.assignments`,
-  }) || [];
-
-  const totalAssignedPeriods = watchedAssignments.reduce((acc: number, a: { periods: number; arms: string[] | null; grades: string[] | null; schoolId: string; }) => {
-    if (!a.grades || a.grades.length === 0 || a.schoolId !== activeTimetable?.id) return acc;
-
-    const grades = a.grades || [];
-    const arms = a.arms || [];
-    const periods = a.periods || 0;
-    
-    // For primary/kindergarten/nursery, each grade is its own class.
-    if (arms.length === 0) {
-        return acc + (periods * grades.length);
+  const totalGeneratedPeriods = useMemo(() => {
+    if (!activeTimetable || !activeTimetable.timetable || !teacherName) {
+      return 0;
     }
-    
-    // For secondary with arms, total is periods * grades * arms
-    return acc + (periods * grades.length * arms.length);
-  }, 0);
+    let count = 0;
+    for (const day in activeTimetable.timetable) {
+      for (const period of activeTimetable.timetable[day]) {
+        for (const session of period) {
+          if (session.teacher === teacherName) {
+            count++;
+          }
+        }
+      }
+    }
+    return count;
+  }, [activeTimetable, teacherName]);
+
 
   return (
     <div className="space-y-6 p-4 border rounded-lg relative">
@@ -491,9 +491,9 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
       <div className="space-y-2 p-3 border rounded-md">
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-medium">Subject Assignments</h3>
-          <Badge variant="secondary">
-            {totalAssignedPeriods} assigned period{totalAssignedPeriods !== 1 ? 's' : ''}
-          </Badge>
+           <Badge variant="secondary">
+              {totalGeneratedPeriods} generated period{totalGeneratedPeriods !== 1 ? 's' : ''}
+            </Badge>
         </div>
         <div className="space-y-3">
           {fields.map((field, assignmentIndex) => (
@@ -626,6 +626,26 @@ export default function TeacherEditor() {
           </div>
       )
   }
+  
+  const getGeneratedPeriodsForTeacher = (teacherId: string) => {
+    if (!activeTimetable || !activeTimetable.timetable) {
+      return 0;
+    }
+    const teacher = currentTeachers.find(t => t.id === teacherId);
+    if (!teacher) return 0;
+    
+    let count = 0;
+    Object.values(activeTimetable.timetable).forEach(day => {
+        day.forEach(period => {
+            period.forEach(session => {
+                if (session.teacher === teacher.name && session.subject !== 'Assembly') {
+                    count++;
+                }
+            });
+        });
+    });
+    return count;
+  }
 
   return (
     <div className="p-2 space-y-4">
@@ -697,15 +717,9 @@ export default function TeacherEditor() {
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
                         <div className="flex flex-col items-start">
                            <span className="font-medium">{teacher.name}</span>
-                           <span className="text-xs text-muted-foreground font-normal">{teacher.assignments.filter(a => a.schoolId === activeTimetable.id).reduce((acc, a) => {
-                                const grades = a.grades || [];
-                                const arms = a.arms || [];
-                                const periods = a.periods || 0;
-                                if (arms.length > 0) {
-                                    return acc + (periods * grades.length * arms.length);
-                                }
-                                return acc + (periods * grades.length);
-                           }, 0)} periods assigned</span>
+                           <span className="text-xs text-muted-foreground font-normal">
+                                {getGeneratedPeriodsForTeacher(teacher.id)} periods generated
+                           </span>
                         </div>
                     </AccordionTrigger>
                      <Button

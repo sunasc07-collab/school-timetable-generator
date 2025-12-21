@@ -224,7 +224,7 @@ export default function TimetableGrid() {
                    <TableCell className="p-0 relative">
                      {day === 'Wed' && (
                        <div className="absolute inset-0 flex items-center justify-center">
-                         <span className="font-bold text-lg text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                         <span className="font-bold text-[35px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
                            ASSEMBLY
                          </span>
                        </div>
@@ -326,5 +326,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

@@ -258,21 +258,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const className = `${grade} ${arm}`.trim();
                 let remainingPeriods = periods;
                 
-                // Group optional subjects
                 if (optionGroup) {
-                    const groupKey = `${className}-${optionGroup}-${periods}`;
+                    const groupKey = `${className}-${optionGroup}`; // One group per week
                     if (!optionGroups.has(groupKey)) {
                         optionGroups.set(groupKey, []);
                     }
-                    for (let i = 0; i < periods; i++) {
-                        optionGroups.get(groupKey)!.push({
-                             id: crypto.randomUUID(), subject, teacher, className, classes: [className], isDouble: false, isCore, optionGroup
-                        });
-                    }
-                    return; // Skip individual processing for optional subjects
+                    // A subject in an option group is just one session for that group
+                     optionGroups.get(groupKey)!.push({
+                         id: crypto.randomUUID(), subject, teacher, className, classes: [className], isDouble: false, isCore, optionGroup
+                    });
+                    
+                    return;
                 }
                 
-                // Handle doubles
                 while (remainingPeriods >= 2) {
                     const doubleId = crypto.randomUUID();
                     if (!doubleSessionPairs.has(doubleId)) doubleSessionPairs.set(doubleId, {});
@@ -281,7 +279,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     remainingPeriods -= 2;
                 }
 
-                // Handle singles
                 if (remainingPeriods > 0) {
                     singleSessions.push({ id: crypto.randomUUID(), subject, teacher, className, classes: [className], isDouble: false, isCore, optionGroup });
                 }
@@ -294,14 +291,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         sessionsToPlace.push({ session: pair.part1, partner: pair.part2 });
       }
     });
-
+    
     optionGroups.forEach((group) => {
         sessionsToPlace.push(group);
     });
 
     sessionsToPlace.push(...singleSessions);
 
-    sessionsToplace.sort((a,b) => {
+    sessionsToPlace.sort((a,b) => {
         const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);
         const sizeB = Array.isArray(b) ? b.length : (('session' in b) ? 2 : 1);
         return sizeB - sizeA;
@@ -332,35 +329,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
         
-        // 1. Teacher conflict
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
 
-        // 2. Class conflict
         const sessionsForClass = slot.filter(s => s.className === session.className);
-        if (sessionsForClass.length > 0) {
-            // New session is core
-            if (session.isCore || !session.optionGroup) {
-                return false; 
-            }
-            // Existing session is core
-            if (sessionsForClass.some(s => s.isCore || !s.optionGroup)) {
-                return false;
-            }
-            // Both optional, check option group
-            if (sessionsForClass.some(s => s.optionGroup === session.optionGroup)) {
-                return false;
-            }
+        if(sessionsForClass.length > 0) {
+             if (session.isCore || !session.optionGroup) return false;
+             if (sessionsForClass.some(s => s.isCore || !s.optionGroup)) return false;
+             if (sessionsForClass.some(s => s.optionGroup === session.optionGroup)) return false;
         }
         
-        // 3. Subject per day limit
         const subjectsOnDayForClass = board[day].flat().filter(s => s.className === session.className && s.subject === session.subject);
-        if (subjectsOnDayForClass.length > 1) { // Max 2 periods per subject per day
+        if (subjectsOnDayForClass.length >= 2) {
              return false;
-        }
-        if (subjectsOnDayForClass.length === 1 && !subjectsOnDayForClass[0].isDouble) {
-            // Allow one single and that's it unless it is a double
         }
 
         return true;
@@ -389,7 +371,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         } else if (Array.isArray(unit)) { // Optional Group
-            const sessionGroup = unit;
+            const sessionGroup = unit as TimetableSession[];
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
@@ -403,7 +385,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         } else { // Single Session
-            const session = unit;
+            const session = unit as TimetableSession;
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
@@ -462,7 +444,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         classes: sortedClasses,
         conflicts: [],
     });
-  }, [activeTimetable]);
+  }, [activeTimetable, allTeachers]);
 
 
   const clearTimetable = () => {
@@ -742,5 +724,4 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
 
-    
     

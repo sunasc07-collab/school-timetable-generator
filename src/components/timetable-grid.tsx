@@ -221,24 +221,6 @@ export default function TimetableGrid() {
                         rowCells.push(
                             <TableCell key={`break-${slotIndex}`} className="p-0 relative">
                              <div className="h-full w-full bg-background">
-                                 {day === 'Tue' && (
-                                     <span className={cn(
-                                         "absolute inset-0 flex items-end justify-center font-bold text-muted-foreground uppercase text-[35px] [writing-mode:vertical-lr] transform rotate-180"
-                                     )}>
-                                         <div className="flex flex-col items-center leading-none">
-                                            <span>SHORT</span>
-                                         </div>
-                                     </span>
-                                 )}
-                                 {day === 'Wed' && (
-                                     <span className={cn(
-                                         "absolute inset-0 flex items-start justify-center font-bold text-muted-foreground uppercase text-[35px] [writing-mode:vertical-lr] transform rotate-180"
-                                     )}>
-                                         <div className="flex flex-col items-center leading-none">
-                                            <span>BREAK</span>
-                                         </div>
-                                     </span>
-                                 )}
                              </div>
                             </TableCell>
                         );
@@ -350,3 +332,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

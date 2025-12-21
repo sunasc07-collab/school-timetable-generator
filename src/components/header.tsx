@@ -11,7 +11,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuLabel,
@@ -135,7 +134,12 @@ export default function Header() {
         doc.text(itemName, 14, startY - 5);
         
         const headContent = ["Day", "", ...timeSlots.map(slot => {
-            if (slot.isBreak) return "";
+            if (slot.isBreak) {
+                const label = slot.label || '';
+                if(label === 'SHORT-BREAK') return 'SHORT\nBREAK';
+                if(label === 'LUNCH') return 'LUNCH';
+                return '';
+            };
             return `P${slot.period}\n${slot.time}`;
         })];
         const head = [headContent];
@@ -148,7 +152,7 @@ export default function Header() {
             let periodIndex = 0;
             timeSlots.forEach((slot) => {
                  if (slot.isBreak) {
-                    row.push(''); // Empty cell for breaks, will be filled by didDrawCell
+                    row.push(''); // Empty cell for breaks
                     return;
                 }
                 const sessionsInSlot = timetable[day]?.[periodIndex] || [];
@@ -188,28 +192,39 @@ export default function Header() {
                 fontStyle: "bold",
                 lineWidth: 0.1,
             },
-            willDrawCell: (data: any) => {
-                 data.cell.styles.lineWidth = {
-                    top: 0,
-                    bottom: 0,
-                    left: 0.1,
-                    right: 0.1,
-                };
+            didDrawPage: (data: any) => {
+                const table = data.table;
+                const assemblyCol = table.columns[1];
+                if (!assemblyCol) return;
+
+                const firstRow = table.body[1]; // Tuesday
+                const lastRow = table.body[3]; // Thursday
+                if (!firstRow || !lastRow) return;
+
+                const startY = firstRow.y;
+                const endY = lastRow.y + lastRow.height;
+                const centerX = assemblyCol.x + assemblyCol.width / 2;
+                const centerY = startY + (endY - startY) / 2;
+
+                doc.setFontSize(20);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(100);
+                doc.text('ASSEMBLY', centerX, centerY, {
+                    angle: -90,
+                    align: 'center',
+                });
             },
             didDrawCell: (data: any) => {
-                const isBreakOrAssembly = (colIndex: number) => {
-                    if (colIndex === 1) return true;
-                    const slotIndex = colIndex - 2;
-                    if (slotIndex >= 0 && slotIndex < timeSlots.length) {
-                        return timeSlots[slotIndex]?.isBreak;
-                    }
-                    return false;
-                }
-
-                if (isBreakOrAssembly(data.column.index)) {
-                   data.cell.styles.lineWidth = 0;
-                   return;
-                }
+                 data.cell.styles.lineWidth = {
+                    top: 0,
+                    right: data.cell.styles.lineWidth,
+                    bottom: 0,
+                    left: data.cell.styles.lineWidth,
+                };
+                 const slotIndex = data.column.index - 2;
+                 if ((data.column.index === 1) || (slotIndex >= 0 && slotIndex < timeSlots.length && timeSlots[slotIndex]?.isBreak)) {
+                    data.cell.styles.lineWidth = 0;
+                 }
             }
         });
     });
@@ -383,3 +398,5 @@ export default function Header() {
     </>
   );
 }
+
+    

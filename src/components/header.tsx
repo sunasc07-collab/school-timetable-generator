@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -178,19 +178,24 @@ export default function Header() {
             head: head,
             body: body,
             startY: startY,
-            theme: "striped",
+            theme: "grid",
             styles: {
                 fontSize: 7,
                 cellPadding: 1.5,
                 valign: "middle",
                 halign: "center",
-                lineWidth: 0.1,
+                lineWidth: {
+                    top: 0.1,
+                    right: 0,
+                    bottom: 0.1,
+                    left: 0,
+                },
             },
             headStyles: {
                 fillColor: [41, 128, 185],
                 textColor: 255,
                 fontStyle: "bold",
-                lineWidth: 0.1,
+                lineWidth: 0,
             },
             didDrawPage: (data: any) => {
                 const table = data.table;
@@ -214,18 +219,6 @@ export default function Header() {
                     align: 'center',
                 });
             },
-            didDrawCell: (data: any) => {
-                 data.cell.styles.lineWidth = {
-                    top: 0,
-                    right: data.cell.styles.lineWidth,
-                    bottom: 0,
-                    left: data.cell.styles.lineWidth,
-                };
-                 const slotIndex = data.column.index - 2;
-                 if ((data.column.index === 1) || (slotIndex >= 0 && slotIndex < timeSlots.length && timeSlots[slotIndex]?.isBreak)) {
-                    data.cell.styles.lineWidth = 0;
-                 }
-            }
         });
     });
 
@@ -398,5 +391,3 @@ export default function Header() {
     </>
   );
 }
-
-    

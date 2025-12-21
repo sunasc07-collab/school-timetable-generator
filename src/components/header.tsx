@@ -158,7 +158,6 @@ export default function Header() {
         doc.text(itemName, 14, startY - 5);
         
         const headContent = ['Time', ...days];
-        const breakIndices = timeSlots.map((slot, i) => slot.isBreak ? i : -1).filter(i => i !== -1);
         const head = [headContent];
 
 
@@ -182,7 +181,10 @@ export default function Header() {
                 }
 
                 if (slot.isBreak) {
-                    rowData.push({ content: '', styles: { fillColor: [255, 255, 255] } });
+                    let breakText = '';
+                    if (slot.label === 'SHORT-BREAK') breakText = 'SHORT BREAK';
+                    if (slot.label === 'LUNCH') breakText = 'LUNCH';
+                    rowData.push({ content: breakText, styles: { fillColor: [220, 220, 220], valign: 'middle', halign: 'center', fontStyle: 'bold' } });
                     return;
                 }
 
@@ -253,16 +255,54 @@ export default function Header() {
                     doc.setTextColor(0, 0, 0);
                     if (data.cell.raw.content) {
                        const textLines = doc.splitTextToSize(String(data.cell.raw.content), data.cell.width - 4);
-                       doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
-                            halign: 'center',
-                            valign: 'middle'
-                       });
+                       const isBreak = timeSlots[data.row.index].isBreak;
+                       if (isBreak) {
+                            doc.setFont(doc.getFont().fontName, 'bold');
+                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                                halign: 'center',
+                                valign: 'middle'
+                           });
+                           doc.setFont(doc.getFont().fontName, 'normal');
+                       } else {
+                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                                halign: 'center',
+                                valign: 'middle'
+                           });
+                       }
                     }
                 }
-                 if (data.section === 'body' && timeSlots[data.row.index].isBreak) {
-                    data.cell.styles.lineWidth = 0;
-                 }
             },
+            didDrawPage: (data: any) => {
+                const tueRow = data.table.body.find((row: any) => row.cells.Time.content === "Tue");
+                const thuRow = data.table.body.find((row: any) => row.cells.Time.content === "Thu");
+
+                let startY, endY;
+                if(tueRow) startY = tueRow.y;
+                if(thuRow) endY = thuRow.y + thuRow.height;
+                
+                if (data.pageNumber > 1 && (!tueRow || !thuRow)) {
+                    return; // Don't draw if rows are not on this page
+                }
+
+                const firstRow = data.table.body[0];
+                const lastRow = data.table.body[data.table.body.length - 1];
+
+                startY = tueRow ? tueRow.y : firstRow.y;
+                endY = thuRow ? thuRow.y + thuRow.height : lastRow.y + lastRow.height;
+
+                if (typeof startY === 'undefined' || typeof endY === 'undefined') return;
+
+                const centerX = data.table.columns.Time.x + data.table.columns.Time.width + 5;
+                const centerY = startY + (endY - startY) / 2;
+
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(100);
+                doc.text('ASSEMBLY', centerX, centerY, {
+                    angle: -90,
+                    align: 'center',
+                });
+            }
         });
     });
 

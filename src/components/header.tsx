@@ -135,6 +135,7 @@ export default function Header() {
     let colorIndex = 0;
 
     const getSubjectColor = (subject: string) => {
+        if (subject === 'SHORT-BREAK' || subject === 'LUNCH') return [220, 220, 220];
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, pastelColors[colorIndex % pastelColors.length]);
             colorIndex++;
@@ -145,45 +146,34 @@ export default function Header() {
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as any).name;
         if (index > 0) {
-            const lastTable = (doc as any).lastAutoTable;
-            if (lastTable) {
-                startY = lastTable.finalY + 15;
-            }
-            if (startY > 180) { // Check if new page is needed
-                doc.addPage();
-                startY = 20;
-                doc.text(mainTitle, 14, 10);
-            }
+            doc.addPage();
+            startY = 20;
+            doc.text(mainTitle, 14, 10);
         }
-        const itemTitle = type === 'class' ? `${itemName}` : `${itemName}`;
+        const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
         doc.text(itemTitle, 14, startY - 5);
         
-        const headContent = ['Day', ...timeSlots.map(slot => slot.isBreak ? '' : `Period ${slot.period}\n${slot.time}`)];
-        const head = [headContent];
-
-
+        const head = [['Time', ...days]];
         const body: any[][] = [];
-        
-        days.forEach((day, dayIndex) => {
-            const rowData: any[] = [day];
-            const mergedCellsForRow = new Set<number>();
+
+        const mergedCells = new Set<string>(); // "day-period"
+
+        timeSlots.forEach((slot, slotIndex) => {
+            const rowData: any[] = [slot.time];
             
-            let periodIndex = 0;
-            for(let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
-                const slot = timeSlots[slotIndex];
-
-                if (mergedCellsForRow.has(slotIndex)) continue;
-
+            days.forEach((day, dayIndex) => {
+                if (mergedCells.has(`${day}-${slotIndex}`)) {
+                    // This cell is part of a merge, let autoTable handle it
+                    return;
+                }
+                
                 if (slot.isBreak) {
-                    let breakText = '';
-                    if (slot.label === 'SHORT-BREAK') breakText = 'SHORT BREAK';
-                    if (slot.label === 'LUNCH') breakText = 'LUNCH';
-                    rowData.push({ content: breakText, styles: { fillColor: [220, 220, 220], valign: 'middle', halign: 'center', fontStyle: 'bold' } });
-                    continue;
+                    rowData.push({ content: slot.label, styles: { fillColor: getSubjectColor(slot.label!) }});
+                    return;
                 }
 
+                const periodIndex = timeSlots.filter((ts, i) => !ts.isBreak && i < slotIndex).length;
                 const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                let sessionContent = "";
                 let session: TimetableSession | undefined;
 
                 if (type === 'class') {
@@ -191,47 +181,56 @@ export default function Header() {
                 } else {
                     session = sessionsInSlot.find(s => s.teacher === itemName);
                 }
-
+                
                 if (session) {
-                    sessionContent = type === 'class' ? `${session.subject}\n${session.teacher}` : `${session.subject}\n${session.className}`;
-                    let rowSpan = 1;
+                    const sessionContent = type === 'class' 
+                        ? `${session.subject}\n${session.teacher}` 
+                        : `${session.subject}\n${session.className}`;
 
-                    if (session.isDouble && session.part === 1) {
-                         const nextSlotIndex = slotIndex + 1;
-                         if (nextSlotIndex < timeSlots.length) {
-                             const nextSlotSessions = timetable[day]?.[periodIndex + 1] || [];
-                            const partnerSession = nextSlotSessions.find(s => s.id === session!.id && s.part === 2);
-                            if (partnerSession) {
-                                // This logic is more complex with horizontal layout. We'll handle it via content.
+                    let rowSpan = 1;
+                    if (session.isDouble) {
+                        const isPart1 = session.part === 1;
+                        let partnerSessionFound = false;
+
+                        // Find the time slot index of the other part
+                        for (let p = 0; p < (timetable[day]?.length || 0); p++) {
+                            const otherPart = timetable[day][p].find(s => s.id === session.id && s.part !== session.part);
+                            if (otherPart) {
+                                const partnerSlotIndex = timeSlots.findIndex(ts => !ts.isBreak && ts.period === (p + 1));
+                                // Check if partner is in the next consecutive (non-break) slot
+                                let nextTSSlotIndex = slotIndex + 1;
+                                while(nextTSSlotIndex < timeSlots.length && timeSlots[nextTSSlotIndex].isBreak) {
+                                    nextTSSlotIndex++;
+                                }
+                                if (partnerSlotIndex === nextTSSlotIndex) {
+                                    rowSpan = 2;
+                                    partnerSessionFound = true;
+                                }
+                                break;
                             }
+                        }
+
+                         if (isPart1 && partnerSessionFound) {
+                            mergedCells.add(`${day}-${slotIndex + 1}`);
+                         } else if (!isPart1) {
+                            // This is part 2, it should have been skipped. If not, it's a broken pair.
+                            rowSpan = 1; 
                          }
                     }
-                    if(session.isDouble && session.part === 2) {
-                       const prevSlotIndex = slotIndex - 1;
-                       const prevSlotSessions = timetable[day]?.[periodIndex - 1] || [];
-                       const partnerSession = prevSlotSessions.find(s => s.id === session!.id && s.part === 1);
-                       if(partnerSession) {
-                         rowData.push(''); // Placeholder for merged cell
-                       } else {
-                         rowData.push({
-                            content: sessionContent,
-                            styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
-                         });
-                       }
-                    } else {
-                         rowData.push({
-                            content: sessionContent,
-                            styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
-                        });
-                    }
+
+                    rowData.push({
+                        content: sessionContent,
+                        rowSpan: rowSpan,
+                        styles: { fillColor: getSubjectColor(session.subject) }
+                    });
+
                 } else {
                     rowData.push('');
                 }
-
-                periodIndex++;
-            }
+            });
             body.push(rowData);
         });
+
 
         autoTable(doc, {
             head: head,
@@ -244,73 +243,28 @@ export default function Header() {
                 valign: "middle",
                 halign: "center",
                 lineWidth: 0.1,
-                lineColor: [220, 220, 220],
+                lineColor: [200, 200, 200],
             },
             headStyles: {
                 fillColor: [240, 240, 240],
                 textColor: [50, 50, 50],
                 fontStyle: "bold",
             },
-            didDrawCell: (data: any) => {
-                if (data.section === 'body' && data.cell.raw && (data.cell.raw as any).styles && (data.cell.raw as any).styles.fillColor) {
+            didDrawCell: (data) => {
+                 if (data.section === 'body' && data.cell.raw && (data.cell.raw as any).styles && (data.cell.raw as any).styles.fillColor) {
                     doc.setFillColor(...((data.cell.raw as any).styles.fillColor as [number, number, number]));
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                    doc.setTextColor(0, 0, 0);
-                    if (data.cell.raw.content) {
+
+                    doc.setTextColor(0,0,0);
+                    if(data.cell.raw.content) {
                        const textLines = doc.splitTextToSize(String(data.cell.raw.content), data.cell.width - 4);
-                       const isBreak = timeSlots[data.column.index-1]?.isBreak;
-                       if (isBreak) {
-                            doc.setFont(doc.getFont().fontName, 'bold');
-                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
-                                halign: 'center',
-                                valign: 'middle'
-                           });
-                           doc.setFont(doc.getFont().fontName, 'normal');
-                       } else {
-                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
-                                halign: 'center',
-                                valign: 'middle'
-                           });
-                       }
+                       doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                            halign: 'center',
+                            valign: 'middle'
+                       });
                     }
                 }
             },
-            didDrawPage: (data: any) => {
-                const tueRow = data.table.body.find((row: any) => row.cells[0]?.content === "Tue");
-                const thuRow = data.table.body.find((row: any) => row.cells[0]?.content === "Thu");
-
-                let startY, endY;
-
-                if (tueRow) startY = tueRow.y;
-                if (thuRow) endY = thuRow.y + thuRow.height;
-                
-                if (data.pageNumber > 1 && (!tueRow || !thuRow)) {
-                    return; // Don't draw if rows are not on this page
-                }
-
-                if (!tueRow || !thuRow) {
-                    const firstRow = data.table.body[0];
-                    const lastRow = data.table.body[data.table.body.length - 1];
-                    startY = firstRow.y;
-                    endY = lastRow.y + lastRow.height;
-                }
-
-                if (typeof startY === 'undefined' || typeof endY === 'undefined') return;
-                
-                const dayColumn = data.table.columns[0];
-                if (!dayColumn) return;
-
-                const centerX = dayColumn.x + dayColumn.width + 5;
-                const centerY = startY + (endY - startY) / 2;
-
-                doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(100);
-                doc.text('ASSEMBLY', centerX, centerY, {
-                    angle: -90,
-                    align: 'center',
-                });
-            }
         });
     });
 
@@ -483,5 +437,3 @@ export default function Header() {
     </>
   );
 }
-
-    

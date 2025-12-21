@@ -286,14 +286,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
 
+        // Teacher conflict: teacher can't be in two places at once.
         if (slot.some(s => s.teacher === session.teacher)) return false;
 
+        // Class conflict
         if (session.isCore || !session.optionGroup) {
+            // Core subjects conflict with any other subject for the same class.
             if (slot.some(s => s.className === session.className)) return false;
         } else { // It's an optional subject
-            // Can't have another subject from the same option group for the same class
-            if (slot.some(s => s.className === session.className && s.optionGroup === session.optionGroup)) return false;
-            // Can't have a core subject for the same class at the same time
+            // An optional subject cannot be scheduled at the same time as a core subject for the same class.
             if (slot.some(s => s.className === session.className && (s.isCore || !s.optionGroup))) return false;
         }
 
@@ -509,7 +510,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (session.isCore || !session.optionGroup) {
             if (slot.some(s => s.className === session.className)) return false;
         } else { // Optional
-            if (slot.some(s => s.className === session.className && s.optionGroup === session.optionGroup)) return false;
             if (slot.some(s => s.className === session.className && (s.isCore || !s.optionGroup))) return false;
         }
         
@@ -591,7 +591,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     // Class conflict
                     const classStatus = classesInSlot.get(session.className) || [];
                     
-                    // Core subject conflicts with anything else for that class
                     if (session.isCore || !session.optionGroup) {
                         if (classStatus.length > 0) {
                             identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Core subject for ${session.className} conflicts with another subject.` });
@@ -601,10 +600,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         }
                         classStatus.push('core');
                     }
-                    // Optional subject conflicts with core or same option group
                     else if (session.optionGroup) {
-                        if (classStatus.includes('core') || classStatus.some(s => typeof s === 'object' && s.option === session.optionGroup)) {
-                             identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Option subject for ${session.className} conflicts with another subject.` });
+                        if (classStatus.includes('core')) {
+                             identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Option subject for ${session.className} conflicts with a core subject.` });
                              slotSessions.forEach(s => {
                                 if (s.className === session.className) identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} has conflicting subjects.` });
                             });

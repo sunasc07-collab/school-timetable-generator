@@ -112,6 +112,7 @@ export default function Header() {
 
   const generatePdf = (type: 'class' | 'teacher') => {
     if (!currentTimetable) return;
+
     const doc = new jsPDF({ orientation: "landscape" });
     const title = type === 'class' ? `School Timetable - ${currentTimetable.name} - By Class` : `School Timetable - ${currentTimetable.name} - By Teacher`;
     doc.text(title, 14, 10);
@@ -134,15 +135,23 @@ export default function Header() {
         }
         doc.text(itemName, 14, startY - 5);
         
-        const headContent = ["Day", ...teachingSlots.map(slot => `P${slot.period}\n${slot.time}`)];
+        const headContent = ["Day", "Assembly", ...timeSlots.map(slot => {
+            if (slot.isBreak) return `${slot.label}\n${slot.time}`;
+            return `P${slot.period}\n${slot.time}`;
+        })];
         const head = [headContent];
 
         const body: (string | null)[][] = [];
 
         days.forEach(day => {
-            const row: (string | null)[] = [day];
+            const row: (string | null)[] = [day, '']; // Empty cell for Assembly
             
-            teachingSlots.forEach((slot, periodIndex) => {
+            let periodIndex = 0;
+            timeSlots.forEach((slot) => {
+                 if (slot.isBreak) {
+                    row.push(''); // Empty cell for breaks, will be filled by didDrawCell
+                    return;
+                }
                 const sessionsInSlot = timetable[day]?.[periodIndex] || [];
                 let sessionContent = "";
                 if (type === 'class') {
@@ -157,6 +166,7 @@ export default function Header() {
                     }
                 }
                 row.push(sessionContent);
+                periodIndex++;
             });
             body.push(row);
         });
@@ -178,11 +188,57 @@ export default function Header() {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            didParseCell: (data: any) => {
+            didDrawCell: (data: any) => {
                 if(data.cell.section === 'body') {
-                    if (data.cell.text[0] === 'ASSEMBLY' || data.cell.text[0] === 'LUNCH' || data.cell.text[0] === 'SHORT-BREAK') {
-                        data.cell.styles.fontStyle = 'bold';
-                        data.cell.styles.fillColor = [230, 230, 230];
+                    if (data.row.index === 2 && data.column.index === 1) { // Wednesday Assembly
+                        const text = "Assembly";
+                        const { x, y, width, height } = data.cell;
+                        doc.saveGraphicsState();
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(14);
+                        doc.setTextColor(100, 100, 100, 0.8);
+                        doc.text(text, x + width / 2, y + height / 2, {
+                            angle: -90,
+                            align: 'center'
+                        });
+                        doc.restoreGraphicsState();
+                    }
+                }
+
+                if (data.cell.section === 'body' && data.column.index > 1) {
+                    const slot = timeSlots[data.column.index - 2];
+                    if (slot?.isBreak) {
+                        const { x, y, width, height } = data.cell;
+                        const text = slot.label === 'SHORT-BREAK' ? 'SHORT\nBREAK' : 'LUNCH';
+                        doc.saveGraphicsState();
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(9);
+                        doc.setTextColor(150);
+                        doc.text(text, x + width / 2, y + height / 2, {
+                            angle: -90,
+                            align: 'center'
+                        });
+                        doc.restoreGraphicsState();
+                    }
+                }
+                
+                if(data.cell.section === 'head') {
+                    const slot = timeSlots[data.column.index - 2];
+                     if (slot?.isBreak) {
+                        data.cell.styles.lineWidth = 0;
+                     }
+                      if (data.column.index === 1) { // Assembly column
+                        data.cell.styles.lineWidth = 0;
+                    }
+                }
+
+                if (data.cell.section === 'body') {
+                    const slot = timeSlots[data.column.index - 2];
+                     if (slot?.isBreak) {
+                        data.cell.styles.lineWidth = 0;
+                     }
+                      if (data.column.index === 1) { // Assembly column
+                        data.cell.styles.lineWidth = 0;
                     }
                 }
             }

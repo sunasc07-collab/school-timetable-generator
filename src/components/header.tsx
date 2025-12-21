@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -135,9 +136,6 @@ export default function Header() {
         
         const headContent = ["Day", "", ...timeSlots.map(slot => {
             if (slot.isBreak) {
-                const label = slot.label || '';
-                if(label === 'SHORT-BREAK') return 'SHORT\nBREAK';
-                if(label === 'LUNCH') return 'LUNCH';
                 return '';
             };
             return `P${slot.period}\n${slot.time}`;
@@ -184,12 +182,6 @@ export default function Header() {
                 cellPadding: 1.5,
                 valign: "middle",
                 halign: "center",
-                lineWidth: {
-                    top: 0.1,
-                    right: 0,
-                    bottom: 0.1,
-                    left: 0,
-                },
             },
             headStyles: {
                 fillColor: [41, 128, 185],
@@ -197,13 +189,21 @@ export default function Header() {
                 fontStyle: "bold",
                 lineWidth: 0,
             },
+            willDrawCell: (data: any) => {
+                if (data.section === 'body') {
+                     // Set top and bottom borders to 0 to remove row lines
+                    data.cell.styles.lineWidth = { top: 0, bottom: 0, left: data.cell.styles.lineWidth, right: data.cell.styles.lineWidth };
+                }
+            },
             didDrawPage: (data: any) => {
                 const table = data.table;
                 const assemblyCol = table.columns[1];
                 if (!assemblyCol) return;
 
+                // Robustly find the start and end rows for the range
                 const firstRow = table.body[1]; // Tuesday
                 const lastRow = table.body[3]; // Thursday
+                
                 if (!firstRow || !lastRow) return;
 
                 const startY = firstRow.y;

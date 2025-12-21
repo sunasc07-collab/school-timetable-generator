@@ -330,16 +330,16 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                     </FormItem>
                                 )}
                             />
-                            <FormItem>
-                                <FormLabel className="text-sm">Option Groups (for subjects taken by different students at the same time)</FormLabel>
-                                <div className="grid grid-cols-5 gap-x-2 gap-y-2 p-2 border rounded-md h-auto items-center">
+                             <div className="space-y-2">
+                                <Label className="text-sm">Option Groups (for subjects taken by different students at the same time)</Label>
+                                <div className="grid grid-cols-5 gap-2 p-2 border rounded-md">
                                     {OPTION_GROUPS.map((group) => (
                                         <FormField
                                             key={group}
                                             control={control}
                                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
                                             render={({ field }) => (
-                                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormItem className="flex items-center space-x-2 space-y-0">
                                                     <FormControl>
                                                         <Checkbox
                                                             checked={field.value === group}
@@ -358,8 +358,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                         />
                                     ))}
                                 </div>
-                            </FormItem>
-                            {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive">{assignmentErrors?.isCore?.message as string}</p>}
+                                {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive">{assignmentErrors.isCore.message as string}</p>}
+                            </div>
                         </div>
                     )}
                      <div className={cn("grid grid-cols-1 gap-y-2", hideGradesAndArms && "hidden")}>
@@ -759,7 +759,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
 
     

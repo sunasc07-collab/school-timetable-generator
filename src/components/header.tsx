@@ -113,8 +113,8 @@ export default function Header() {
     if (!currentTimetable) return;
 
     const doc = new jsPDF({ orientation: "landscape" });
-    const title = type === 'class' ? `School Timetable - ${currentTimetable.name} - By Class` : `School Timetable - ${currentTimetable.name} - By Teacher`;
-    doc.text(title, 14, 10);
+    const mainTitle = type === 'class' ? `School Timetable - ${currentTimetable.name} - By Class` : `School Timetable - ${currentTimetable.name} - By Teacher`;
+    doc.text(mainTitle, 14, 10);
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
@@ -152,40 +152,34 @@ export default function Header() {
             if (startY > 180) { // Check if new page is needed
                 doc.addPage();
                 startY = 20;
-                doc.text(title, 14, 10);
+                doc.text(mainTitle, 14, 10);
             }
         }
-        doc.text(itemName, 14, startY - 5);
+        const itemTitle = type === 'class' ? `${itemName}'s Timetable` : `${itemName}'s Timetable`;
+        doc.text(itemTitle, 14, startY - 5);
         
-        const headContent = ['Time', ...days];
+        const headContent = ['Day', ...timeSlots.map(slot => slot.isBreak ? '' : `Period ${slot.period}\n${slot.time}`)];
         const head = [headContent];
 
 
         const body: any[][] = [];
-        const mergedCells = new Set<string>();
-
-        timeSlots.forEach((slot, rowIndex) => {
-            const rowData: any[] = [slot.time];
+        
+        days.forEach((day, dayIndex) => {
+            const rowData: any[] = [day];
+            const mergedCellsForRow = new Set<number>();
             
-            days.forEach((day, colIndex) => {
-                const cellKey = `${rowIndex}-${colIndex}`;
-                if (mergedCells.has(cellKey)) {
-                    return;
-                }
+            let periodIndex = 0;
+            for(let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
+                const slot = timeSlots[slotIndex];
 
-                let periodIndex = 0;
-                for(let i = 0; i < rowIndex; i++) {
-                    if (!timeSlots[i].isBreak) {
-                        periodIndex++;
-                    }
-                }
+                if (mergedCellsForRow.has(slotIndex)) continue;
 
                 if (slot.isBreak) {
                     let breakText = '';
                     if (slot.label === 'SHORT-BREAK') breakText = 'SHORT BREAK';
                     if (slot.label === 'LUNCH') breakText = 'LUNCH';
                     rowData.push({ content: breakText, styles: { fillColor: [220, 220, 220], valign: 'middle', halign: 'center', fontStyle: 'bold' } });
-                    return;
+                    continue;
                 }
 
                 const sessionsInSlot = timetable[day]?.[periodIndex] || [];
@@ -195,7 +189,7 @@ export default function Header() {
                 if (type === 'class') {
                     session = sessionsInSlot.find(s => s.className === itemName);
                 } else {
-                    session = sessionsInSlot.find(s => s.teacher === itemName);
+                    session = sessionsInlot.find(s => s.teacher === itemName);
                 }
 
                 if (session) {
@@ -203,30 +197,39 @@ export default function Header() {
                     let rowSpan = 1;
 
                     if (session.isDouble && session.part === 1) {
-                         const nextRowIndex = rowIndex + 1;
-                         if (nextRowIndex < timeSlots.length) {
-                            const nextSlotPeriodIndex = periodIndex + 1;
-                             const nextSlotSessions = timetable[day]?.[nextSlotPeriodIndex] || [];
+                         const nextSlotIndex = slotIndex + 1;
+                         if (nextSlotIndex < timeSlots.length) {
+                             const nextSlotSessions = timetable[day]?.[periodIndex + 1] || [];
                             const partnerSession = nextSlotSessions.find(s => s.id === session!.id && s.part === 2);
                             if (partnerSession) {
-                                rowSpan = 2;
-                                mergedCells.add(`${nextRowIndex}-${colIndex}`);
+                                // This logic is more complex with horizontal layout. We'll handle it via content.
                             }
                          }
                     }
                     if(session.isDouble && session.part === 2) {
-                       return;
+                       const prevSlotIndex = slotIndex - 1;
+                       const prevSlotSessions = timetable[day]?.[periodIndex - 1] || [];
+                       const partnerSession = prevSlotSessions.find(s => s.id === session!.id && s.part === 1);
+                       if(partnerSession) {
+                         rowData.push(''); // Placeholder for merged cell
+                       } else {
+                         rowData.push({
+                            content: sessionContent,
+                            styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
+                         });
+                       }
+                    } else {
+                         rowData.push({
+                            content: sessionContent,
+                            styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
+                        });
                     }
-
-                    rowData.push({
-                        content: sessionContent,
-                        rowSpan: rowSpan,
-                        styles: { fillColor: getSubjectColor(session.subject), valign: 'middle', halign: 'center' }
-                    });
                 } else {
                     rowData.push('');
                 }
-            });
+
+                periodIndex++;
+            }
             body.push(rowData);
         });
 
@@ -255,7 +258,7 @@ export default function Header() {
                     doc.setTextColor(0, 0, 0);
                     if (data.cell.raw.content) {
                        const textLines = doc.splitTextToSize(String(data.cell.raw.content), data.cell.width - 4);
-                       const isBreak = timeSlots[data.row.index].isBreak;
+                       const isBreak = timeSlots[data.column.index-1]?.isBreak;
                        if (isBreak) {
                             doc.setFont(doc.getFont().fontName, 'bold');
                             doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
@@ -273,26 +276,31 @@ export default function Header() {
                 }
             },
             didDrawPage: (data: any) => {
-                const tueRow = data.table.body.find((row: any) => row.cells.Time.content === "Tue");
-                const thuRow = data.table.body.find((row: any) => row.cells.Time.content === "Thu");
+                const tueRow = data.table.body.find((row: any) => row.cells[0]?.content === "Tue");
+                const thuRow = data.table.body.find((row: any) => row.cells[0]?.content === "Thu");
 
                 let startY, endY;
-                if(tueRow) startY = tueRow.y;
-                if(thuRow) endY = thuRow.y + thuRow.height;
+
+                if (tueRow) startY = tueRow.y;
+                if (thuRow) endY = thuRow.y + thuRow.height;
                 
                 if (data.pageNumber > 1 && (!tueRow || !thuRow)) {
                     return; // Don't draw if rows are not on this page
                 }
 
-                const firstRow = data.table.body[0];
-                const lastRow = data.table.body[data.table.body.length - 1];
-
-                startY = tueRow ? tueRow.y : firstRow.y;
-                endY = thuRow ? thuRow.y + thuRow.height : lastRow.y + lastRow.height;
+                if (!tueRow || !thuRow) {
+                    const firstRow = data.table.body[0];
+                    const lastRow = data.table.body[data.table.body.length - 1];
+                    startY = firstRow.y;
+                    endY = lastRow.y + lastRow.height;
+                }
 
                 if (typeof startY === 'undefined' || typeof endY === 'undefined') return;
+                
+                const dayColumn = data.table.columns[0];
+                if (!dayColumn) return;
 
-                const centerX = data.table.columns.Time.x + data.table.columns.Time.width + 5;
+                const centerX = dayColumn.x + dayColumn.width + 5;
                 const centerY = startY + (endY - startY) / 2;
 
                 doc.setFontSize(14);
@@ -475,5 +483,7 @@ export default function Header() {
     </>
   );
 }
+
+    
 
     

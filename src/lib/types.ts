@@ -1,6 +1,7 @@
 
 
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -8,6 +9,8 @@ export type SubjectAssignment = {
   arms: string[];
   periods: number;
   schoolId: string;
+  isCore?: boolean;
+  optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
 };
 
 export type Teacher = {
@@ -24,6 +27,8 @@ export type TimetableSession = {
   isDouble: boolean;
   part?: 1 | 2;
   classes: string[]; 
+  isCore?: boolean;
+  optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
 };
 
 export type TimetableSlot = TimetableSession[];

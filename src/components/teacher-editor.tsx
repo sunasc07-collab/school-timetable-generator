@@ -47,6 +47,7 @@ const assignmentSchema = z.object({
   arms: z.array(z.string()),
   periods: z.number().min(1, "Periods must be > 0").default(1),
   schoolId: z.string().min(1, "A school is required."),
+  subjectType: z.string().optional(),
   isCore: z.boolean().optional(),
   optionGroup: z.enum(['A', 'B', 'C', 'D', 'E']).nullable().optional(),
 }).refine(data => !(data.isCore && data.optionGroup), {
@@ -594,9 +595,13 @@ export default function TeacherEditor() {
                 const isALevelSchool = schoolName.includes('a-level');
                 const isNurserySchool = schoolName.includes('nursery');
 
+                const { subjectType, ...restOfAssignment } = a;
+
                 return {
-                    ...a,
+                    ...restOfAssignment,
                     id: a.id || crypto.randomUUID(),
+                    isCore: subjectType === 'core',
+                    optionGroup: subjectType === 'optional' ? a.optionGroup : null,
                     arms: (isALevel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
                 }
             })
@@ -772,5 +777,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

@@ -223,10 +223,16 @@ export default function TimetableGrid() {
                              <div className="h-full w-full bg-background">
                                  {day === 'Wed' && (
                                      <span className={cn(
-                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase tracking-widest text-[35px] [writing-mode:vertical-lr] transform rotate-180"
+                                         "absolute inset-0 flex items-center justify-center font-bold text-muted-foreground uppercase text-[35px] [writing-mode:vertical-lr] transform rotate-180"
                                      )}>
-                                         {slot.label}
+                                         <div className="flex flex-col items-center leading-none">
+                                            <span>SHORT</span>
+                                            <span>BREAK</span>
+                                         </div>
                                      </span>
+                                 )}
+                                 {(day === 'Tue' || day === 'Thu') && (
+                                     <span className="absolute inset-0"></span>
                                  )}
                              </div>
                             </TableCell>
@@ -339,5 +345,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

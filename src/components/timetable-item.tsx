@@ -28,7 +28,7 @@ export default function TimetableItem({
 
   const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
 
-  const displayClass = viewMode === 'class' ? session.teacher : session.className;
+  const displayValue = viewMode === 'class' ? session.teacher : session.className;
   const displayIcon = viewMode === 'class' ? <User className="h-3 w-3 shrink-0"/> : <GraduationCap className="h-3 w-3 shrink-0"/>;
 
   return (
@@ -53,7 +53,7 @@ export default function TimetableItem({
         </div>
         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
           {displayIcon}
-          <span className="break-words">{displayClass}</span>
+          <span className="break-words">{displayValue}</span>
         </div>
          <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? '' : 'hidden')}>
           <User className="h-3 w-3 shrink-0"/>

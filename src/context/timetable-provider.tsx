@@ -252,8 +252,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     allRequiredSessions.forEach(req => {
         const { subject, teacher, periods, grades, arms, isCore, optionGroup } = req;
-        const assignmentId = req.id;
-
+        
         const classNames: string[] = [];
         grades.forEach(grade => {
             const gradeArms = arms && arms.length > 0 ? arms : [''];
@@ -263,25 +262,26 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
 
         if (optionGroup) {
-            // Group classes by Grade and OptionGroup, as they will be scheduled together.
-            grades.forEach(grade => {
-                const groupKey = `${grade}-${optionGroup}-${assignmentId}`;
+            const uniqueClasses = [...new Set(classNames)];
+            const representativeSession: TimetableSession = {
+                id: crypto.randomUUID(),
+                subject,
+                teacher,
+                className: uniqueClasses.join(', '), // For display
+                classes: uniqueClasses, // For conflict checking
+                isDouble: false,
+                isCore,
+                optionGroup
+            };
+
+            for(let i=0; i < periods; i++) {
+                const groupKey = `${grades.join(',')}-${optionGroup}`;
                 if (!optionGroups.has(groupKey)) {
                     optionGroups.set(groupKey, []);
                 }
-                const sessionForThisAssignment: TimetableSession = {
-                    id: crypto.randomUUID(),
-                    subject,
-                    teacher,
-                    className: classNames.join(', '), // For display
-                    classes: classNames, // For conflict checking
-                    isDouble: false,
-                    isCore,
-                    optionGroup
-                };
-                optionGroups.get(groupKey)!.push(sessionForThisAssignment);
-            });
-            return; // Handled by option group logic
+                optionGroups.get(groupKey)!.push({ ...representativeSession, id: crypto.randomUUID() });
+            }
+            return;
         }
 
         classNames.forEach(className => {
@@ -308,47 +308,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
     
     optionGroups.forEach((group) => {
-        if(group.length > 0) {
-            // For optional subjects, we group them by the teacher assignment.
-            // If one assignment covers multiple classes/arms, those are taught together.
-            // Here we flatten the groups created earlier.
-            const uniqueTeacherAssignments = new Map<string, TimetableSession[]>();
-            group.forEach(session => {
-                // A key to group sessions taught by the same teacher for the same subject/option
-                const key = `${session.teacher}-${session.subject}-${session.optionGroup}`;
-                if (!uniqueTeacherAssignments.has(key)) {
-                    uniqueTeacherAssignments.set(key, []);
-                }
-                uniqueTeacherAssignments.get(key)!.push(session);
-            });
-
-            uniqueTeacherAssignments.forEach(sessionsFromSameAssignment => {
-                if (sessionsFromSameAssignment.length > 0) {
-                    const representativeSession = sessionsFromSameAssignment[0];
-                    const allAssignmentClasses = sessionsFromSameAssignment.flatMap(s => s.classes);
-                    const uniqueClasses = [...new Set(allAssignmentClasses)];
-                    
-                    const combinedSession: TimetableSession = {
-                        ...representativeSession,
-                        id: crypto.randomUUID(),
-                        classes: uniqueClasses,
-                        className: uniqueClasses.join(', ')
-                    };
-                    
-                    // Add one combined session for each period required
-                    const periodsForThisAssignment = allRequiredSessions.find(req => 
-                        req.teacher === combinedSession.teacher && 
-                        req.subject === combinedSession.subject && 
-                        req.optionGroup === combinedSession.optionGroup &&
-                        req.grades.some(g => uniqueClasses.some(uc => uc.startsWith(g)))
-                    )?.periods || 1;
-
-                    for(let i = 0; i < periodsForThisAssignment; i++) {
-                        sessionsToPlace.push({ ...combinedSession, id: crypto.randomUUID() });
-                    }
-                }
-            });
-        }
+        sessionsToPlace.push(group);
     });
 
     sessionsToPlace.push(...singleSessions);
@@ -400,21 +360,21 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const sessionsForThisClassInSlot = slot.filter(s => s.classes.includes(c));
             if (sessionsForThisClassInSlot.length === 0) continue;
 
-            const isPlacingCore = session.isCore || !session.optionGroup;
-            const hasCoreInSlot = sessionsForThisClassInSlot.some(s => s.isCore || !s.optionGroup);
+            // If new session is core, slot must be empty for that class.
+            if(session.isCore) return false;
 
-            if (isPlacingCore || hasCoreInSlot) {
-                return false; // Core subjects cannot be with anything else
-            }
-
-            // Both are optional, check for same group
-            const existingOptionGroup = sessionsForThisClassInSlot[0].optionGroup;
-            if (session.optionGroup && session.optionGroup === existingOptionGroup) {
-                 return false; // Can't have two from the same option group
+            // If slot has a core session, new session (which must be optional) cannot be placed.
+            if (sessionsForThisClassInSlot.some(s => s.isCore)) return false;
+            
+            // If new session is optional, check against other optionals in slot.
+            if(session.optionGroup) {
+                if (sessionsForThisClassInSlot.some(s => s.optionGroup === session.optionGroup)) {
+                    return false; // Cannot have two from the same option group
+                }
             }
         }
         
-        // 3. Subject per day limit for each class in the session
+        // 3. Subject per day limit for each class in the session (max 2 per day for same subject)
         for (const c of session.classes) {
             const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
             if (subjectsOnDayForClass.length >= 2) {
@@ -447,7 +407,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     }
                 }
             }
-        } else if (Array.isArray(unit)) { // This logic is now for pre-grouped option blocks
+        } else if (Array.isArray(unit)) { // This is an option group block
              const sessionGroup = unit as TimetableSession[];
             if (sessionGroup.length === 0) return solve(board, remainingUnits);
             

@@ -287,7 +287,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (!slot) return false;
 
         // Teacher conflict: teacher can't be in two places at once.
-        if (slot.some(s => s.teacher === session.teacher)) return false;
+        if (slot.some(s => s.teacher === session.teacher && s.subject.toLowerCase() !== 'assembly')) return false;
 
         // Class conflict
         if (session.isCore || !session.optionGroup) {
@@ -696,3 +696,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

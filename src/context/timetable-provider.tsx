@@ -30,15 +30,15 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const DEFAULT_TIMESLOTS: TimeSlot[] = [
-    { period: 1, time: '8:00-8:45' },
-    { period: 2, time: '8:45-9:30' },
-    { period: 3, time: '9:30-10:00' },
-    { period: 4, time: '10:00-10:30', isBreak: true, label: 'SHORT-BREAK' },
-    { period: 5, time: '10:30-11:15' },
-    { period: 6, time: '11:15-12:00' },
-    { period: 7, time: '12:00-12:45' },
-    { period: null, time: '12:45-13:30', isBreak: true, label: 'LUNCH' },
-    { period: 8, time: '13:30-14:15' },
+    { period: 1, time: '8:10-8:50' },
+    { period: 2, time: '8:50-9:30' },
+    { period: 3, time: '9:30-10:10' },
+    { period: 4, time: '10:10-10:40', isBreak: true, label: 'SHORT-BREAK' },
+    { period: 5, time: '10:40-11:20' },
+    { period: 6, time: '11:20-12:00' },
+    { period: 7, time: '12:00-12:40' },
+    { period: null, time: '12:40-13:25', isBreak: true, label: 'LUNCH' },
+    { period: 8, time: '13:25-14:05' },
 ];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {

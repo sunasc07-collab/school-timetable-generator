@@ -290,28 +290,38 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (slot.some(s => s.teacher === session.teacher && s.subject.toLowerCase() !== 'assembly')) {
             return false;
         }
-
-        // Class conflict
+        
         const sessionsForClassInSlot = slot.filter(s => s.className === session.className);
-        if (sessionsForClassInSlot.length > 0) {
+        
+        // If there's nothing for this class yet, placement is valid from a class perspective
+        if (sessionsForClassInSlot.length === 0) {
+            // But we must also check for other classes from the same teacher
+            // This is already covered by the teacher conflict check above.
+        } else {
+             // There's at least one session for this class in the slot. Now check for conflicts.
             const isPlacingCore = session.isCore || !session.optionGroup;
             const hasCoreInSlot = sessionsForClassInSlot.some(s => s.isCore || !s.optionGroup);
 
+            // If we are placing a core subject, or a core subject is already there, it's a conflict.
             if (isPlacingCore || hasCoreInSlot) {
-                return false; // Core subject cannot be with any other subject for the same class.
+                return false;
             }
 
-            // Placing an optional subject. Check for option group conflicts.
+            // If we reach here, we are placing an optional subject, and only other optional subjects are in the slot.
+            // Check for option group conflicts.
             const optionGroupsInSlot = new Set(sessionsForClassInSlot.map(s => s.optionGroup).filter(Boolean));
-            if (optionGroupsInSlot.has(session.optionGroup)) {
-                return false; // Can't have two subjects from the same option group.
+            if (session.optionGroup && optionGroupsInSlot.has(session.optionGroup)) {
+                return false; // Conflict: another subject from the same option group is already there.
             }
         }
         
-        // Subject per day limit
+        // Subject per day limit (check only if adding this session would exceed the limit)
         const subjectsOnDayForClass = board[day].flat().filter(s => s.className === session.className && s.subject === session.subject);
-        if (subjectsOnDayForClass.length >= 2) return false;
-        if (session.isDouble && subjectsOnDayForClass.length > 0) return false;
+        if (session.isDouble) {
+          if (subjectsOnDayForClass.length > 0) return false;
+        } else {
+          if (subjectsOnDayForClass.length >= 2) return false;
+        }
 
         return true;
     }
@@ -371,6 +381,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     let finalTimetable = solvedBoard;
     
     if (!isSolved) {
+        console.error("Solver failed. Placing remaining sessions forcefully.");
         const placedSessionIds = new Set<string>();
         Object.values(finalTimetable).forEach(daySlots => daySlots.forEach(slot => slot.forEach(s => placedSessionIds.add(s.id))));
         
@@ -520,6 +531,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (slot.some(s => s.className === session.className)) return false;
         } else { // Optional
             if (slot.some(s => s.className === session.className && (s.isCore || !s.optionGroup))) return false;
+            if (slot.some(s => s.className === session.className && s.optionGroup === session.optionGroup)) return false;
         }
         
         return true;
@@ -599,25 +611,27 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                     // Class conflict
                     const classStatus = classesInSlot.get(session.className) || [];
-                    
-                    if (session.isCore || !session.optionGroup) {
+                    const sessionType = (session.isCore || !session.optionGroup) ? 'core' : { option: session.optionGroup };
+
+                    if (sessionType === 'core') {
                         if (classStatus.length > 0) {
-                            identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Core subject for ${session.className} conflicts with another subject.` });
-                            slotSessions.forEach(s => {
-                                if (s.className === session.className) identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} has conflicting subjects.` });
-                            });
-                        }
-                        classStatus.push('core');
-                    }
-                    else if (session.optionGroup) {
-                        if (classStatus.includes('core')) {
-                             identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Option subject for ${session.className} conflicts with a core subject.` });
                              slotSessions.forEach(s => {
                                 if (s.className === session.className) identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} has conflicting subjects.` });
                             });
                         }
-                        classStatus.push({ option: session.optionGroup });
+                    } else { // Optional subject
+                        if (classStatus.includes('core')) {
+                            slotSessions.forEach(s => {
+                                if (s.className === session.className) identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} has conflicting subjects.` });
+                            });
+                        }
+                        if(classStatus.some(s => typeof s === 'object' && s.option === sessionType.option)) {
+                             slotSessions.forEach(s => {
+                                if (s.className === session.className && s.optionGroup === session.optionGroup) identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${s.className} has multiple subjects from Option ${s.optionGroup}.` });
+                            });
+                        }
                     }
+                    classStatus.push(sessionType);
                     classesInSlot.set(session.className, classStatus);
                 }
             }
@@ -705,7 +719,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
 
     

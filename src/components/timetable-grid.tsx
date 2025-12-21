@@ -215,8 +215,8 @@ export default function TimetableGrid() {
                         let breakText: React.ReactNode = null;
                         
                         if (slot.label === 'SHORT-BREAK') {
-                            if (day === 'Tue') breakText = "BREAK";
-                            if (day === 'Wed') breakText = "SHORT";
+                            if (day === 'Tue') breakText = <span className="font-bold">BREAK</span>;
+                            if (day === 'Wed') breakText = <span className="font-bold">SHORT</span>;
                         } else if (slot.label === 'LUNCH' && day === 'Wed') {
                             breakText = "LUNCH";
                         }
@@ -228,12 +228,11 @@ export default function TimetableGrid() {
                             <TableCell key={slotIndex} className="p-0 relative">
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <div className={cn(
-                                            "font-bold text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center gap-4",
+                                            "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center gap-4",
                                             isShortBreak && "text-[22px]",
-                                            isLunch && "text-[35px]"
+                                            isLunch && "text-[35px] font-bold"
                                         )}>
-                                        {breakText && <span>{breakText}</span>}
-                                        <span className="text-xs font-normal">{slot.time}</span>
+                                        {breakText}
                                     </div>
                                 </div>
                            </TableCell>

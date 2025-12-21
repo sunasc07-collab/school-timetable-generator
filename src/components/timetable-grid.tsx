@@ -264,7 +264,13 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                             <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                            <TableCell className="w-32"></TableCell>
+                            <TableCell className="w-32 relative">
+                                {day === 'Wed' && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-[35px] font-bold text-muted-foreground/80 transform rotate-90 uppercase">Assembly</span>
+                                    </div>
+                                )}
+                            </TableCell>
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -275,7 +281,13 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        <TableCell className="w-32"></TableCell>
+                        <TableCell className="w-32 relative">
+                            {day === 'Wed' && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-[35px] font-bold text-muted-foreground/80 transform rotate-90 uppercase">Assembly</span>
+                                </div>
+                            )}
+                        </TableCell>
                         {rowCells}
                     </TableRow>
                 );
@@ -345,3 +357,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

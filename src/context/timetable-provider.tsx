@@ -286,23 +286,32 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
 
-        // Teacher conflict: teacher can't be in two places at once.
-        if (slot.some(s => s.teacher === session.teacher && s.subject.toLowerCase() !== 'assembly')) return false;
-
-        // Class conflict
-        if (session.isCore || !session.optionGroup) {
-            // Core subjects conflict with any other subject for the same class.
-            if (slot.some(s => s.className === session.className)) return false;
-        } else { // It's an optional subject
-            // An optional subject cannot be scheduled at the same time as a core subject for the same class.
-            if (slot.some(s => s.className === session.className && (s.isCore || !s.optionGroup))) return false;
+        // Teacher conflict
+        if (slot.some(s => s.teacher === session.teacher && s.subject.toLowerCase() !== 'assembly')) {
+            return false;
         }
 
-        const daySessionsForClass = board[day].flat().filter(s => s.className === session.className);
-        const subjectPeriodsOnDay = daySessionsForClass.filter(s => s.subject === session.subject).length;
+        // Class conflict
+        const sessionsForClassInSlot = slot.filter(s => s.className === session.className);
+        if (sessionsForClassInSlot.length > 0) {
+            const isPlacingCore = session.isCore || !session.optionGroup;
+            const hasCoreInSlot = sessionsForClassInSlot.some(s => s.isCore || !s.optionGroup);
 
-        if (session.isDouble && subjectPeriodsOnDay > 0) return false;
-        if (!session.isDouble && subjectPeriodsOnDay >= 2) return false;
+            if (isPlacingCore || hasCoreInSlot) {
+                return false; // Core subject cannot be with any other subject for the same class.
+            }
+
+            // Placing an optional subject. Check for option group conflicts.
+            const optionGroupsInSlot = new Set(sessionsForClassInSlot.map(s => s.optionGroup).filter(Boolean));
+            if (optionGroupsInSlot.has(session.optionGroup)) {
+                return false; // Can't have two subjects from the same option group.
+            }
+        }
+        
+        // Subject per day limit
+        const subjectsOnDayForClass = board[day].flat().filter(s => s.className === session.className && s.subject === session.subject);
+        if (subjectsOnDayForClass.length >= 2) return false;
+        if (session.isDouble && subjectsOnDayForClass.length > 0) return false;
 
         return true;
     }
@@ -696,5 +705,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

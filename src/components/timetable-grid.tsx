@@ -212,14 +212,20 @@ export default function TimetableGrid() {
                     const slot = timeSlots[slotIndex];
 
                     if (slot.isBreak) {
+                        let breakText = null;
+                        if (day === 'Tue') {
+                            breakText = "BREAK";
+                        } else if (day === 'Wed') {
+                            breakText = "SHORT";
+                        }
+
                         rowCells.push(
                             <TableCell key={slotIndex} className="p-0 relative">
-                                {day === 'Wed' && (
+                                {breakText && (
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="text-[22px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex flex-col items-center">
-                                            <span className="font-bold">SHORT</span>
-                                            <span className="font-bold">BREAK</span>
-                                        </div>
+                                        <span className="font-bold text-[22px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                                            {breakText}
+                                        </span>
                                     </div>
                                 )}
                            </TableCell>

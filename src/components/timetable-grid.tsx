@@ -192,7 +192,11 @@ export default function TimetableGrid() {
                 <TableHead className="w-10 p-0"></TableHead>
                 {timeSlots.map((slot, index) => {
                   if (slot.isBreak) {
-                    return <TableHead key={index} className="w-10 p-0"></TableHead>
+                     return (
+                      <TableHead key={index} className="w-10 p-0 font-headline text-center align-middle">
+                        <div className="text-xs font-normal">{slot.time}</div>
+                      </TableHead>
+                    );
                   }
                   return (
                     <TableHead key={index} className={cn("font-headline text-center align-middle")}>
@@ -215,10 +219,10 @@ export default function TimetableGrid() {
                         let breakText: React.ReactNode = null;
                         
                         if (slot.label === 'SHORT-BREAK') {
-                            if (day === 'Tue') breakText = <span className="font-bold">BREAK</span>;
-                            if (day === 'Wed') breakText = <span className="font-bold">SHORT</span>;
+                            if (day === 'Tue') breakText = <span className="font-bold text-[22px]">BREAK</span>;
+                            if (day === 'Wed') breakText = <span className="font-bold text-[22px]">SHORT</span>;
                         } else if (slot.label === 'LUNCH' && day === 'Wed') {
-                            breakText = "LUNCH";
+                            breakText = <span className="text-[35px] font-bold">LUNCH</span>;
                         }
                         
                         const isShortBreak = slot.label === 'SHORT-BREAK';

@@ -155,7 +155,7 @@ export default function Header() {
                 doc.text(mainTitle, 14, 10);
             }
         }
-        const itemTitle = type === 'class' ? `${itemName}'s Timetable` : `${itemName}'s Timetable`;
+        const itemTitle = type === 'class' ? `${itemName}` : `${itemName}`;
         doc.text(itemTitle, 14, startY - 5);
         
         const headContent = ['Day', ...timeSlots.map(slot => slot.isBreak ? '' : `Period ${slot.period}\n${slot.time}`)];
@@ -189,7 +189,7 @@ export default function Header() {
                 if (type === 'class') {
                     session = sessionsInSlot.find(s => s.className === itemName);
                 } else {
-                    session = sessionsInlot.find(s => s.teacher === itemName);
+                    session = sessionsInSlot.find(s => s.teacher === itemName);
                 }
 
                 if (session) {
@@ -483,7 +483,5 @@ export default function Header() {
     </>
   );
 }
-
-    
 
     

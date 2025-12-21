@@ -188,47 +188,16 @@ export default function Header() {
                 fontStyle: "bold",
             },
             didDrawCell: (data: any) => {
-                if (data.cell.section === 'body' && data.column.index === 1) { // Assembly column
-                    if (data.row.index === 2) { // Centered on Wednesday
-                        const text = "ASSEMBLY";
-                        const { x, y, width, height } = data.cell;
-                        doc.saveGraphicsState();
-                        doc.setFont('helvetica', 'bold');
-                        doc.setFontSize(14);
-                        doc.setTextColor(100, 100, 100, 0.8);
-                        doc.text(text, x + width / 2, y + height / 2, {
-                            angle: -90,
-                            align: 'center'
-                        });
-                        doc.restoreGraphicsState();
-                    }
-                    data.cell.styles.lineWidth = 0; // Remove cell border for all assembly rows
+                // Remove border for Assembly column
+                if (data.column.index === 1) {
+                    data.cell.styles.lineWidth = 0;
                 }
 
-                if (data.cell.section === 'body' && data.column.index > 1) {
-                    const slot = timeSlots[data.column.index - 2];
+                // Remove borders for Break columns
+                const slotIndex = data.column.index - 2;
+                if (slotIndex >= 0 && slotIndex < timeSlots.length) {
+                    const slot = timeSlots[slotIndex];
                     if (slot?.isBreak) {
-                        const { x, y, width, height } = data.cell;
-                        const text = slot.label === 'SHORT-BREAK' ? 'SHORT\nBREAK' : 'LUNCH';
-                        doc.saveGraphicsState();
-                        doc.setFont('helvetica', 'bold');
-                        doc.setFontSize(9);
-                        doc.setTextColor(150);
-                        doc.text(text, x + width / 2, y + height / 2, {
-                            angle: -90,
-                            align: 'center'
-                        });
-                        doc.restoreGraphicsState();
-                        data.cell.styles.lineWidth = 0; // Remove cell border for break columns
-                    }
-                }
-                
-                if(data.cell.section === 'head') {
-                    const slot = timeSlots[data.column.index - 2];
-                     if (slot?.isBreak) {
-                        data.cell.styles.lineWidth = 0;
-                     }
-                      if (data.column.index === 1) { // Assembly column
                         data.cell.styles.lineWidth = 0;
                     }
                 }

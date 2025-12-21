@@ -33,6 +33,7 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 1, time: '8:00-8:40' },
     { period: 2, time: '8:40-9:20' },
     { period: 3, time: '9:20-10:00' },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK' },
     { period: 4, time: '10:20-11:00' },
     { period: 5, time: '11:00-11:40' },
     { period: 6, time: '11:40-12:20' },
@@ -713,5 +714,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

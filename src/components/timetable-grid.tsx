@@ -190,12 +190,17 @@ export default function TimetableGrid() {
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
                 <TableHead className="w-10 p-0"></TableHead>
-                {timeSlots.map((slot, index) => (
-                <TableHead key={index} className={cn("font-headline text-center align-middle")}>
-                    <div>Period {slot.period}</div>
-                    <div className="text-xs font-normal">{slot.time}</div>
-                </TableHead>
-                ))}
+                {timeSlots.map((slot, index) => {
+                  if (slot.isBreak) {
+                    return <TableHead key={index} className="w-10 p-0"></TableHead>
+                  }
+                  return (
+                    <TableHead key={index} className={cn("font-headline text-center align-middle")}>
+                        <div>Period {slot.period}</div>
+                        <div className="text-xs font-normal">{slot.time}</div>
+                    </TableHead>
+                  );
+                })}
             </TableRow>
             </TableHeader>
             <TableBody>
@@ -205,6 +210,21 @@ export default function TimetableGrid() {
                 
                 for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
                     const slot = timeSlots[slotIndex];
+
+                    if (slot.isBreak) {
+                        rowCells.push(
+                            <TableCell key={slotIndex} className="p-0 relative">
+                                {day === 'Wed' && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="font-bold text-[35px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                                            {slot.label}
+                                        </span>
+                                    </div>
+                                )}
+                           </TableCell>
+                        );
+                        continue;
+                    }
                     
                     rowCells.push(
                         <TableCell
@@ -326,3 +346,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

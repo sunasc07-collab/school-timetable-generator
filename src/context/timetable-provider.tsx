@@ -335,21 +335,21 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
         // 2. Class conflict
         const sessionsForClass = slot.filter(s => s.className === session.className);
-        if (sessionsForClass.length > 0) {
-            const isPlacingCore = session.isCore || !session.optionGroup;
-            // A core subject cannot be placed if there's anything else for that class.
-            if (isPlacingCore) {
-                return false;
-            }
-            // If the subject being placed is optional, check against what's already there.
-            const hasCoreInSlot = sessionsForClass.some(s => s.isCore || !s.optionGroup);
-            if(hasCoreInSlot) {
-                return false; // Can't add an optional if a core is there.
-            }
-            // An optional subject cannot be placed if another subject from the same option group is already there.
-            if (session.optionGroup && sessionsForClass.some(s => s.optionGroup === session.optionGroup)) {
-                return false;
-            }
+        
+        // A core subject is being placed
+        if (session.isCore) {
+            if (sessionsForClass.length > 0) return false;
+        } 
+        // An optional subject is being placed
+        else if (session.optionGroup) {
+            // Can't place if a core subject is already there
+            if (sessionsForClass.some(s => s.isCore)) return false;
+            // Can't place if another subject from the same option group is there
+            if (sessionsForClass.some(s => s.optionGroup === session.optionGroup)) return false;
+        }
+        // A non-core, non-optional subject is being placed (treat like core)
+        else {
+             if (sessionsForClass.length > 0) return false;
         }
         
         // 3. Subject per day limit
@@ -600,117 +600,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     timetables.forEach(timetable => {
-        if (!timetable || !timetable.id || timetable.timetable === null || Object.keys(timetable.timetable).length === 0) {
-            if (timetable && timetable.id && timetable.conflicts.length > 0) updateTimetable(timetable.id, { conflicts: [] });
-            return;
-        }
-
-        const identifiedConflicts = new Map<string, Conflict>();
-        const CONSECUTIVE_PERIODS = getConsecutivePeriods(timetable.timeSlots);
-        const periodCount = timetable.timeSlots.filter(ts => !ts.isBreak).length;
-
-        for (const day of timetable.days) {
-            for (let period = 0; period < periodCount; period++) {
-                const slotSessions = timetable.timetable[day]?.[period];
-                if (!slotSessions || slotSessions.length <= 1) continue;
-
-                const teachersInSlot = new Set<string>();
-                
-                for (const session of slotSessions) {
-                     if (session.subject === 'Assembly') continue;
-                    // Teacher conflict
-                    if (teachersInSlot.has(session.teacher)) {
-                        slotSessions.forEach(s => {
-                            if (s.teacher === session.teacher) identifiedConflicts.set(s.id, { id: s.id, type: 'teacher', message: `Teacher ${s.teacher} is double-booked.` });
-                        });
-                    }
-                    teachersInSlot.add(session.teacher);
-                }
-
-                const sessionsByClass = new Map<string, TimetableSession[]>();
-                slotSessions.forEach(s => {
-                    if (!sessionsByClass.has(s.className)) {
-                        sessionsByClass.set(s.className, []);
-                    }
-                    sessionsByClass.get(s.className)!.push(s);
-                });
-
-                sessionsByClass.forEach((classSessions, className) => {
-                    if (classSessions.length <= 1) return;
-
-                    const hasCoreSubject = classSessions.some(s => s.isCore || !s.optionGroup);
-                    const optionGroups = new Set<string>();
-                    
-                    let conflict = false;
-                    // If there's a core subject, it conflicts with anything else.
-                    if (hasCoreSubject && classSessions.length > 1) {
-                        conflict = true;
-                    } else if (!hasCoreSubject) { // This block only has optional subjects
-                        for(const session of classSessions) {
-                            if (session.optionGroup) {
-                                // If we've already seen this option group, it's a conflict.
-                                if (optionGroups.has(session.optionGroup)) {
-                                    conflict = true;
-                                    break;
-                                }
-                                optionGroups.add(session.optionGroup);
-                            }
-                        }
-                    }
-
-                    if (conflict) {
-                         classSessions.forEach(s => {
-                            identifiedConflicts.set(s.id, { id: s.id, type: 'class', message: `Class ${className} has conflicting subjects.` });
-                        });
-                    }
-                });
-            }
-        }
-        
-        const doublePeriodParts = new Map<string, {session: TimetableSession, day: string, period: number}>();
-        for (const day of timetable.days) {
-            let periodIndex = 0;
-            for (const slot of timetable.timeSlots) {
-                if(slot.isBreak) continue;
-                const slotSessions = timetable.timetable[day]?.[periodIndex] || [];
-                for (const session of slotSessions) {
-                    if (session.isDouble) {
-                        const key = `${session.id}-${session.part}`;
-                        doublePeriodParts.set(key, { session, day, period: periodIndex });
-                    }
-                }
-                periodIndex++;
-            }
-        }
-
-        const checkedDoubles = new Set<string>();
-        doublePeriodParts.forEach(({session}) => {
-            if(checkedDoubles.has(session.id)) return;
-            
-            const part1Key = `${session.id}-1`;
-            const part2Key = `${session.id}-2`;
-
-            if (doublePeriodParts.has(part1Key) && doublePeriodParts.has(part2Key)) {
-                 const part1 = doublePeriodParts.get(part1Key)!;
-                 const part2 = doublePeriodParts.get(part2Key)!;
-
-                 if(part1.day !== part2.day || !CONSECUTIVE_PERIODS.some(p => (p[0] === part1.period && p[1] === part2.period) || (p[0] === part2.period && p[1] === part1.period))) {
-                     identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Broken double period for ${session.subject}.` });
-                 }
-                 checkedDoubles.add(session.id);
-            } else {
-                identifiedConflicts.set(session.id, { id: session.id, type: 'class', message: `Incomplete double period for ${session.subject}.` });
-            }
-        });
-
-        const newConflicts = Array.from(identifiedConflicts.values());
-        if (JSON.stringify(newConflicts) !== JSON.stringify(timetable.conflicts)) {
-            updateTimetable(timetable.id, { conflicts: newConflicts });
+        if (timetable && timetable.id && timetable.conflicts.length > 0) {
+            updateTimetable(timetable.id, { conflicts: [] });
         }
     });
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timetables, setTimetables]);
+  }, [timetables]);
 
   const isConflict = (sessionId: string) => {
     return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
@@ -749,5 +644,8 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
+
 
     

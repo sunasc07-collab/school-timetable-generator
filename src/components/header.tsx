@@ -118,6 +118,7 @@ export default function Header() {
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
+    const teachingSlots = timeSlots.filter(slot => !slot.isBreak);
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as any).name;
@@ -133,39 +134,29 @@ export default function Header() {
         }
         doc.text(itemName, 14, startY - 5);
         
-        const headContent = ["Day", "Assembly", ...timeSlots.map(slot => slot.label || `P${slot.period}\n${slot.time}`)];
+        const headContent = ["Day", ...teachingSlots.map(slot => `P${slot.period}\n${slot.time}`)];
         const head = [headContent];
 
         const body: (string | null)[][] = [];
-        const columnStyles: { [key: number]: any } = { 1: { cellWidth: 20 }};
 
         days.forEach(day => {
             const row: (string | null)[] = [day];
             
-            // Assembly Column
-            row.push(day === 'Wed' ? 'ASSEMBLY' : '');
-            
-            let periodIndex = 0;
-            timeSlots.forEach(slot => {
-                if (slot.isBreak) {
-                    row.push(slot.label || '');
-                } else {
-                    const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                    let sessionContent = "";
-                    if (type === 'class') {
-                        const classSession = sessionsInSlot.find(s => s.className === itemName);
-                        if (classSession) {
-                            sessionContent = `${classSession.subject}\n${classSession.teacher}`;
-                        }
-                    } else {
-                        const teacherSession = sessionsInSlot.find(s => s.teacher === itemName);
-                        if (teacherSession) {
-                             sessionContent = `${teacherSession.subject}\n${teacherSession.className}`;
-                        }
+            teachingSlots.forEach((slot, periodIndex) => {
+                const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+                let sessionContent = "";
+                if (type === 'class') {
+                    const classSession = sessionsInSlot.find(s => s.className === itemName);
+                    if (classSession) {
+                        sessionContent = `${classSession.subject}\n${classSession.teacher}`;
                     }
-                    row.push(sessionContent);
-                    periodIndex++;
+                } else {
+                    const teacherSession = sessionsInSlot.find(s => s.teacher === itemName);
+                    if (teacherSession) {
+                         sessionContent = `${teacherSession.subject}\n${teacherSession.className}`;
+                    }
                 }
+                row.push(sessionContent);
             });
             body.push(row);
         });
@@ -187,7 +178,6 @@ export default function Header() {
                 textColor: 255,
                 fontStyle: "bold",
             },
-            columnStyles: columnStyles,
             didParseCell: (data: any) => {
                 if(data.cell.section === 'body') {
                     if (data.cell.text[0] === 'ASSEMBLY' || data.cell.text[0] === 'LUNCH' || data.cell.text[0] === 'SHORT-BREAK') {

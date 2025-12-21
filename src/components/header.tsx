@@ -204,31 +204,25 @@ export default function Header() {
                 const tueRow = table.body.find((r: any) => r.cells[0]?.text?.[0] === 'Tue');
                 const thuRow = table.body.find((r: any) => r.cells[0]?.text?.[0] === 'Thu');
 
-                if (!tueRow || !thuRow) {
-                    // Try to find any available rows to draw something
+                let startYPos, endYPos;
+
+                if (tueRow && thuRow) {
+                    startYPos = tueRow.y;
+                    endYPos = thuRow.y + thuRow.height;
+                } else if (table.body.length >= 3) {
+                    // Fallback to drawing between the 2nd and 4th row if they exist
                     const firstRow = table.body[1];
                     const lastRow = table.body[table.body.length - 2];
-                    if(!firstRow || !lastRow) return;
-
-                    const startY = firstRow.y;
-                    const endY = lastRow.y + lastRow.height;
-                    const centerX = assemblyCol.x + assemblyCol.width / 2;
-                    const centerY = startY + (endY - startY) / 2;
-                    
-                    doc.setFontSize(20);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(100);
-                    doc.text('ASSEMBLY', centerX, centerY, {
-                        angle: -90,
-                        align: 'center',
-                    });
-                    return;
+                    if (firstRow && lastRow) {
+                        startYPos = firstRow.y;
+                        endYPos = lastRow.y + lastRow.height;
+                    }
                 }
 
-                const startY = tueRow.y;
-                const endY = thuRow.y + thuRow.height;
+                if (startYPos === undefined || endYPos === undefined) return;
+
                 const centerX = assemblyCol.x + assemblyCol.width / 2;
-                const centerY = startY + (endY - startY) / 2;
+                const centerY = startYPos + (endYPos - startYPos) / 2;
 
                 doc.setFontSize(20);
                 doc.setFont('helvetica', 'bold');

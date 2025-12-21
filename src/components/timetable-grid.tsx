@@ -189,7 +189,6 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
-                <TableHead className="w-10 p-0"></TableHead>
                 {timeSlots.map((slot, index) => {
                   if (slot.isBreak) {
                      return (
@@ -251,17 +250,6 @@ export default function TimetableGrid() {
 
                     periodIndex++;
                 }
-                
-                const assemblyCell = (
-                   <TableCell className="p-0 relative">
-                     <div className="absolute inset-0 flex items-center justify-center h-full">
-                       <span className="font-bold text-[35px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
-                         ASSEMBLY
-                       </span>
-                     </div>
-                   </TableCell>
-                );
-
 
                 if (day === 'Fri' && isSecondarySchool) {
                     const sportCell = (
@@ -275,7 +263,6 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                             <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                            {assemblyCell}
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -286,7 +273,6 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        {assemblyCell}
                         {rowCells}
                     </TableRow>
                 );
@@ -356,5 +342,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

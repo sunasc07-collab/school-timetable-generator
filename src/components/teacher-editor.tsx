@@ -115,7 +115,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const isNurserySchool = schoolName.includes('nursery');
 
     const hasJuniorSecondary = selectedGrades.some((g: string) => ["Grade 7", "Grade 8", "Grade 9"].includes(g));
-    const hasSeniorSecondary = selectedGrades.some((g: string) => ["Grade 10", "Grade 11", "Grade 12"].includes(g));
+    const hasSeniorSecondary = selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
     const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
 
     let armOptions = SENIOR_SECONDARY_ARMS;
@@ -307,59 +307,61 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                     </div>
-                    <div className="space-y-3">
-                        <FormField
-                            control={control}
-                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={(checked) => {
-                                                field.onChange(checked);
-                                                if (checked) {
-                                                    setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
-                                                }
-                                                trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
-                                            }}
+                    {hasSeniorSecondary && (
+                        <div className="space-y-3">
+                            <FormField
+                                control={control}
+                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`}
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={(checked) => {
+                                                    field.onChange(checked);
+                                                    if (checked) {
+                                                        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
+                                                    }
+                                                    trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-normal text-sm">Core Subject (single period for all students in grade/arm)</FormLabel>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormItem>
+                                <FormLabel className="text-sm">Option Groups (for subjects taken by different students at the same time)</FormLabel>
+                                <div className="grid grid-cols-5 gap-x-2 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                    {OPTION_GROUPS.map((group) => (
+                                        <FormField
+                                            key={group}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value === group}
+                                                            onCheckedChange={(checked) => {
+                                                                field.onChange(checked ? group : null);
+                                                                if (checked) {
+                                                                    setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, false);
+                                                                }
+                                                                trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm">Option {group}</FormLabel>
+                                                </FormItem>
+                                            )}
                                         />
-                                    </FormControl>
-                                    <FormLabel className="font-normal text-sm">Core Subject (single period for all students in grade/arm)</FormLabel>
-                                </FormItem>
-                            )}
-                        />
-                        <FormItem>
-                            <FormLabel className="text-sm">Option Groups (for subjects taken by different students at the same time)</FormLabel>
-                            <div className="grid grid-cols-5 gap-x-2 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                {OPTION_GROUPS.map((group) => (
-                                    <FormField
-                                        key={group}
-                                        control={control}
-                                        name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={field.value === group}
-                                                        onCheckedChange={(checked) => {
-                                                            field.onChange(checked ? group : null);
-                                                            if (checked) {
-                                                                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, false);
-                                                            }
-                                                            trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
-                                                        }}
-                                                    />
-                                                </FormControl>
-                                                <FormLabel className="font-normal text-sm">Option {group}</FormLabel>
-                                            </FormItem>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                        </FormItem>
-                        {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive">{assignmentErrors?.isCore?.message as string}</p>}
-                    </div>
+                                    ))}
+                                </div>
+                            </FormItem>
+                            {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive">{assignmentErrors?.isCore?.message as string}</p>}
+                        </div>
+                    )}
                      <div className={cn("grid grid-cols-1 gap-y-2", hideGradesAndArms && "hidden")}>
                         {showArms && (
                             <FormField

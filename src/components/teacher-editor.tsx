@@ -38,6 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Label } from "./ui/label";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),

@@ -6,7 +6,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
 import { Download, Printer, View, Plus, Trash2, Edit, Zap } from "lucide-react";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useState } from "react";
-import type { ViewMode } from "@/lib/types";
+import type { ViewMode, TimetableSession } from "@/lib/types";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
@@ -109,7 +109,6 @@ export default function Header() {
     closeDialog();
   };
 
-
   const generatePdf = (type: 'class' | 'teacher') => {
     if (!currentTimetable) return;
 
@@ -119,6 +118,29 @@ export default function Header() {
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
+    
+    const subjectColorMap = new Map<string, number[]>();
+    const pastelColors = [
+        [255, 182, 193], // LightPink
+        [255, 218, 185], // PeachPuff
+        [221, 160, 221], // Plum
+        [173, 216, 230], // LightBlue
+        [144, 238, 144], // LightGreen
+        [255, 255, 224], // LightYellow
+        [240, 230, 140], // Khaki
+        [250, 235, 215], // AntiqueWhite
+        [176, 224, 230], // PowderBlue
+        [255, 228, 225], // MistyRose
+    ];
+    let colorIndex = 0;
+
+    const getSubjectColor = (subject: string) => {
+        if (!subjectColorMap.has(subject)) {
+            subjectColorMap.set(subject, pastelColors[colorIndex % pastelColors.length]);
+            colorIndex++;
+        }
+        return subjectColorMap.get(subject)!;
+    };
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as any).name;
@@ -132,105 +154,114 @@ export default function Header() {
                 startY = 20;
             }
         }
-        doc.text(itemName, 14, startY - 5);
+        doc.text(`${itemName}'s Timetable`, 14, startY - 5);
         
-        const headContent = ["Day", "", ...timeSlots.map(slot => {
-            if (slot.isBreak) {
-                return '';
-            };
-            return `P${slot.period}\n${slot.time}`;
-        })];
-        const head = [headContent];
+        const head = [[ 'Time', ...days]];
 
-        const body: (string | null)[][] = [];
+        const body: any[][] = [];
+        const mergedCells = new Set<string>();
 
-        days.forEach(day => {
-            const row: (string | null)[] = [day, '']; // Empty cell for Assembly
+        timeSlots.forEach((slot, rowIndex) => {
+            const row: any[] = [slot.time];
             
-            let periodIndex = 0;
-            timeSlots.forEach((slot) => {
-                 if (slot.isBreak) {
-                    row.push(''); // Empty cell for breaks
+            days.forEach((day, colIndex) => {
+                const cellKey = `${rowIndex}-${colIndex}`;
+                if (mergedCells.has(cellKey)) {
+                    row.push(null);
                     return;
                 }
-                const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                let sessionContent = "";
-                if (type === 'class') {
-                    const classSession = sessionsInSlot.find(s => s.className === itemName);
-                    if (classSession) {
-                        sessionContent = `${classSession.subject}\n${classSession.teacher}`;
-                    }
-                } else {
-                    const teacherSession = sessionsInSlot.find(s => s.teacher === itemName);
-                    if (teacherSession) {
-                         sessionContent = `${teacherSession.subject}\n${teacherSession.className}`;
+
+                let periodIndex = 0;
+                for(let i = 0; i < rowIndex; i++) {
+                    if (!timeSlots[i].isBreak) {
+                        periodIndex++;
                     }
                 }
-                row.push(sessionContent);
-                periodIndex++;
+
+                if (slot.isBreak) {
+                    row.push({ content: slot.label, styles: { fillColor: [245, 245, 245] } });
+                    return;
+                }
+
+                const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+                let sessionContent = "";
+                let session: TimetableSession | undefined;
+
+                if (type === 'class') {
+                    session = sessionsInSlot.find(s => s.className === itemName);
+                } else {
+                    session = sessionsInSlot.find(s => s.teacher === itemName);
+                }
+
+                if (session) {
+                    sessionContent = type === 'class' ? `${session.subject}\n${session.teacher}` : `${session.subject}\n${session.className}`;
+                    let rowSpan = 1;
+
+                    if (session.isDouble && session.part === 1) {
+                         const nextRowIndex = rowIndex + 1;
+                         if (nextRowIndex < timeSlots.length) {
+                            const nextSlotPeriodIndex = periodIndex + 1;
+                            const nextSlotSessions = timetable[day]?.[nextSlotPeriodIndex] || [];
+                            const partnerSession = nextSlotSessions.find(s => s.id === session!.id && s.part === 2);
+                            if (partnerSession) {
+                                rowSpan = 2;
+                                mergedCells.add(`${nextRowIndex}-${colIndex}`);
+                            }
+                         }
+                    }
+                    if(session.isDouble && session.part === 2) {
+                       row.push(null);
+                       return;
+                    }
+
+                    row.push({
+                        content: sessionContent,
+                        rowSpan: rowSpan,
+                        styles: { fillColor: getSubjectColor(session.subject) }
+                    });
+                } else {
+                    row.push('');
+                }
             });
             body.push(row);
         });
 
-        (doc as any).autoTable({
+        // Filter out rows where all day cells are null (due to rowspan)
+        const finalBody = body.map(row => {
+            const newRow = row.filter(cell => cell !== null);
+            return newRow;
+        });
+
+        autoTable(doc, {
             head: head,
             body: body,
             startY: startY,
             theme: "grid",
             styles: {
-                fontSize: 7,
-                cellPadding: 1.5,
+                fontSize: 8,
+                cellPadding: 2,
                 valign: "middle",
                 halign: "center",
+                lineWidth: 0.1,
+                lineColor: [220, 220, 220],
             },
             headStyles: {
-                fillColor: [41, 128, 185],
-                textColor: 255,
+                fillColor: [230, 245, 240], // Light green header
+                textColor: [50, 50, 50],
                 fontStyle: "bold",
-                lineWidth: 0,
             },
-            willDrawCell: (data: any) => {
-                if (data.section === 'body') {
-                     // Set top and bottom borders to 0 to remove row lines
-                    data.cell.styles.lineWidth = { top: 0, bottom: 0, left: data.cell.styles.lineWidth, right: data.cell.styles.lineWidth };
-                }
-            },
-            didDrawPage: (data: any) => {
-                const table = data.table;
-                const assemblyCol = table.columns[1];
-                if (!assemblyCol) return;
-                
-                // Robustly find the start and end rows for the range
-                const tueRow = table.body.find((r: any) => r.cells[0]?.text?.[0] === 'Tue');
-                const thuRow = table.body.find((r: any) => r.cells[0]?.text?.[0] === 'Thu');
-
-                let startYPos, endYPos;
-
-                if (tueRow && thuRow) {
-                    startYPos = tueRow.y;
-                    endYPos = thuRow.y + thuRow.height;
-                } else if (table.body.length >= 3) {
-                    // Fallback to drawing between the 2nd and 4th row if they exist
-                    const firstRow = table.body[1];
-                    const lastRow = table.body[table.body.length - 2];
-                    if (firstRow && lastRow) {
-                        startYPos = firstRow.y;
-                        endYPos = lastRow.y + lastRow.height;
+            didDrawCell: (data) => {
+                if (data.section === 'body' && data.cell.raw && typeof data.cell.raw === 'object' && 'styles' in data.cell.raw && data.cell.raw.styles?.fillColor) {
+                    doc.setFillColor(...(data.cell.raw.styles.fillColor as [number, number, number]));
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                    doc.setTextColor(0, 0, 0);
+                    if (data.cell.raw.content) {
+                       doc.text(data.cell.raw.content.toString(), data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                            halign: 'center',
+                            valign: 'middle'
+                       });
                     }
                 }
-
-                if (startYPos === undefined || endYPos === undefined) return;
-
-                const centerX = assemblyCol.x + assemblyCol.width / 2;
-                const centerY = startYPos + (endYPos - startYPos) / 2;
-
-                doc.setFontSize(20);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(100);
-                doc.text('ASSEMBLY', centerX, centerY, {
-                    angle: -90,
-                    align: 'center',
-                });
             },
         });
     });
@@ -404,5 +435,3 @@ export default function Header() {
     </>
   );
 }
-
-    

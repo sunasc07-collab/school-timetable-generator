@@ -330,7 +330,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                     </div>
-                    {isSecondary && hasSeniorSecondary && (
+                    {isSecondary && !hasALevel && selectedGrades.length > 0 && (
                          <div className="grid grid-cols-2 gap-2">
                              <FormField
                                  control={control}

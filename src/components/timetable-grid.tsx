@@ -114,7 +114,7 @@ export default function TimetableGrid() {
      const allSessionsInSlot = timetable[day]?.[period] || [];
      
      let relevantSessions: TimetableSession[] = [];
-      if (viewMode === 'class' || viewMode === 'arm') {
+     if (viewMode === 'class' || viewMode === 'arm') {
           relevantSessions = allSessionsInSlot.filter(s => {
               if (s.subject === 'Assembly') {
                  return s.classes.includes(filterValue);
@@ -227,12 +227,17 @@ export default function TimetableGrid() {
                                      )}>
                                          <div className="flex flex-col items-center leading-none">
                                             <span>SHORT</span>
-                                            <span>BREAK</span>
                                          </div>
                                      </span>
                                  )}
-                                 {(day === 'Tue' || day === 'Thu') && (
-                                     <span className="absolute inset-0"></span>
+                                 {day === 'Thu' && (
+                                     <span className={cn(
+                                         "absolute inset-0 flex items-end justify-center font-bold text-muted-foreground uppercase text-[35px] [writing-mode:vertical-lr] transform rotate-180"
+                                     )}>
+                                         <div className="flex flex-col items-center leading-none">
+                                            <span>BREAK</span>
+                                         </div>
+                                     </span>
                                  )}
                              </div>
                             </TableCell>

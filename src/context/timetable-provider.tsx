@@ -286,41 +286,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
 
-        // Teacher conflict
+        // Teacher conflict: teacher is already booked in this slot
         if (slot.some(s => s.teacher === session.teacher && s.subject.toLowerCase() !== 'assembly')) {
             return false;
         }
         
+        // Class conflict checks
         const sessionsForClassInSlot = slot.filter(s => s.className === session.className);
         
-        // If there's nothing for this class yet, placement is valid from a class perspective
-        if (sessionsForClassInSlot.length === 0) {
-            // But we must also check for other classes from the same teacher
-            // This is already covered by the teacher conflict check above.
-        } else {
-             // There's at least one session for this class in the slot. Now check for conflicts.
+        if (sessionsForClassInSlot.length > 0) {
             const isPlacingCore = session.isCore || !session.optionGroup;
             const hasCoreInSlot = sessionsForClassInSlot.some(s => s.isCore || !s.optionGroup);
 
-            // If we are placing a core subject, or a core subject is already there, it's a conflict.
-            if (isPlacingCore || hasCoreInSlot) {
+            // If we are placing a core subject, but there's already something there, conflict.
+            if (isPlacingCore) {
                 return false;
             }
 
-            // If we reach here, we are placing an optional subject, and only other optional subjects are in the slot.
-            // Check for option group conflicts.
+            // If a core subject is already in the slot, conflict.
+            if (hasCoreInSlot) {
+                return false;
+            }
+            
+            // If we are placing an optional subject, and only other optional subjects are in the slot.
             const optionGroupsInSlot = new Set(sessionsForClassInSlot.map(s => s.optionGroup).filter(Boolean));
             if (session.optionGroup && optionGroupsInSlot.has(session.optionGroup)) {
-                return false; // Conflict: another subject from the same option group is already there.
+                return false; // Conflict: same option group.
             }
         }
         
-        // Subject per day limit (check only if adding this session would exceed the limit)
+        // Subject per day limit
         const subjectsOnDayForClass = board[day].flat().filter(s => s.className === session.className && s.subject === session.subject);
         if (session.isDouble) {
           if (subjectsOnDayForClass.length > 0) return false;
         } else {
-          if (subjectsOnDayForClass.length >= 2) return false;
+          // Allow up to one single period of a subject if a double of the same subject is not already scheduled.
+          if (subjectsOnDayForClass.some(s=>s.isDouble)) return false;
+          if (subjectsOnDayForClass.length >= 1) return false;
         }
 
         return true;
@@ -527,11 +529,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           return !slot.some(s => s.subject === 'Assembly');
         }
 
-        if (session.isCore || !session.optionGroup) {
-            if (slot.some(s => s.className === session.className)) return false;
-        } else { // Optional
-            if (slot.some(s => s.className === session.className && (s.isCore || !s.optionGroup))) return false;
-            if (slot.some(s => s.className === session.className && s.optionGroup === session.optionGroup)) return false;
+        const sessionsForClassInSlot = slot.filter(s => s.className === session.className);
+        if (sessionsForClassInSlot.length > 0) {
+            const isPlacingCore = session.isCore || !session.optionGroup;
+            const hasCoreInSlot = sessionsForClassInSlot.some(s => s.isCore || !s.optionGroup);
+
+            if (isPlacingCore || hasCoreInSlot) {
+                return false;
+            }
+            
+            const optionGroupsInSlot = new Set(sessionsForClassInSlot.map(s => s.optionGroup).filter(Boolean));
+            if (session.optionGroup && optionGroupsInSlot.has(session.optionGroup)) {
+                return false;
+            }
         }
         
         return true;
@@ -611,7 +621,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                     // Class conflict
                     const classStatus = classesInSlot.get(session.className) || [];
-                    const sessionType = (session.isCore || !session.optionGroup) ? 'core' : { option: session.optionGroup };
+                    const sessionType = (session.isCore || !session.optionGroup) ? 'core' : { option: session.optionGroup! };
 
                     if (sessionType === 'core') {
                         if (classStatus.length > 0) {
@@ -632,7 +642,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         }
                     }
                     classStatus.push(sessionType);
-                    classesInSlot.set(session.className, classStatus);
+classesInSlot.set(session.className, classStatus);
                 }
             }
         }

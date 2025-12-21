@@ -106,7 +106,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
       control,
       name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`,
     }) || [];
-
+    
     const subjectType = useWatch({
         control,
         name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`
@@ -772,11 +772,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-
-
-    
-
-    
 
     

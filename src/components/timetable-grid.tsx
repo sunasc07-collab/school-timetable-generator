@@ -189,7 +189,7 @@ export default function TimetableGrid() {
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Day</TableHead>
-                <TableHead></TableHead>
+                <TableHead className="w-32"></TableHead>
                 {timeSlots.map((slot, index) => {
                   if (slot.isBreak) {
                      return (
@@ -264,7 +264,7 @@ export default function TimetableGrid() {
                     return (
                          <TableRow key={day}>
                             <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                            <TableCell></TableCell>
+                            <TableCell className="w-32"></TableCell>
                             {regularCells}
                             {sportCell}
                         </TableRow>
@@ -275,7 +275,7 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        <TableCell></TableCell>
+                        <TableCell className="w-32"></TableCell>
                         {rowCells}
                     </TableRow>
                 );

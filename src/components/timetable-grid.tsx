@@ -232,9 +232,7 @@ export default function TimetableGrid() {
                             <TableCell key={slotIndex} className="p-0 relative">
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <div className={cn(
-                                            "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center gap-4",
-                                            isShortBreak && "text-[22px]",
-                                            isLunch && "text-[35px] font-bold"
+                                            "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center gap-4 h-full"
                                         )}>
                                         {breakText}
                                     </div>
@@ -364,3 +362,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

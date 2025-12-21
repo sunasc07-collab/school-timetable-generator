@@ -121,7 +121,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const isNurserySchool = schoolName.includes('nursery');
 
     const hasJuniorSecondary = selectedGrades.some((g: string) => ["Grade 7", "Grade 8", "Grade 9"].includes(g));
-    const hasSeniorSecondary = isSecondary && Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
+    const hasSeniorSecondary = Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
     const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
 
     let armOptions = SENIOR_SECONDARY_ARMS;
@@ -329,7 +329,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                     </div>
-                    {hasSeniorSecondary && (
+                    {isSecondary && hasSeniorSecondary && (
                          <div className="grid grid-cols-2 gap-2">
                              <FormField
                                  control={control}

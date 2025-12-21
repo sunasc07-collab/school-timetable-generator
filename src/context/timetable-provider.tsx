@@ -233,7 +233,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
 
     const allRequiredSessions: { subject: string; teacher: string; className: string; periods: number; }[] = [];
-    let hasAssembly = false;
     
     teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
@@ -243,7 +242,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!grades || grades.length === 0 || !subject || !periods || periods <= 0) return;
             
             if (subject.toLowerCase() === 'assembly') {
-              hasAssembly = true;
               return; // Assembly is handled separately
             }
 
@@ -395,39 +393,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         });
-    }
-
-    if (hasAssembly) {
-      const assemblySession: TimetableSession = {
-        id: crypto.randomUUID(),
-        subject: 'Assembly',
-        className: 'Assembly',
-        teacher: 'Administration',
-        isDouble: false,
-        classes: sortedClasses,
-      };
-
-      let assemblyPlaced = false;
-      const firstPeriod = 0;
-      for (const day of ['Mon', 'Fri']) {
-        if (finalTimetable[day]?.[firstPeriod].length === 0) {
-          finalTimetable[day][firstPeriod].push(assemblySession);
-          assemblyPlaced = true;
-          break;
-        }
-      }
-      if (!assemblyPlaced) {
-        for (const day of days) {
-          if (finalTimetable[day]?.[firstPeriod].length === 0) {
-            finalTimetable[day][firstPeriod].push(assemblySession);
-            assemblyPlaced = true;
-            break;
-          }
-        }
-      }
-       if (!assemblyPlaced) {
-          finalTimetable['Mon'][firstPeriod].push(assemblySession);
-      }
     }
 
     if (finalTimetable && isSecondary) {

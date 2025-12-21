@@ -225,17 +225,13 @@ export default function TimetableGrid() {
                             breakText = <span className="text-[35px] font-bold">LUNCH</span>;
                         }
                         
-                        const isShortBreak = slot.label === 'SHORT-BREAK';
-                        const isLunch = slot.label === 'LUNCH';
-
                         rowCells.push(
                             <TableCell key={slotIndex} className="p-0 relative">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className={cn(
-                                            "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center gap-4 h-full"
-                                        )}>
-                                        {breakText}
-                                    </div>
+                                <div className={cn(
+                                        "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center justify-center gap-4 h-full",
+                                        "absolute inset-0"
+                                    )}>
+                                    {breakText}
                                 </div>
                            </TableCell>
                         );
@@ -258,13 +254,11 @@ export default function TimetableGrid() {
                 
                 const assemblyCell = (
                    <TableCell className="p-0 relative">
-                     {day === 'Wed' && (
-                       <div className="absolute inset-0 flex items-center justify-center">
-                         <span className="font-bold text-[35px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
-                           ASSEMBLY
-                         </span>
-                       </div>
-                     )}
+                     <div className="absolute inset-0 flex items-center justify-center h-full">
+                       <span className="font-bold text-[35px] text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest">
+                         ASSEMBLY
+                       </span>
+                     </div>
                    </TableCell>
                 );
 

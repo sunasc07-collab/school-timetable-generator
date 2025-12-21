@@ -180,20 +180,20 @@ export default function Header() {
                 cellPadding: 1.5,
                 valign: "middle",
                 halign: "center",
-                lineWidth: { top: 0.1, right: 0, bottom: 0.1, left: 0 },
+                lineWidth: 0.1,
             },
             headStyles: {
                 fillColor: [41, 128, 185],
                 textColor: 255,
                 fontStyle: "bold",
-                lineWidth: { top: 0.1, right: 0, bottom: 0.1, left: 0 },
+                lineWidth: 0.1,
             },
             willDrawCell: (data: any) => {
-                 data.cell.styles.lineWidth = { 
-                    top: data.cell.styles.lineWidth,
-                    right: 0,
-                    bottom: data.cell.styles.lineWidth,
+                 data.cell.styles.lineWidth = {
                     left: 0,
+                    right: 0,
+                    top: 0.1,
+                    bottom: 0.1,
                 };
             },
             didDrawCell: (data: any) => {
@@ -207,7 +207,7 @@ export default function Header() {
                 }
 
                 if (isBreakOrAssembly(data.column.index)) {
-                   data.cell.styles.lineWidth = { top: 0, right: 0, bottom: 0, left: 0 };
+                   data.cell.styles.lineWidth = 0;
                    return;
                 }
             }

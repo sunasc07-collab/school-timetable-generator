@@ -199,15 +199,34 @@ export default function Header() {
                 const table = data.table;
                 const assemblyCol = table.columns[1];
                 if (!assemblyCol) return;
-
-                // Robustly find the start and end rows for the range
-                const firstRow = table.body[1]; // Tuesday
-                const lastRow = table.body[3]; // Thursday
                 
-                if (!firstRow || !lastRow) return;
+                // Robustly find the start and end rows for the range
+                const tueRow = table.body.find((r: any) => r.cells[0]?.text?.[0] === 'Tue');
+                const thuRow = table.body.find((r: any) => r.cells[0]?.text?.[0] === 'Thu');
 
-                const startY = firstRow.y;
-                const endY = lastRow.y + lastRow.height;
+                if (!tueRow || !thuRow) {
+                    // Try to find any available rows to draw something
+                    const firstRow = table.body[1];
+                    const lastRow = table.body[table.body.length - 2];
+                    if(!firstRow || !lastRow) return;
+
+                    const startY = firstRow.y;
+                    const endY = lastRow.y + lastRow.height;
+                    const centerX = assemblyCol.x + assemblyCol.width / 2;
+                    const centerY = startY + (endY - startY) / 2;
+                    
+                    doc.setFontSize(20);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(100);
+                    doc.text('ASSEMBLY', centerX, centerY, {
+                        angle: -90,
+                        align: 'center',
+                    });
+                    return;
+                }
+
+                const startY = tueRow.y;
+                const endY = thuRow.y + thuRow.height;
                 const centerX = assemblyCol.x + assemblyCol.width / 2;
                 const centerY = startY + (endY - startY) / 2;
 
@@ -391,3 +410,5 @@ export default function Header() {
     </>
   );
 }
+
+    

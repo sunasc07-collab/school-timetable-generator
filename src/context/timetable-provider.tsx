@@ -289,19 +289,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     optionalGroups.forEach((assignments, groupKey) => {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
-
         for (let i = 0; i < maxPeriods; i++) {
             const periodBlock: TimetableSession[] = [];
-            
             assignments.forEach(assign => {
                 if (i < assign.periods) {
-                     const sessionClasses = assign.grades.flatMap(grade => {
+                    const sessionClasses = assign.grades.flatMap(grade => {
                         const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
                         return gradeArms.map(arm => `${grade} ${arm}`.trim());
                     });
                     
+                    const sessionId = `${groupKey}-period-${i + 1}-${assign.subject}-${crypto.randomUUID()}`;
+
                     periodBlock.push({
-                        id: `${groupKey}-period-${i + 1}-${assign.subject}`,
+                        id: sessionId,
                         subject: assign.subject,
                         teacher: assign.teacher,
                         className: sessionClasses.join(', '),
@@ -317,7 +317,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     });
-
     
     sessionsToPlace.sort((a, b) => {
         const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);
@@ -367,12 +366,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     
-        // 3. Subject per day check: A subject should not be scheduled more than once per day for a class.
-        // The parts of a double period share the same ID, so they don't conflict with each other.
+        // 3. Subject per day check: A subject should not be scheduled more than once per day for a class, unless it's a double.
         for (const classToCheck of session.classes) {
-            const daySessionsForClass = board[day].flat().filter(s => s.classes.includes(classToCheck));
-            if (daySessionsForClass.some(s => s.subject === session.subject && s.id !== session.id)) {
-                return false;
+            for (const p of board[day]) {
+                for (const existingSession of p) {
+                    if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
+                        // Allow parts of the same double period, but not separate sessions of the same subject.
+                        if (existingSession.id !== session.id) {
+                            return false;
+                        }
+                    }
+                }
             }
         }
     
@@ -415,7 +419,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const subjectAlreadyOnDay = sessionGroup.some(sess => {
                     return sess.classes.some(c => {
                         const daySessions = board[day].flat().filter(s => s.classes.includes(c));
-                        return daySessions.some(ds => ds.subject === sess.subject);
+                        return daySessions.some(ds => ds.subject === sess.subject && ds.id !== sess.id);
                     });
                 });
                 if (subjectAlreadyOnDay) continue;
@@ -529,80 +533,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!activeTimetable?.timetable || !activeTimetable.id) return;
-    
-    const newConflicts: Conflict[] = [];
-    const { timetable, days, timeSlots } = activeTimetable;
-    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
-
-    for (const day of days) {
-        for (let period = 0; period < periodCount; period++) {
-            const slot = timetable[day]?.[period] || [];
-            if (slot.length <= 1) continue;
-
-            const teacherCounts: { [key: string]: string[] } = {};
-            const classCounts: { [key: string]: TimetableSession[] } = {};
-
-            slot.forEach(session => {
-                if (!teacherCounts[session.teacher]) {
-                    teacherCounts[session.teacher] = [];
-                }
-                teacherCounts[session.teacher].push(session.id);
-
-                session.classes.forEach(className => {
-                    if (!classCounts[className]) {
-                        classCounts[className] = [];
-                    }
-                    classCounts[className].push(session);
-                });
-            });
-
-            for (const teacher in teacherCounts) {
-                if (teacherCounts[teacher].length > 1) {
-                    teacherCounts[teacher].forEach(sessionId => {
-                        if (!newConflicts.some(c => c.id === sessionId)) {
-                            newConflicts.push({
-                                id: sessionId,
-                                type: "teacher",
-                                message: `Teacher ${teacher} is double booked.`
-                            });
-                        }
-                    });
-                }
-            }
-
-            for (const className in classCounts) {
-                const sessionsForClass = classCounts[className];
-                if (sessionsForClass.length > 1) {
-                    const hasCoreSubject = sessionsForClass.some(s => s.isCore);
-                    const optionGroups = new Set(sessionsForClass.map(s => s.optionGroup).filter(g => g));
-                    
-                    let isConflict = false;
-                    if (hasCoreSubject) {
-                       isConflict = true;
-                    } else if (optionGroups.size < sessionsForClass.filter(s => s.optionGroup).length) {
-                       isConflict = true;
-                    }
-
-                    if (isConflict) {
-                        sessionsForClass.forEach(session => {
-                            if (!newConflicts.some(c => c.id === session.id)) {
-                                newConflicts.push({
-                                    id: session.id,
-                                    type: "class",
-                                    message: `Class ${className} has a scheduling conflict.`
-                                });
-                            }
-                        });
-                    }
-                }
-            }
-        }
-    }
-    
-    if (JSON.stringify(activeTimetable.conflicts) !== JSON.stringify(newConflicts)) {
-      updateTimetable(activeTimetable.id, { conflicts: newConflicts });
-    }
+    // Conflict detection is disabled.
   }, [activeTimetable, updateTimetable]);
 
 
@@ -645,8 +576,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
 
     

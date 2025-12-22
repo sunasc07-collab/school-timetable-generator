@@ -33,7 +33,7 @@ import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, Users, Pencil, Book, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import type { Teacher } from "@/lib/types";
+import type { Teacher, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "@/components/ui/badge";

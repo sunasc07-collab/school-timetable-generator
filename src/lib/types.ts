@@ -2,6 +2,7 @@
 
 
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -11,6 +12,7 @@ export type SubjectAssignment = {
   schoolId: string;
   isCore?: boolean;
   optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
+  subjectType?: 'core' | 'optional';
 };
 
 export type Teacher = {
@@ -73,3 +75,4 @@ export type Timetable = {
     
 
     
+

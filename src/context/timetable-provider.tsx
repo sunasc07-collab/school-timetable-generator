@@ -301,7 +301,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     });
                     
                     periodBlock.push({
-                        id: `${groupKey}-period-${i}-${assign.subject}`,
+                        id: `${groupKey}-period-${i + 1}-${assign.subject}`,
                         subject: assign.subject,
                         teacher: assign.teacher,
                         className: sessionClasses.join(', '),
@@ -354,30 +354,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     function isValidPlacement(board: TimetableData, session: TimetableSession, day: string, period: number): boolean {
         const slot = board[day]?.[period];
         if (!slot) return false;
-        
-        // Teacher is busy
+    
+        // 1. Teacher availability check
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
-
-        // Class is busy
+    
+        // 2. Class availability check
         for (const c of session.classes) {
             if (slot.some(s => s.classes.includes(c))) {
-                 return false;
-            }
-        }
-        
-        // Subject is already scheduled for this class on this day
-        for (const c of session.classes) {
-            const todaysSessions = board[day].flat().filter(s => s.classes.includes(c));
-            // A subject can only be scheduled once per day for a class.
-            // Double periods parts have the same ID, so they are not a conflict with each other,
-            // but they are a conflict with any *other* session of the same subject.
-            if (todaysSessions.some(s => s.subject === session.subject && s.id !== session.id)) {
                 return false;
             }
         }
-        
+    
+        // 3. Subject per day check: A subject should not be scheduled more than once per day for a class.
+        // The parts of a double period share the same ID, so they don't conflict with each other.
+        for (const classToCheck of session.classes) {
+            const daySessionsForClass = board[day].flat().filter(s => s.classes.includes(classToCheck));
+            if (daySessionsForClass.some(s => s.subject === session.subject && s.id !== session.id)) {
+                return false;
+            }
+        }
+    
         return true;
     }
     
@@ -413,6 +411,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
+                // Check if any subject from the group is already on this day for any of the classes
+                const subjectAlreadyOnDay = sessionGroup.some(sess => {
+                    return sess.classes.some(c => {
+                        const daySessions = board[day].flat().filter(s => s.classes.includes(c));
+                        return daySessions.some(ds => ds.subject === sess.subject);
+                    });
+                });
+                if (subjectAlreadyOnDay) continue;
+
                 for (const period of shuffledPeriods) {
                     const canPlaceGroup = sessionGroup.every(session => isValidPlacement(board, session, day, period));
                     if (canPlaceGroup) {
@@ -638,5 +645,8 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
+
 
     

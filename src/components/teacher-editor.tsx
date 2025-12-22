@@ -549,7 +549,7 @@ export default function TeacherEditor() {
     },
   });
   
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
     control: form.control,
     name: "teachers"
   });
@@ -575,7 +575,7 @@ export default function TeacherEditor() {
         form.reset({ teachers: [teacherFormData] });
     } else {
         setEditingTeacherData(null);
-        form.reset({ teachers: [getNewTeacherForm()] });
+        replace([getNewTeacherForm()]);
     }
     setIsDialogOpen(true);
   }
@@ -604,7 +604,7 @@ export default function TeacherEditor() {
                     id: a.id || crypto.randomUUID(),
                     isCore: subjectType === 'core',
                     optionGroup: subjectType === 'optional' ? a.optionGroup : null,
-                    arms: (isALevel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
+                    arms: (isALvel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
                 }
             })
         }
@@ -616,7 +616,7 @@ export default function TeacherEditor() {
         }
     });
     
-    form.reset({ teachers: [getNewTeacherForm()] });
+    form.reset({ teachers: [] });
     setIsDialogOpen(false);
     setEditingTeacher(null);
     setEditingTeacherData(null);
@@ -675,9 +675,9 @@ export default function TeacherEditor() {
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                   <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-4">
-                      {editingTeacherData ? (
+                      {editingTeacher ? (
                         <TeacherForm 
-                           key={editingTeacherData.id || 'editing'}
+                           key={editingTeacherData!.id || 'editing'}
                            index={0}
                            removeTeacher={() => {}}
                            isEditing={true}
@@ -805,5 +805,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

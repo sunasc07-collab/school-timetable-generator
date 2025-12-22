@@ -326,7 +326,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                     />
                     </div>
-                    {isSecondary && !hasALevel && selectedGrades.length > 0 && (
+                    {hasSeniorSecondary && (
                          <div className="grid grid-cols-2 gap-2">
                              <FormField
                                  control={control}
@@ -790,3 +790,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

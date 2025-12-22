@@ -292,20 +292,26 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         
         for (let i = 0; i < maxPeriods; i++) {
             const periodBlock: TimetableSession[] = [];
+            const allClassNamesInBlock = new Set<string>();
+            assignments.forEach(assign => {
+                assign.grades.forEach(grade => {
+                    const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+                    gradeArms.forEach(arm => {
+                        allClassNamesInBlock.add(`${grade} ${arm}`.trim());
+                    })
+                })
+            })
 
             assignments.forEach(assign => {
                 if (i < assign.periods) {
-                    const sessionClasses = assign.grades.flatMap(grade => {
-                        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-                        return gradeArms.map(arm => `${grade} ${arm}`.trim());
-                    });
+                    const sessionClasses = Array.from(allClassNamesInBlock);
                     
                     periodBlock.push({
                         id: crypto.randomUUID(),
                         subject: assign.subject,
                         teacher: assign.teacher,
-                        className: sessionClasses.join(', '),
-                        classes: sessionClasses,
+                        className: sessionClasses.join(', '), // for display name
+                        classes: sessionClasses, // for filtering
                         isDouble: false,
                         isCore: false,
                         optionGroup: assign.optionGroup
@@ -545,16 +551,61 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!activeTimetable || !activeTimetable.timetable) return;
-    if (JSON.stringify(activeTimetable.conflicts) !== JSON.stringify([])) {
-        updateTimetable(activeTimetable.id, { conflicts: [] });
+
+    const newConflicts: Conflict[] = [];
+    const { timetable } = activeTimetable;
+
+    for (const day in timetable) {
+      for (let period = 0; period < timetable[day].length; period++) {
+        const slot = timetable[day][period];
+        const teacherUsage = new Map<string, TimetableSession[]>();
+        const classUsage = new Map<string, TimetableSession[]>();
+
+        for (const session of slot) {
+          // Check teacher conflicts
+          if (!teacherUsage.has(session.teacher)) {
+            teacherUsage.set(session.teacher, []);
+          }
+          teacherUsage.get(session.teacher)!.push(session);
+          
+          // Check class conflicts
+          for (const className of session.classes) {
+            if (!classUsage.has(className)) {
+              classUsage.set(className, []);
+            }
+            classUsage.get(className)!.push(session);
+          }
+        }
+        
+        teacherUsage.forEach((sessions, teacher) => {
+          if (sessions.length > 1) {
+            sessions.forEach(s => {
+                newConflicts.push({ id: s.id, type: "teacher", message: `Teacher ${teacher} is double-booked.` });
+            })
+          }
+        });
+
+        classUsage.forEach((sessions, className) => {
+          if (sessions.length > 1) {
+             sessions.forEach(s => {
+                newConflicts.push({ id: s.id, type: "class", message: `Class ${className} is double-booked.` });
+            })
+          }
+        });
+      }
     }
-}, [activeTimetable, updateTimetable]);
+    
+    // Only update if conflicts have actually changed to avoid infinite loops
+    if (JSON.stringify(newConflicts) !== JSON.stringify(activeTimetable.conflicts)) {
+        // updateTimetable(activeTimetable.id, { conflicts: newConflicts });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTimetable?.timetable]);
 
 
   const isConflict = (sessionId: string) => {
     if (!activeTimetable || !activeTimetable.conflicts) return false;
-    // Always return false to treat all generated periods as valid.
-    return false;
+    return activeTimetable.conflicts.some(c => c.id === sessionId);
   }
   
   return (
@@ -592,6 +643,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-    

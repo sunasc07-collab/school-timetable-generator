@@ -170,49 +170,45 @@ export default function Header() {
                 const key = `${dayIndex}-${p}`;
                 const cellContents: CellContent[] = [];
 
-                sessionsInSlot.forEach(session => {
-                    let isRelevant = false;
+                const relevantSessions = sessionsInSlot.filter(session => {
                     if (type === 'class') {
-                        isRelevant = session.classes.includes(itemName);
-                    } else { // teacher
-                        isRelevant = session.teacher === itemName;
+                        return session.classes.includes(itemName);
                     }
+                    return session.teacher === itemName;
+                });
 
-                    if (isRelevant) {
-                        if (session.optionGroup) {
-                            const initials = getTeacherInitials(session.teacher);
-                            let text = `${session.optionGroup}\n${initials}`;
-                            
-                            let relevantClassName = session.className;
-                            if (type === 'teacher') {
-                                // For teacher view, find which of their assigned classes fall in this option block
-                                const teacherClasses = session.classes.filter(c => {
-                                    const teacherAssignments = (item as Teacher).assignments;
-                                    return teacherAssignments.some(a => a.subject === session.subject && a.grades.some(g => c.startsWith(g)));
-                                });
-                                if(teacherClasses.length > 0) relevantClassName = teacherClasses.join(', ');
-                                text += `\n${relevantClassName}`;
-                            } else { // class view
-                                text += `\n${itemName}`;
-                            }
-                            
-                            const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
-                            if (!existing) { 
-                                cellContents.push({
-                                    text: text,
-                                    isOptionGroup: true,
-                                    color: getSubjectColor(session.subject),
-                                });
-                            }
+                relevantSessions.forEach(session => {
+                    if (session.optionGroup) {
+                        const initials = getTeacherInitials(session.teacher);
+                        
+                        let relevantClassName = session.className;
+                        if (type === 'teacher') {
+                            const teacherClasses = session.classes.filter(c => {
+                                const teacherAssignments = (item as Teacher).assignments;
+                                return teacherAssignments.some(a => a.subject === session.subject && a.grades.some(g => c.startsWith(g)));
+                            });
+                            if(teacherClasses.length > 0) relevantClassName = teacherClasses.join(', ');
                         } else {
-                            const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
-                            const text = `${session.subject}\n${details}`;
+                            relevantClassName = itemName;
+                        }
+                        
+                        const text = `${session.optionGroup}\n${initials}\n${relevantClassName}`;
+                        const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
+                        if (!existing) { 
                             cellContents.push({
                                 text: text,
-                                isOptionGroup: false,
+                                isOptionGroup: true,
                                 color: getSubjectColor(session.subject),
                             });
                         }
+                    } else {
+                        const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
+                        const text = `${session.subject}\n${details}`;
+                        cellContents.push({
+                            text: text,
+                            isOptionGroup: false,
+                            color: getSubjectColor(session.subject),
+                        });
                     }
                 });
 
@@ -484,3 +480,5 @@ export default function Header() {
     </>
   );
 }
+
+    

@@ -181,19 +181,32 @@ export default function Header() {
                 const cellContents: CellContent[] = [];
 
                 sessionsInSlot.forEach(session => {
-                    const isRelevant = type === 'class' 
-                        ? session.classes.includes(itemName)
-                        : session.teacher === itemName;
+                    let isRelevant = false;
+                    if (type === 'class') {
+                        isRelevant = session.classes.includes(itemName);
+                    } else { // teacher
+                        isRelevant = session.teacher === itemName;
+                    }
 
                     if (isRelevant) {
                         if (session.optionGroup) {
                             const initials = getTeacherInitials(session.teacher);
                             let text = `${session.optionGroup}\n${initials}`;
+                            let relevantClassName = session.className;
+
+                            if (type === 'teacher') {
+                                const teacherClasses = session.classes.filter(c => {
+                                    const teacherAssignments = (item as Teacher).assignments;
+                                    return teacherAssignments.some(a => a.subject === session.subject && a.grades.some(g => c.startsWith(g)));
+                                });
+                                if(teacherClasses.length > 0) relevantClassName = teacherClasses.join(', ');
+                            }
+
                             if (type === 'class') {
                                 const arm = getArmFromClassName(itemName);
-                                if (arm) {
-                                    text += `\n${arm}`;
-                                }
+                                if (arm) text += `\n${arm}`;
+                            } else {
+                                text += `\n${relevantClassName}`;
                             }
                             
                             const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
@@ -217,10 +230,7 @@ export default function Header() {
                 });
 
                 if(cellContents.length > 0) {
-                    const uniqueCellContents = type === 'class' ? 
-                        Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values())
-                        : cellContents;
-
+                    const uniqueCellContents = Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values());
                     if (uniqueCellContents.length > 0) {
                         cellContentMap.set(key, uniqueCellContents);
                     }
@@ -243,9 +253,6 @@ export default function Header() {
                     styles: { halign: 'center', valign: 'middle', fillColor: getSubjectColor(slot.label!) }
                 };
                 rowData.push(breakCell);
-                for (let i = 0; i < days.length - 1; i++) {
-                    rowData.push('');
-                }
             } else {
                 days.forEach((day, dayIndex) => {
                     const key = `${dayIndex}-${periodIdxCounter}`;
@@ -275,7 +282,9 @@ export default function Header() {
             headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontStyle: "bold" },
             didDrawCell: (data) => {
                 if (data.section !== 'body' || !data.cell.raw || !Array.isArray(data.cell.raw)) return;
-                doc.setTextColor(0, 0, 0);
+                
+                // Don't custom draw for the time column
+                if (data.column.index === 0) return;
 
                 const contentParts = data.cell.raw as CellContent[];
                 if (contentParts.length > 0) {
@@ -283,20 +292,28 @@ export default function Header() {
                     doc.setFillColor(...(firstPart.color as [number, number, number]));
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     
+                    doc.setTextColor(0, 0, 0);
+
                     if (firstPart.isOptionGroup) {
-                         const [option, initials, arm] = firstPart.text.split('\n');
+                         const [option, initials, details] = firstPart.text.split('\n');
                          doc.setFontSize(14);
                          doc.setFont(undefined, 'bold');
                          doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 2, { halign: 'center' });
                          doc.setFontSize(8);
                          doc.setFont(undefined, 'normal');
-                         let initialsY = data.cell.y + data.cell.height / 2 + 3;
-                         if (arm) {
+                         let detailsY = data.cell.y + data.cell.height / 2 + 6;
+                         let initialsY = detailsY - 3;
+                         if (details) {
                             initialsY -= 1;
+                         } else {
+                            initialsY = data.cell.y + data.cell.height / 2 + 3;
                          }
+
                          doc.text(initials, data.cell.x + data.cell.width / 2, initialsY, { halign: 'center' });
-                         if (arm) {
-                            doc.text(arm, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 6, { halign: 'center' });
+                         
+                         if (details) {
+                            const detailsLines = doc.splitTextToSize(details, data.cell.width - 2);
+                            doc.text(detailsLines, data.cell.x + data.cell.width / 2, detailsY, { halign: 'center' });
                          }
                     } else {
                         const textToRender = contentParts.map(p => p.text).join('\n\n');
@@ -479,3 +496,5 @@ export default function Header() {
     </>
   );
 }
+
+    

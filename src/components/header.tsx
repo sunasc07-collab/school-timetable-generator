@@ -138,13 +138,18 @@ export default function Header() {
     let colorIndex = 0;
 
     const getSubjectColor = (subject: string) => {
-        if (subject === 'SHORT-BREAK' || subject === 'LUNCH') return [220, 220, 220];
+        if (subject === 'SHORT-BREAK' || subject === 'LUNCH') return [220, 220, 220]; // Grey for breaks
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, pastelColors[colorIndex % pastelColors.length]);
             colorIndex++;
         }
         return subjectColorMap.get(subject)!;
     };
+    
+    const getTeacherInitials = (teacherName: string) => {
+      if (!teacherName) return '';
+      return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
+    }
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
@@ -161,15 +166,12 @@ export default function Header() {
 
         let periodIndex = 0;
         timeSlots.forEach((slot) => {
-            const rowData: any[] = [slot.time];
+            const rowData: any[] = [{ content: slot.time, styles: { valign: 'middle', halign: 'center' } }];
             
             if (slot.isBreak) {
-                 days.forEach((day, dayIndex) => {
-                    const isCenterCell = Math.floor(days.length / 2) === dayIndex;
-                     rowData.push({
-                        content: isCenterCell ? slot.label : '',
-                        styles: { fillColor: getSubjectColor(slot.label!) }
-                    });
+                const breakContent = slot.label || '';
+                days.forEach(() => {
+                    rowData.push({ content: '', raw: `break-cell-${breakContent}`, styles: { fillColor: getSubjectColor(breakContent), valign: 'middle', halign: 'center' } });
                 });
             } else {
                 days.forEach((day) => {
@@ -191,18 +193,36 @@ export default function Header() {
                     }
                     
                     if (relevantSessionsForCell.length > 0) {
-                        const cellContent = relevantSessionsForCell.map(session => {
-                            if (type === 'class') {
-                                return `${session.subject}\n${session.teacher}`;
+                        const cellContentParts: any[] = [];
+                        
+                        relevantSessionsForCell.forEach(session => {
+                            const color = getSubjectColor(session.subject);
+                             if (session.optionGroup) {
+                                cellContentParts.push({
+                                    optionGroup: session.optionGroup,
+                                    teacherInitials: getTeacherInitials(session.teacher),
+                                    color: color,
+                                });
+                            } else {
+                                let displayValue: string;
+                                if (type === 'class') {
+                                    displayValue = session.teacher;
+                                } else { // type === 'teacher'
+                                    displayValue = session.className;
+                                }
+                                cellContentParts.push({
+                                    subject: session.subject,
+                                    details: displayValue,
+                                    color: color,
+                                });
                             }
-                            // For teacher view
-                            return `${session.subject}\n${session.className}`;
-                        }).join('\n\n');
-    
+                        });
+
+                         // Since all in the same slot should have the same option group or be a single subject
                         const mainSessionForColor = relevantSessionsForCell[0];
-    
                         rowData.push({
-                            content: cellContent,
+                            raw: cellContentParts,
+                            content: '', // Content is custom drawn
                             styles: { fillColor: getSubjectColor(mainSessionForColor.subject) }
                         });
     
@@ -223,11 +243,12 @@ export default function Header() {
             theme: "grid",
             styles: {
                 fontSize: 8,
-                cellPadding: 2,
+                cellPadding: 1,
                 valign: "middle",
                 halign: "center",
                 lineWidth: 0.1,
                 lineColor: [200, 200, 200],
+                minCellHeight: 12
             },
             headStyles: {
                 fillColor: [240, 240, 240],
@@ -235,18 +256,51 @@ export default function Header() {
                 fontStyle: "bold",
             },
             didDrawCell: (data) => {
-                 if (data.section === 'body' && data.cell.raw && (data.cell.raw as any).styles && (data.cell.raw as any).styles.fillColor) {
-                    doc.setFillColor(...((data.cell.raw as any).styles.fillColor as [number, number, number]));
-                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                doc.setTextColor(0, 0, 0);
 
-                    doc.setTextColor(0,0,0);
-                    if(data.cell.raw.content) {
-                       const textLines = doc.splitTextToSize(String(data.cell.raw.content), data.cell.width - 4);
-                       doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                if (data.section === 'body' && data.cell.raw && Array.isArray(data.cell.raw)) {
+                    const contentParts = data.cell.raw as any[];
+                    const firstPart = contentParts[0];
+
+                    if (firstPart) {
+                        doc.setFillColor(...(firstPart.color as [number, number, number]));
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                        
+                        if (firstPart.optionGroup) {
+                            // Render Option Group format
+                             doc.setFontSize(14);
+                             doc.setFont(undefined, 'bold');
+                             doc.text(firstPart.optionGroup, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, {
+                                 halign: 'center'
+                             });
+                             doc.setFontSize(8);
+                             doc.setFont(undefined, 'normal');
+                             doc.text(firstPart.teacherInitials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, {
+                                 halign: 'center'
+                             });
+
+                        } else {
+                            // Render regular subject format
+                            const content = contentParts.map(p => `${p.subject}\n${p.details}`).join('\n\n');
+                            const textLines = doc.splitTextToSize(content, data.cell.width - 2);
+                            doc.setFontSize(8);
+                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
+                                halign: 'center',
+                                valign: 'middle'
+                            });
+                        }
+                    }
+                } else if (data.section === 'body' && data.cell.raw && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('break-cell-')) {
+                     const label = data.cell.raw.replace('break-cell-', '');
+                     const isCenterCell = Math.floor(days.length / 2) === data.column.index - 1;
+                     if(isCenterCell) {
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(label.replace('-',' '), data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
                             halign: 'center',
                             valign: 'middle'
-                       });
-                    }
+                        });
+                     }
                 }
             },
         });

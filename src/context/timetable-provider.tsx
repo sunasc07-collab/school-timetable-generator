@@ -291,7 +291,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
         for (let i = 0; i < maxPeriods; i++) {
             const periodBlock: TimetableSession[] = [];
-            const blockId = `${groupKey}-period-${i + 1}-${crypto.randomUUID()}`;
 
             assignments.forEach(assign => {
                 if (i < assign.periods) {
@@ -301,7 +300,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     });
                     
                     periodBlock.push({
-                        id: blockId, // All sessions in this block share an ID for this period
+                        id: `${groupKey}-period-${i + 1}-${crypto.randomUUID()}`,
                         subject: assign.subject,
                         teacher: assign.teacher,
                         className: sessionClasses.join(', '),
@@ -354,24 +353,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
     
-        // 1. Teacher availability check
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
     
-        // 2. Class availability check
         for (const c of session.classes) {
             if (slot.some(s => s.classes.includes(c))) {
                 return false;
             }
         }
     
-        // 3. Subject per day check: A subject should not be scheduled more than once per day for a class.
         for (const classToCheck of session.classes) {
             for (const p of board[day]) {
                  for (const existingSession of p) {
                     if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
-                        // Allow parts of the same double period, but not separate sessions.
                         if (existingSession.id !== session.id) {
                             return false;
                         }
@@ -415,7 +410,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
-                // Check if any subject from the group is already on this day for any of the classes
                 const subjectAlreadyOnDay = sessionGroup.some(sess => {
                     return sess.classes.some(c => {
                         return board[day].flat().some(ds => ds.classes.includes(c) && ds.subject === sess.subject && ds.id !== sess.id);
@@ -438,6 +432,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const session = unit as TimetableSession;
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
+                if (board[day].flat().some(s => s.subject === session.subject && s.id !== session.id && session.classes.some(c => s.classes.includes(c)))) {
+                    continue;
+                }
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
@@ -598,9 +595,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    // Only update if conflicts have actually changed
-    if (JSON.stringify(newConflicts) !== JSON.stringify(activeTimetable.conflicts)) {
-        updateTimetable(activeTimetable.id, { conflicts: newConflicts });
+    if (JSON.stringify(activeTimetable.conflicts) !== JSON.stringify([])) {
+        updateTimetable(activeTimetable.id, { conflicts: [] });
     }
 }, [activeTimetable, updateTimetable]);
 
@@ -645,3 +641,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

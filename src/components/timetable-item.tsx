@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { BookOpen, GraduationCap, User } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
+import { useMemo } from "react";
 
 type TimetableItemProps = {
   session: TimetableSession;
@@ -31,6 +32,11 @@ export default function TimetableItem({
   const displayValue = viewMode === 'class' ? session.teacher : session.className;
   const displayIcon = viewMode === 'class' ? <User className="h-3 w-3 shrink-0"/> : <GraduationCap className="h-3 w-3 shrink-0"/>;
 
+  const teacherInitials = useMemo(() => {
+    if (!session.teacher) return '';
+    return session.teacher.split(' ').map(name => name[0]).join('').toUpperCase();
+  }, [session.teacher]);
+
   return (
     <Card
       draggable
@@ -44,24 +50,30 @@ export default function TimetableItem({
       title={title}
     >
        {session.isDouble && <div className="absolute top-0 right-1 text-xs text-muted-foreground opacity-70">D</div>}
-       {session.optionGroup && <div className="absolute top-0.5 left-0.5 text-xs text-primary bg-primary/10 border border-primary/20 rounded-full h-4 w-4 flex items-center justify-center font-bold">{session.optionGroup}</div>}
        {isConflict && <div className="absolute top-0 left-1 text-xs text-destructive-foreground bg-destructive rounded-full h-4 w-4 flex items-center justify-center font-bold ring-2 ring-white">!</div>}
       <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
-        <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
-          <BookOpen className="h-4 w-4 text-primary shrink-0"/>
-          <span className="truncate">{session.subject}</span>
-        </div>
-        <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-          {displayIcon}
-          <span className="break-words">{displayValue}</span>
-        </div>
-         <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? 'hidden' : 'hidden')}>
-          <User className="h-3 w-3 shrink-0"/>
-          <span className="truncate">{session.teacher}</span>
-        </div>
+        {session.optionGroup ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <span className="text-xl font-bold text-primary">{session.optionGroup}</span>
+            <span className="text-xs font-medium text-muted-foreground">{teacherInitials}</span>
+          </div>
+        ) : (
+          <>
+            <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
+              <BookOpen className="h-4 w-4 text-primary shrink-0"/>
+              <span className="truncate">{session.subject}</span>
+            </div>
+            <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+              {displayIcon}
+              <span className="break-words">{displayValue}</span>
+            </div>
+             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? 'hidden' : 'hidden')}>
+              <User className="h-3 w-3 shrink-0"/>
+              <span className="truncate">{session.teacher}</span>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
-
-    

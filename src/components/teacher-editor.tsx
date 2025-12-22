@@ -353,7 +353,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                  )}
                              />
                              {subjectType === 'optional' && (
-                              <div className="grid grid-cols-2 gap-2">
                                  <FormField
                                      control={control}
                                      name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
@@ -376,42 +375,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                          </FormItem>
                                      )}
                                  />
-                                  <FormField
-                                    control={control}
-                                    name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                    render={() => (
-                                      <FormItem>
-                                        <FormLabel>Arms</FormLabel>
-                                        <div className="flex flex-col space-y-2 pt-2">
-                                          {SENIOR_SECONDARY_ARMS.map((arm) => (
-                                            <FormField
-                                              key={arm}
-                                              control={control}
-                                              name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                              render={({ field: checkboxField }) => (
-                                                <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
-                                                  <FormControl>
-                                                    <Checkbox
-                                                      checked={checkboxField.value?.includes(arm)}
-                                                      onCheckedChange={(checked) => {
-                                                        const currentValue = checkboxField.value || [];
-                                                        const newValue = checked
-                                                          ? [...currentValue, arm]
-                                                          : currentValue.filter(value => value !== arm);
-                                                        checkboxField.onChange(newValue);
-                                                      }}
-                                                    />
-                                                  </FormControl>
-                                                  <FormLabel className="font-normal text-sm">{arm}</FormLabel>
-                                                </FormItem>
-                                              )}
-                                            />
-                                          ))}
-                                        </div>
-                                      </FormItem>
-                                    )}
-                                  />
-                              </div>
                              )}
                               {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
@@ -812,7 +775,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
 
     

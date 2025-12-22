@@ -160,17 +160,10 @@ export default function Header() {
         const head = [['Time', ...days]];
         const body: any[][] = [];
 
-        const mergedCells = new Set<string>(); // "day-period"
-
         timeSlots.forEach((slot, slotIndex) => {
             const rowData: any[] = [slot.time];
             
             days.forEach((day, dayIndex) => {
-                if (mergedCells.has(`${day}-${slotIndex}`)) {
-                    // This cell is part of a merge, let autoTable handle it
-                    return;
-                }
-                
                 if (slot.isBreak) {
                     rowData.push({ content: slot.label, styles: { fillColor: getSubjectColor(slot.label!) }});
                     return;
@@ -178,54 +171,26 @@ export default function Header() {
 
                 const periodIndex = timeSlots.filter((ts, i) => !ts.isBreak && i < slotIndex).length;
                 const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                let session: TimetableSession | undefined;
+                let relevantSessions: TimetableSession[];
 
                 if (type === 'class') {
-                    session = sessionsInSlot.find(s => s.className === itemName);
+                    relevantSessions = sessionsInSlot.filter(s => s.classes.includes(itemName));
                 } else {
-                    session = sessionsInSlot.find(s => s.teacher === itemName);
+                    relevantSessions = sessionsInSlot.filter(s => s.teacher === itemName);
                 }
                 
-                if (session) {
-                    const sessionContent = type === 'class' 
-                        ? `${session.subject}\n${session.teacher}` 
-                        : `${session.subject}\n${session.className}`;
+                if (relevantSessions.length > 0) {
+                    const cellContent = relevantSessions.map(session => {
+                        return type === 'class' 
+                            ? `${session.subject}\n${session.teacher}` 
+                            : `${session.subject}\n${session.className}`;
+                    }).join('\n\n');
 
-                    let rowSpan = 1;
-                    if (session.isDouble) {
-                        const isPart1 = session.part === 1;
-                        let partnerSessionFound = false;
-
-                        // Find the time slot index of the other part
-                        for (let p = 0; p < (timetable[day]?.length || 0); p++) {
-                            const otherPart = timetable[day][p].find(s => s.id === session.id && s.part !== session.part);
-                            if (otherPart) {
-                                const partnerSlotIndex = timeSlots.findIndex(ts => !ts.isBreak && ts.period === (p + 1));
-                                // Check if partner is in the next consecutive (non-break) slot
-                                let nextTSSlotIndex = slotIndex + 1;
-                                while(nextTSSlotIndex < timeSlots.length && timeSlots[nextTSSlotIndex].isBreak) {
-                                    nextTSSlotIndex++;
-                                }
-                                if (partnerSlotIndex === nextTSSlotIndex) {
-                                    rowSpan = 2;
-                                    partnerSessionFound = true;
-                                }
-                                break;
-                            }
-                        }
-
-                         if (isPart1 && partnerSessionFound) {
-                            mergedCells.add(`${day}-${slotIndex + 1}`);
-                         } else if (!isPart1) {
-                            // This is part 2, it should have been skipped. If not, it's a broken pair.
-                            rowSpan = 1; 
-                         }
-                    }
+                    const mainSession = relevantSessions[0];
 
                     rowData.push({
-                        content: sessionContent,
-                        rowSpan: rowSpan,
-                        styles: { fillColor: getSubjectColor(session.subject) }
+                        content: cellContent,
+                        styles: { fillColor: getSubjectColor(mainSession.subject) }
                     });
 
                 } else {
@@ -441,3 +406,5 @@ export default function Header() {
     </>
   );
 }
+
+    

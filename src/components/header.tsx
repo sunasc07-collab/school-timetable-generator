@@ -147,7 +147,7 @@ export default function Header() {
     };
 
     listToIterate.forEach((item, index) => {
-        const itemName = type === 'class' ? item as string : (item as any).name;
+        const itemName = type === 'class' ? item as string : (item as Teacher).name;
         if (index > 0) {
             doc.addPage();
             startY = 20;
@@ -174,41 +174,36 @@ export default function Header() {
             } else {
                 days.forEach((day) => {
                     const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                    let relevantSessions: TimetableSession[];
-    
+                    const relevantSessionsForCell: TimetableSession[] = [];
+
                     if (type === 'class') {
-                        relevantSessions = sessionsInSlot.filter(s => s.classes.includes(itemName));
-                    } else {
-                        relevantSessions = sessionsInSlot.filter(s => s.teacher === itemName);
+                        sessionsInSlot.forEach(s => {
+                            if (s.classes.includes(itemName)) {
+                                relevantSessionsForCell.push(s);
+                            }
+                        });
+                    } else { // type === 'teacher'
+                        sessionsInSlot.forEach(s => {
+                            if (s.teacher === itemName) {
+                                relevantSessionsForCell.push(s);
+                            }
+                        });
                     }
                     
-                    if (relevantSessions.length > 0) {
-                        const cellContent = relevantSessions.map(session => {
+                    if (relevantSessionsForCell.length > 0) {
+                        const cellContent = relevantSessionsForCell.map(session => {
                             if (type === 'class') {
                                 return `${session.subject}\n${session.teacher}`;
                             }
-                            // For teacher view, handle option groups where a teacher might teach multiple classes.
-                            if (session.optionGroup && session.classes.length > 1) {
-                                // Find which of the session's classes corresponds to the teacher's assignment for that subject.
-                                const teacherObj = allTeachers.find(t => t.name === itemName);
-                                const relevantAssignment = teacherObj?.assignments.find(a => a.subject === session.subject && a.optionGroup === session.optionGroup);
-                                const relevantClassesForTeacher = relevantAssignment?.grades.flatMap(g => 
-                                    (relevantAssignment.arms && relevantAssignment.arms.length > 0 ? relevantAssignment.arms : ['']).map(arm => `${g} ${arm}`.trim())
-                                ) || [];
-
-                                const displayClasses = session.classes.filter(c => relevantClassesForTeacher.includes(c));
-                                
-                                return `${session.subject}\n${displayClasses.join(', ')}`;
-
-                            }
+                            // For teacher view
                             return `${session.subject}\n${session.className}`;
                         }).join('\n\n');
     
-                        const mainSession = relevantSessions[0];
+                        const mainSessionForColor = relevantSessionsForCell[0];
     
                         rowData.push({
                             content: cellContent,
-                            styles: { fillColor: getSubjectColor(mainSession.subject) }
+                            styles: { fillColor: getSubjectColor(mainSessionForColor.subject) }
                         });
     
                     } else {

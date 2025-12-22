@@ -38,7 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Label } from "./ui/label";
+import { Label } from "@/components/ui/label";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -539,6 +539,8 @@ export default function TeacherEditor() {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [editingTeacherData, setEditingTeacherData] = useState<TeacherFormValues | null>(null);
+
 
   const form = useForm<MultiTeacherFormValues>({
     resolver: zodResolver(multiTeacherSchema),
@@ -547,7 +549,7 @@ export default function TeacherEditor() {
     },
   });
   
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField } = useFieldArray({
     control: form.control,
     name: "teachers"
   });
@@ -556,11 +558,11 @@ export default function TeacherEditor() {
     name: "",
     assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   });
-
+  
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
     if (teacher) {
-        const teacherFormData = {
+        const teacherFormData: TeacherFormValues = {
             id: teacher.id,
             name: teacher.name,
             assignments: teacher.assignments.length > 0 ? teacher.assignments.map(a => ({
@@ -569,9 +571,11 @@ export default function TeacherEditor() {
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
             })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
         };
-        replace([teacherFormData]);
+        setEditingTeacherData(teacherFormData);
+        form.reset({ teachers: [teacherFormData] });
     } else {
-        replace([getNewTeacherForm()]);
+        setEditingTeacherData(null);
+        form.reset({ teachers: [getNewTeacherForm()] });
     }
     setIsDialogOpen(true);
   }
@@ -615,6 +619,7 @@ export default function TeacherEditor() {
     form.reset({ teachers: [getNewTeacherForm()] });
     setIsDialogOpen(false);
     setEditingTeacher(null);
+    setEditingTeacherData(null);
   }
 
   if (!activeTimetable) {
@@ -651,6 +656,7 @@ export default function TeacherEditor() {
         setIsDialogOpen(open);
         if (!open) {
           setEditingTeacher(null);
+          setEditingTeacherData(null);
           form.reset({ teachers: [] });
         }
       }}>
@@ -669,14 +675,24 @@ export default function TeacherEditor() {
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                   <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-4">
-                      {teacherFields.map((field, index) => (
+                      {editingTeacherData ? (
                         <TeacherForm 
-                          key={field.id}
-                          index={index}
-                          removeTeacher={() => removeTeacherField(index)}
-                          isEditing={!!editingTeacher}
+                           key={editingTeacherData.id || 'editing'}
+                           index={0}
+                           removeTeacher={() => {}}
+                           isEditing={true}
                         />
-                      ))}
+                      ) : (
+                        teacherFields.map((field, index) => (
+                            <TeacherForm 
+                              key={field.id}
+                              index={index}
+                              removeTeacher={() => removeTeacherField(index)}
+                              isEditing={false}
+                            />
+                        ))
+                      )}
+
                       {!editingTeacher && (
                          <Button
                             type="button"
@@ -695,7 +711,7 @@ export default function TeacherEditor() {
                       <Button type="button" variant="ghost">Cancel</Button>
                     </DialogClose>
                     <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                        {editingTeacher ? 'Save Changes' : `Save ${teacherFields.length} Teacher(s)`}
+                        {editingTeacher ? 'Save Changes' : `Save ${teacherFields.length > 0 ? teacherFields.length : ''} Teacher(s)`}
                     </Button>
                   </DialogFooter>
                 </form>

@@ -200,11 +200,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
-    if (!currentTimetable) return null;
-    
-    // This is the stable object without teachers
-    const { ...restOfTimetable } = currentTimetable;
-    return restOfTimetable;
+    return currentTimetable || null;
   }, [activeTimetableId, timetables]);
 
 
@@ -291,7 +287,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    optionalGroups.forEach((assignments) => {
+    optionalGroups.forEach((assignments, groupKey) => {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
 
         for (let i = 0; i < maxPeriods; i++) {
@@ -305,7 +301,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     });
                     
                     periodBlock.push({
-                        id: `${assign.id}-${i}`,
+                        id: `${groupKey}-period-${i}-${assign.subject}`,
                         subject: assign.subject,
                         teacher: assign.teacher,
                         className: sessionClasses.join(', '),
@@ -369,16 +365,24 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
         
-        // Prevent same subject for same class more than once per day
+        const sessionsOnDayForClass = (c: string) => board[day].flat().filter(s => s.classes.includes(c));
+
         for (const c of session.classes) {
-            const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
-            // For double periods, we need to check the ID, not just the subject name, to allow the two parts of the *same* double period to exist.
+            const todaysSessions = sessionsOnDayForClass(c);
+            
+            // For double periods, ensure no other instance of the same subject is on the same day.
             if (session.isDouble) {
-                if (subjectsOnDayForClass.some(s => s.id !== session.id)) {
+                if (todaysSessions.some(s => s.subject === session.subject && s.id !== session.id)) {
                     return false;
                 }
-            } else {
-                 if (subjectsOnDayForClass.length > 0) {
+            } else if (session.optionGroup) {
+                // For optional subjects, check if any other period from the same option group/subject is already scheduled today.
+                if (todaysSessions.some(s => s.optionGroup === session.optionGroup && s.subject === session.subject && s.id !== session.id)) {
+                    return false;
+                }
+            }
+            else { // For single, core subjects
+                if (todaysSessions.some(s => s.subject === session.subject)) {
                     return false;
                 }
             }
@@ -399,9 +403,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
             for (const day of shuffledDays) {
-                // Check if this subject (identified by session.id) is already on this day
-                 const subjectAlreadyOnDay = board[day].flat().some(s => s.id === session.id);
-                 if (subjectAlreadyOnDay) continue;
+                 if (board[day].flat().some(s => s.subject === session.subject && s.id !== session.id && session.classes.some(c => s.classes.includes(c)))) {
+                    continue;
+                 }
 
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
@@ -531,7 +535,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     if (!activeTimetable?.timetable || !activeTimetable.id) return;
     
     const newConflicts: Conflict[] = [];
-    const { timetable, days, timeSlots, conflicts } = activeTimetable;
+    const { timetable, days, timeSlots } = activeTimetable;
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
 
     for (const day of days) {
@@ -599,7 +603,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     }
     
-    if (JSON.stringify(conflicts) !== JSON.stringify(newConflicts)) {
+    if (JSON.stringify(activeTimetable.conflicts) !== JSON.stringify(newConflicts)) {
       updateTimetable(activeTimetable.id, { conflicts: newConflicts });
     }
   }, [activeTimetable, updateTimetable]);
@@ -644,3 +648,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -262,7 +262,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
 
         if (optionGroup) {
-             // Create one representative session for the entire assignment
             const representativeSession: TimetableSession = {
                 id: assignmentId, 
                 subject,
@@ -274,19 +273,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 optionGroup
             };
 
-            // Use a key that is unique to the assignment itself
             const groupKey = `${assignmentId}`; 
             if (!optionGroupsByAssignment.has(groupKey)) {
                 optionGroupsByAssignment.set(groupKey, []);
             }
 
             for(let i=0; i < periods; i++) {
-                // All sessions created here share the same core info, but get a unique ID for placement
                 optionGroupsByAssignment.get(groupKey)!.push({ ...representativeSession, id: `${assignmentId}-${i}` });
             }
             return;
         }
-
 
         classNames.forEach(className => {
             let remainingPeriods = periods;
@@ -312,15 +308,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
     
     // This map will group all sessions that need to be in the same period.
-    // Key: e.g., "Grade 10-A" (Grade-OptionGroup)
+    // Key: e.g., "Grade 10-A-0" (Grade-OptionGroup-PeriodIndex)
     const sessionsByOptionBlock = new Map<string, TimetableSession[]>();
     
     optionGroupsByAssignment.forEach((sessionsFromOneAssignment) => {
-        sessionsFromOneAssignment.forEach(session => {
-            // All classes in this session belong to the same option group.
-            // We use the first class and the option group to define the block.
+        sessionsFromOneAssignment.forEach((session, periodIndex) => {
             const grade = session.classes[0].split(' ')[0] + " " + session.classes[0].split(' ')[1];
-            const blockKey = `${grade}-${session.optionGroup}`;
+            const blockKey = `${grade}-${session.optionGroup}-${periodIndex}`;
             
             if (!sessionsByOptionBlock.has(blockKey)) {
                 sessionsByOptionBlock.set(blockKey, []);
@@ -575,5 +569,4 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
  
-
     

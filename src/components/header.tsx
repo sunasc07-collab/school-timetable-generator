@@ -149,6 +149,8 @@ export default function Header() {
       if (!teacherName) return '';
       return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
     };
+    
+    const periodCount = timeSlots.filter(s => !s.isBreak).length;
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
@@ -161,13 +163,11 @@ export default function Header() {
         doc.text(itemTitle, 14, startY - 5);
         
         const cellContentMap = new Map<string, CellContent[]>(); // key: `${dayIndex}-${periodIndex}`
+        
         days.forEach((day, dayIndex) => {
-            let periodIndex = 0;
-            timeSlots.forEach(slot => {
-                if (slot.isBreak) return;
-                
-                const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                const key = `${dayIndex}-${periodIndex}`;
+            for (let p = 0; p < periodCount; p++) {
+                const sessionsInSlot = timetable[day]?.[p] || [];
+                const key = `${dayIndex}-${p}`;
                 const cellContents: CellContent[] = [];
 
                 sessionsInSlot.forEach(session => {
@@ -198,12 +198,19 @@ export default function Header() {
                         }
                     }
                 });
+
                 if(cellContents.length > 0) {
-                    cellContentMap.set(key, cellContents);
+                    const uniqueCellContents = type === 'class' ? 
+                        Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values())
+                        : cellContents;
+
+                    if (uniqueCellContents.length > 0) {
+                        cellContentMap.set(key, uniqueCellContents);
+                    }
                 }
-                periodIndex++;
-            });
+            }
         });
+
 
         const head = [['Time', ...days]];
         const body: any[][] = [];
@@ -219,8 +226,7 @@ export default function Header() {
                     styles: { halign: 'center', valign: 'middle', fillColor: getSubjectColor(slot.label!) }
                 };
                 rowData.push(breakCell);
-                // We fill the rest of the row with empty cells for colSpan to work
-                for (let i = 0; i < days.length -1; i++) {
+                for (let i = 0; i < days.length - 1; i++) {
                     rowData.push('');
                 }
             } else {
@@ -229,14 +235,10 @@ export default function Header() {
                     const cellContents = cellContentMap.get(key) || [];
                     
                     if (cellContents.length > 0) {
-                        const uniqueCellContents = type === 'class' ? 
-                            Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values())
-                            : cellContents;
-
                         rowData.push({
-                            raw: uniqueCellContents,
+                            raw: cellContents,
                             content: '', // Custom drawn
-                            styles: { fillColor: uniqueCellContents[0].color }
+                            styles: { fillColor: cellContents[0].color }
                         });
                     } else {
                         rowData.push('');
@@ -453,3 +455,5 @@ export default function Header() {
     </>
   );
 }
+
+    

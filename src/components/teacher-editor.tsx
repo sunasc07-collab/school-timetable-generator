@@ -71,6 +71,7 @@ type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
 const PRIMARY_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
+const JUNIOR_SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const SENIOR_SECONDARY_GRADES = ["Grade 10", "Grade 11", "Grade 12"];
 const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
@@ -123,7 +124,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     
     const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
 
-    const hasJuniorSecondary = selectedGrades.some((g: string) => ["Grade 7", "Grade 8", "Grade 9"].includes(g));
+    const hasJuniorSecondary = selectedGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
     const hasSeniorSecondary = Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
 
     let armOptions = SENIOR_SECONDARY_ARMS;
@@ -333,7 +334,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                  name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`}
                                  render={({ field }) => (
                                      <FormItem>
-                                         <FormLabel>Subject Type</FormLabel>
+                                         <FormLabel>Subject Type (Senior Secondary)</FormLabel>
                                          <Select onValueChange={handleSubjectTypeChange} value={field.value}>
                                              <FormControl>
                                                  <SelectTrigger>
@@ -579,32 +580,54 @@ export default function TeacherEditor() {
   function onSubmit(data: MultiTeacherFormValues) {
     if (!activeTimetable) return;
 
-    data.teachers.forEach(teacherData => {
-        const finalData: Teacher = {
+    const finalTeachers: Teacher[] = data.teachers.map(teacherData => {
+        const newAssignments: SubjectAssignment[] = [];
+
+        teacherData.assignments.forEach(formAssignment => {
+            const hasSenior = formAssignment.grades.some(g => SENIOR_SECONDARY_GRADES.includes(g));
+            const hasJunior = formAssignment.grades.some(g => JUNIOR_SECONDARY_GRADES.includes(g));
+            const { subjectType, ...restOfAssignment } = formAssignment;
+
+            if (hasSenior && subjectType) {
+                // If it has senior grades and a type is selected, split the assignment
+                const seniorGrades = formAssignment.grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
+                newAssignments.push({
+                    ...restOfAssignment,
+                    id: restOfAssignment.id || crypto.randomUUID(),
+                    grades: seniorGrades,
+                    isCore: subjectType === 'core',
+                    optionGroup: subjectType === 'optional' ? restOfAssignment.optionGroup : null,
+                });
+
+                if (hasJunior) {
+                    const juniorGrades = formAssignment.grades.filter(g => JUNIOR_SECONDARY_GRADES.includes(g));
+                    newAssignments.push({
+                        ...restOfAssignment,
+                        id: crypto.randomUUID(), // new ID for the split part
+                        grades: juniorGrades,
+                        isCore: false, // Junior subjects are not core/optional in this logic
+                        optionGroup: null,
+                    });
+                }
+            } else {
+                // Not a senior assignment or no type selected, treat as a single assignment
+                newAssignments.push({
+                    ...restOfAssignment,
+                    id: restOfAssignment.id || crypto.randomUUID(),
+                    isCore: false,
+                    optionGroup: null,
+                });
+            }
+        });
+
+        return {
             ...teacherData,
             id: teacherData.id || crypto.randomUUID(),
-            assignments: teacherData.assignments.map(a => {
-                const selectedSchool = timetables.find(t => t.id === a.schoolId);
-                const schoolName = selectedSchool?.name.toLowerCase() || '';
+            assignments: newAssignments
+        };
+    });
 
-                const isALevel = a.grades.some(g => g.startsWith('A-Level'));
-                const isPrimary = schoolName.includes('primary');
-                const isKindergarten = a.grades.some(g => g.includes('Kindergarten'));
-                const isALevelSchool = schoolName.includes('a-level');
-                const isNurserySchool = schoolName.includes('nursery');
-
-                const { subjectType, ...restOfAssignment } = a;
-
-                return {
-                    ...restOfAssignment,
-                    id: a.id || crypto.randomUUID(),
-                    isCore: subjectType === 'core',
-                    optionGroup: subjectType === 'optional' ? a.optionGroup : null,
-                    arms: (isALevel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
-                }
-            })
-        }
-
+    finalTeachers.forEach(finalData => {
         if (editingTeacher && finalData.id === editingTeacher.id) {
             updateTeacher(finalData);
         } else {
@@ -790,5 +813,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

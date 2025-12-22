@@ -32,7 +32,7 @@ import {
 import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, Users, Pencil, Book, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import type { Teacher } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -150,32 +150,23 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }, [activeTimetable, teacherIndex, assignmentIndex, setValue, getValues]);
 
 
-    useEffect(() => {
-        if (!showArms) {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-        }
-    }, [showArms, setValue, teacherIndex, assignmentIndex]);
-     
     const gradeOptions = useMemo(() => {
         if (!selectedSchool) return ALL_GRADE_OPTIONS;
         return getGradeOptionsForSchool(selectedSchool.name);
     }, [selectedSchool]);
 
     useEffect(() => {
-        if(isALevelSchool) {
-             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
-             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-        }
-         if(isNurserySchool) {
-             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool?.name || "Nursery"]);
-             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-        }
         if (selectedSchool) {
             const newSchoolName = selectedSchool.name.toLowerCase();
-            if(newSchoolName.includes('a-level')) {
+            const isNewALevel = newSchoolName.includes('a-level');
+            const isNewNursery = newSchoolName.includes('nursery');
+
+            if(isNewALevel) {
                  setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
-            } else if(newSchoolName.includes('nursery')) {
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+            } else if(isNewNursery) {
                  setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool.name]);
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
             } else {
                 const stillValidGrades = selectedGrades.filter((g: string) => gradeOptions.includes(g));
                  if (stillValidGrades.length !== selectedGrades.length) {
@@ -183,7 +174,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                 }
             }
         }
-    }, [isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex, selectedSchool, gradeOptions, selectedGrades]);
+    }, [setValue, teacherIndex, assignmentIndex, selectedSchool, gradeOptions, selectedGrades]);
+
+    useEffect(() => {
+        if (!showArms) {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+        }
+    }, [showArms, setValue, teacherIndex, assignmentIndex]);
 
     const handleSchoolChange = (newSchoolId: string) => {
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
@@ -539,8 +536,6 @@ export default function TeacherEditor() {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [editingTeacherData, setEditingTeacherData] = useState<TeacherFormValues | null>(null);
-
 
   const form = useForm<MultiTeacherFormValues>({
     resolver: zodResolver(multiTeacherSchema),
@@ -549,15 +544,15 @@ export default function TeacherEditor() {
     },
   });
   
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField } = useFieldArray({
     control: form.control,
     name: "teachers"
   });
 
-  const getNewTeacherForm = (): TeacherFormValues => ({
+  const getNewTeacherForm = useCallback((): TeacherFormValues => ({
     name: "",
     assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
-  });
+  }), [activeTimetable?.id]);
   
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
@@ -569,13 +564,11 @@ export default function TeacherEditor() {
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
-            })) : [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
+            })) : [getNewTeacherForm().assignments[0]],
         };
-        setEditingTeacherData(teacherFormData);
         form.reset({ teachers: [teacherFormData] });
     } else {
-        setEditingTeacherData(null);
-        replace([getNewTeacherForm()]);
+        form.reset({ teachers: [getNewTeacherForm()] });
     }
     setIsDialogOpen(true);
   }
@@ -604,7 +597,7 @@ export default function TeacherEditor() {
                     id: a.id || crypto.randomUUID(),
                     isCore: subjectType === 'core',
                     optionGroup: subjectType === 'optional' ? a.optionGroup : null,
-                    arms: (isALvel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
+                    arms: (isALevel || isPrimary || isKindergarten || isALevelSchool || isNurserySchool) ? [] : a.arms,
                 }
             })
         }
@@ -619,7 +612,6 @@ export default function TeacherEditor() {
     form.reset({ teachers: [] });
     setIsDialogOpen(false);
     setEditingTeacher(null);
-    setEditingTeacherData(null);
   }
 
   if (!activeTimetable) {
@@ -656,7 +648,6 @@ export default function TeacherEditor() {
         setIsDialogOpen(open);
         if (!open) {
           setEditingTeacher(null);
-          setEditingTeacherData(null);
           form.reset({ teachers: [] });
         }
       }}>
@@ -675,23 +666,14 @@ export default function TeacherEditor() {
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                   <ScrollArea className="h-[60vh] p-4">
                     <div className="space-y-4">
-                      {editingTeacher ? (
-                        <TeacherForm 
-                           key={editingTeacherData!.id || 'editing'}
-                           index={0}
-                           removeTeacher={() => {}}
-                           isEditing={true}
-                        />
-                      ) : (
-                        teacherFields.map((field, index) => (
-                            <TeacherForm 
-                              key={field.id}
-                              index={index}
-                              removeTeacher={() => removeTeacherField(index)}
-                              isEditing={false}
-                            />
-                        ))
-                      )}
+                      {teacherFields.map((field, index) => (
+                          <TeacherForm 
+                            key={field.id}
+                            index={index}
+                            removeTeacher={() => removeTeacherField(index)}
+                            isEditing={!!editingTeacher}
+                          />
+                      ))}
 
                       {!editingTeacher && (
                          <Button
@@ -805,3 +787,6 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+
+    

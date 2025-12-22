@@ -138,7 +138,7 @@ export default function Header() {
     let colorIndex = 0;
 
     const getSubjectColor = (subject: string) => {
-        if (subject === 'SHORT-BREAK' || subject === 'LUNCH') return [220, 220, 220]; // Grey for breaks
+        if (subject === 'SHORT-BREAK' || subject === 'LUNCH' || subject === 'Sports') return [220, 220, 220]; // Grey for breaks/sports
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, pastelColors[colorIndex % pastelColors.length]);
             colorIndex++;
@@ -174,12 +174,12 @@ export default function Header() {
                     rowData.push({ content: '', raw: `break-cell-${breakContent}`, styles: { fillColor: getSubjectColor(breakContent), valign: 'middle', halign: 'center' } });
                 });
             } else {
-                days.forEach((day) => {
+                days.forEach((day, dayIndex) => {
                     const sessionsInSlot = timetable[day]?.[periodIndex] || [];
                     const relevantSessionsForCell: TimetableSession[] = [];
 
                     if (type === 'class') {
-                        sessionsInSlot.forEach(s => {
+                       sessionsInSlot.forEach(s => {
                             if (s.classes.includes(itemName)) {
                                 relevantSessionsForCell.push(s);
                             }
@@ -198,9 +198,17 @@ export default function Header() {
                         relevantSessionsForCell.forEach(session => {
                             const color = getSubjectColor(session.subject);
                              if (session.optionGroup) {
+                                // For option groups, find the specific class taught by this teacher if we're in teacher view
+                                let teacherForInitials = session.teacher;
+                                if(type === 'class'){
+                                   // In class view, we want the initials of the teacher for that option
+                                    const teacherSession = sessionsInSlot.find(s => s.optionGroup === session.optionGroup && s.classes.includes(itemName));
+                                    if(teacherSession) teacherForInitials = teacherSession.teacher;
+                                }
+
                                 cellContentParts.push({
                                     optionGroup: session.optionGroup,
-                                    teacherInitials: getTeacherInitials(session.teacher),
+                                    teacherInitials: getTeacherInitials(teacherForInitials),
                                     color: color,
                                 });
                             } else {
@@ -218,7 +226,8 @@ export default function Header() {
                             }
                         });
 
-                         // Since all in the same slot should have the same option group or be a single subject
+                        // Since all in the same slot should have the same option group or be a single subject
+                        // We take the first one for color consistency, but render details for all.
                         const mainSessionForColor = relevantSessionsForCell[0];
                         rowData.push({
                             raw: cellContentParts,
@@ -260,14 +269,19 @@ export default function Header() {
 
                 if (data.section === 'body' && data.cell.raw && Array.isArray(data.cell.raw)) {
                     const contentParts = data.cell.raw as any[];
-                    const firstPart = contentParts[0];
+                    // Remove duplicates for option groups to render them once
+                    const uniqueContentParts = contentParts.filter((part, index, self) =>
+                       part.optionGroup ? self.findIndex(p => p.optionGroup === part.optionGroup && p.teacherInitials === part.teacherInitials) === index : true
+                    );
+
+                    const firstPart = uniqueContentParts[0];
 
                     if (firstPart) {
-                        doc.setFillColor(...(firstPart.color as [number, number, number]));
+                        const cellColor = firstPart.color || [255, 255, 255];
+                        doc.setFillColor(...(cellColor as [number, number, number]));
                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                         
                         if (firstPart.optionGroup) {
-                            // Render Option Group format
                              doc.setFontSize(14);
                              doc.setFont(undefined, 'bold');
                              doc.text(firstPart.optionGroup, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, {
@@ -281,9 +295,10 @@ export default function Header() {
 
                         } else {
                             // Render regular subject format
-                            const content = contentParts.map(p => `${p.subject}\n${p.details}`).join('\n\n');
+                            const content = uniqueContentParts.map(p => `${p.subject}\n${p.details}`).join('\n\n');
                             const textLines = doc.splitTextToSize(content, data.cell.width - 2);
                             doc.setFontSize(8);
+                            doc.setFont(undefined, 'bold');
                             doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
                                 halign: 'center',
                                 valign: 'middle'

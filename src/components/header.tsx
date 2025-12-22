@@ -164,10 +164,13 @@ export default function Header() {
         // --- Data Pre-processing Step ---
         const cellContentMap = new Map<string, CellContent[]>(); // key: `${dayIndex}-${periodIndex}`
         days.forEach((day, dayIndex) => {
-            for (let periodIndex = 0; periodIndex < periodCount; periodIndex++) {
+            let periodIndex = 0;
+            timeSlots.forEach(slot => {
+                if (slot.isBreak) return;
+                
                 const sessionsInSlot = timetable[day]?.[periodIndex] || [];
                 const key = `${dayIndex}-${periodIndex}`;
-                cellContentMap.set(key, []);
+                const cellContents: CellContent[] = [];
 
                 sessionsInSlot.forEach(session => {
                     const isRelevant = type === 'class' 
@@ -178,9 +181,9 @@ export default function Header() {
                         if (session.optionGroup) {
                             const initials = getTeacherInitials(session.teacher);
                             const text = `${session.optionGroup}\n${initials}`;
-                            const existing = cellContentMap.get(key)!.find(c => c.text.startsWith(session.optionGroup!));
-                            if (!existing) { // Add only once per option group
-                                cellContentMap.get(key)!.push({
+                            const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
+                            if (!existing) { // Add only once per option group for a given class timetable
+                                cellContents.push({
                                     text: text,
                                     isOptionGroup: true,
                                     color: getSubjectColor(session.subject),
@@ -189,7 +192,7 @@ export default function Header() {
                         } else {
                             const details = type === 'class' ? session.teacher : session.className;
                             const text = `${session.subject}\n${details}`;
-                            cellContentMap.get(key)!.push({
+                            cellContents.push({
                                 text: text,
                                 isOptionGroup: false,
                                 color: getSubjectColor(session.subject),
@@ -197,15 +200,19 @@ export default function Header() {
                         }
                     }
                 });
-            }
+                if(cellContents.length > 0) {
+                    cellContentMap.set(key, cellContents);
+                }
+                periodIndex++;
+            });
         });
 
         // --- PDF Body Creation ---
         const head = [['Time', ...days]];
         const body: any[][] = [];
 
-        let periodIndex = 0;
-        timeSlots.forEach((slot, slotIndex) => {
+        let periodIdxCounter = 0;
+        timeSlots.forEach((slot) => {
             const rowData: any[] = [{ content: slot.time, styles: { valign: 'middle', halign: 'center' } }];
             
             if (slot.isBreak) {
@@ -219,20 +226,25 @@ export default function Header() {
                 });
             } else {
                 days.forEach((day, dayIndex) => {
-                    const key = `${dayIndex}-${periodIndex}`;
+                    const key = `${dayIndex}-${periodIdxCounter}`;
                     const cellContents = cellContentMap.get(key) || [];
                     
                     if (cellContents.length > 0) {
+                         // For option groups shown for a class, we only want one entry.
+                        const uniqueCellContents = type === 'class' ? 
+                            Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values())
+                            : cellContents;
+
                         rowData.push({
-                            raw: cellContents,
+                            raw: uniqueCellContents,
                             content: '', // Custom drawn
-                            styles: { fillColor: cellContents[0].color }
+                            styles: { fillColor: uniqueCellContents[0].color }
                         });
                     } else {
                         rowData.push('');
                     }
                 });
-                periodIndex++;
+                periodIdxCounter++;
             }
             body.push(rowData);
         });
@@ -254,11 +266,12 @@ export default function Header() {
                         doc.setFillColor(...(firstPart.color as [number, number, number]));
                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                         
+                        // Join all parts for rendering
                         const textToRender = contentParts.map(p => p.text).join('\n\n');
-                        const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
                         
                         if (firstPart.isOptionGroup) {
-                             const [option, initials] = textToRender.split('\n');
+                             // For option groups, we expect a single entry per class view.
+                             const [option, initials] = firstPart.text.split('\n');
                              doc.setFontSize(14);
                              doc.setFont(undefined, 'bold');
                              doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, { halign: 'center' });
@@ -266,6 +279,7 @@ export default function Header() {
                              doc.setFont(undefined, 'normal');
                              doc.text(initials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { halign: 'center' });
                         } else {
+                            const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
                             doc.setFontSize(8);
                             doc.setFont(undefined, 'bold');
                             doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
@@ -453,5 +467,3 @@ export default function Header() {
     </>
   );
 }
-
-    

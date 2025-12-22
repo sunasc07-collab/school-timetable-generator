@@ -158,6 +158,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     useEffect(() => {
         if (selectedSchool) {
+            const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`) || [];
             const newSchoolName = selectedSchool.name.toLowerCase();
             const isNewALevel = newSchoolName.includes('a-level');
             const isNewNursery = newSchoolName.includes('nursery');
@@ -169,13 +170,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                  setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool.name]);
                  setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
             } else {
-                const stillValidGrades = selectedGrades.filter((g: string) => gradeOptions.includes(g));
-                 if (stillValidGrades.length !== selectedGrades.length) {
+                const stillValidGrades = currentGrades.filter((g: string) => gradeOptions.includes(g));
+                 if (stillValidGrades.length !== currentGrades.length) {
                     setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, stillValidGrades);
                 }
             }
         }
-    }, [setValue, teacherIndex, assignmentIndex, selectedSchool, gradeOptions, selectedGrades]);
+    }, [setValue, getValues, teacherIndex, assignmentIndex, selectedSchool, gradeOptions]);
 
     useEffect(() => {
         if (!showArms) {
@@ -769,3 +770,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

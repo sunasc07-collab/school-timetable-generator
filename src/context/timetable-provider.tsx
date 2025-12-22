@@ -1,7 +1,7 @@
 
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from "react";
 import type { Teacher, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode, SubjectAssignment } from "@/lib/types";
 
 type TimetableContextType = {
@@ -132,9 +132,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }, [timetables, activeTimetableId, setTimetables, setActiveTimetableId]);
 
 
-  const updateTimetable = (timetableId: string, updates: Partial<Timetable>) => {
+  const updateTimetable = useCallback((timetableId: string, updates: Partial<Timetable>) => {
       setTimetables(prev => prev.map(t => t.id === timetableId ? { ...t, ...updates } : t));
-  }
+  }, [setTimetables]);
 
   const addTimetable = (name: string) => {
       const newTimetable = createNewTimetable(name);
@@ -196,15 +196,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }, [allTeachers, setAllTeachers, resetTimetableForSchool]);
 
 
-  const activeTimetableRaw = timetables.find(t => t.id === activeTimetableId) || null;
-  const activeTeachers = activeTimetableRaw 
-      ? allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetableRaw.id))
-      : [];
+  const activeTimetable = useMemo(() => {
+    const activeRaw = timetables.find(t => t.id === activeTimetableId);
+    if (!activeRaw) return null;
+    
+    const activeTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeRaw.id));
+    
+    return {
+        ...activeRaw,
+        teachers: activeTeachers,
+    };
+}, [activeTimetableId, timetables, allTeachers]);
 
-  const activeTimetable = activeTimetableRaw ? {
-      ...activeTimetableRaw,
-      teachers: activeTeachers,
-  } : null;
 
   const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
     const consecutive: number[][] = [];
@@ -367,7 +370,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         
         for (const c of session.classes) {
             const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject && s.id !== session.id);
-            if (subjectsOnDayForClass.length > 0) { // Changed from >= 2 to > 0
+            if (subjectsOnDayForClass.length > 0) { 
                 return false;
             }
         }
@@ -474,7 +477,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         classes: sortedClasses,
         conflicts: [],
     });
-  }, [setTimetables, activeTimetable, allTeachers]);
+  }, [updateTimetable, activeTimetable]);
 
 
   const clearTimetable = () => {
@@ -512,11 +515,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const currentTimetable = timetables.find(t => t.id === activeTimetableId);
-    if (!currentTimetable?.timetable || !currentTimetable.id) return;
+    if (!activeTimetable?.timetable || !activeTimetable.id) return;
     
     const newConflicts: Conflict[] = [];
-    const { timetable, days, timeSlots } = currentTimetable;
+    const { timetable, days, timeSlots } = activeTimetable;
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
 
     for (const day of days) {
@@ -585,8 +587,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
     
     // Disable conflict detection
-    updateTimetable(currentTimetable.id, { conflicts: [] });
-}, [activeTimetableId, timetables, setTimetables]);
+    updateTimetable(activeTimetable.id, { conflicts: [] });
+}, [activeTimetable, updateTimetable]);
 
 
   const isConflict = (sessionId: string) => {
@@ -632,3 +634,6 @@ export const useTimetable = (): TimetableContextType => {
     
 
 
+
+
+    

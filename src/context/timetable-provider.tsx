@@ -355,36 +355,26 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
         
+        // Teacher is busy
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
 
+        // Class is busy
         for (const c of session.classes) {
             if (slot.some(s => s.classes.includes(c))) {
                  return false;
             }
         }
         
-        const sessionsOnDayForClass = (c: string) => board[day].flat().filter(s => s.classes.includes(c));
-
+        // Subject is already scheduled for this class on this day
         for (const c of session.classes) {
-            const todaysSessions = sessionsOnDayForClass(c);
-            
-            // For double periods, ensure no other instance of the same subject is on the same day.
-            if (session.isDouble) {
-                if (todaysSessions.some(s => s.subject === session.subject && s.id !== session.id)) {
-                    return false;
-                }
-            } else if (session.optionGroup) {
-                // For optional subjects, check if any other period from the same option group/subject is already scheduled today.
-                if (todaysSessions.some(s => s.optionGroup === session.optionGroup && s.subject === session.subject && s.id !== session.id)) {
-                    return false;
-                }
-            }
-            else { // For single, core subjects
-                if (todaysSessions.some(s => s.subject === session.subject)) {
-                    return false;
-                }
+            const todaysSessions = board[day].flat().filter(s => s.classes.includes(c));
+            // A subject can only be scheduled once per day for a class.
+            // Double periods parts have the same ID, so they are not a conflict with each other,
+            // but they are a conflict with any *other* session of the same subject.
+            if (todaysSessions.some(s => s.subject === session.subject && s.id !== session.id)) {
+                return false;
             }
         }
         

@@ -168,12 +168,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const processTeacherData = (teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
     const finalAssignments: SubjectAssignment[] = [];
+    
     teacherData.assignments.forEach(formAssignment => {
-        const { subjectType, ...restOfAssignment } = formAssignment;
-        const seniorGrades = formAssignment.grades?.filter(g => SENIOR_SECONDARY_GRADES.includes(g)) || [];
-        const otherGrades = formAssignment.grades?.filter(g => !SENIOR_SECONDARY_GRADES.includes(g)) || [];
+        const { subjectType, grades, ...restOfAssignment } = formAssignment;
+        
+        if (!grades || grades.length === 0) {
+            // Handle assignments with no grades if necessary, or just skip
+            return;
+        }
 
-        if (seniorGrades.length > 0 && subjectType) {
+        const seniorGrades = grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
+        const otherGrades = grades.filter(g => !SENIOR_SECONDARY_GRADES.includes(g));
+
+        // Process Senior Secondary part
+        if (seniorGrades.length > 0) {
             finalAssignments.push({
                 ...restOfAssignment,
                 id: restOfAssignment.id || crypto.randomUUID(),
@@ -182,30 +190,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 optionGroup: subjectType === 'optional' ? restOfAssignment.optionGroup : null,
             });
         }
+        
+        // Process other grades (Junior Secondary, Primary, etc.)
         if (otherGrades.length > 0) {
             finalAssignments.push({
                 ...restOfAssignment,
-                id: crypto.randomUUID(), // new ID for the non-senior part
+                id: crypto.randomUUID(), // Create a new ID for the split part
                 grades: otherGrades,
-                isCore: false,
-                optionGroup: null,
-            });
-        }
-        if (seniorGrades.length > 0 && !subjectType) {
-             finalAssignments.push({
-                ...restOfAssignment,
-                id: restOfAssignment.id || crypto.randomUUID(),
-                grades: seniorGrades,
-                isCore: false,
-                optionGroup: null,
-            });
-        }
-        if (seniorGrades.length === 0 && otherGrades.length === 0 && formAssignment.grades) {
-             finalAssignments.push({
-                ...restOfAssignment,
-                id: restOfAssignment.id || crypto.randomUUID(),
-                grades: formAssignment.grades,
-                isCore: false,
+                isCore: false,       // Non-senior grades are not core/optional
                 optionGroup: null,
             });
         }
@@ -213,7 +205,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     return {
         ...teacherData,
-        assignments: finalAssignments.filter(a => a.grades && a.grades.length > 0)
+        assignments: finalAssignments,
     };
   };
 
@@ -664,3 +656,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+
+    

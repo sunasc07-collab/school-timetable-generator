@@ -6,7 +6,8 @@ import type { Teacher, TimetableData, TimetableSession, Conflict, TimeSlot, Time
 
 type TimetableContextType = {
   timetables: Timetable[];
-  activeTimetable: (Timetable & { teachers: Teacher[] }) | null;
+  activeTimetable: Timetable | null;
+  allTeachers: Teacher[];
   addTimetable: (name: string) => void;
   removeTimetable: (timetableId: string) => void;
   renameTimetable: (timetableId: string, newName: string) => void;
@@ -197,16 +198,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
 
   const activeTimetable = useMemo(() => {
-    const activeRaw = timetables.find(t => t.id === activeTimetableId);
-    if (!activeRaw) return null;
-    
-    const activeTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeRaw.id));
-    
-    return {
-        ...activeRaw,
-        teachers: activeTeachers,
-    };
-}, [activeTimetableId, timetables, allTeachers]);
+    return timetables.find(t => t.id === activeTimetableId) || null;
+  }, [activeTimetableId, timetables]);
 
 
   const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
@@ -233,13 +226,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
+    
+    const activeTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
 
-    const { timeSlots, days, teachers, name: schoolName, id: schoolId } = activeTimetable;
+    const { timeSlots, days, name: schoolName, id: schoolId } = activeTimetable;
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
 
     const allRequiredSessions: (SubjectAssignment & { teacher: string })[] = [];
     
-    teachers.forEach(teacher => {
+    activeTeachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== schoolId) return;
             if (assignment.subject.toLowerCase() === 'assembly') return;
@@ -290,7 +285,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    optionalGroups.forEach((assignments, key) => {
+    optionalGroups.forEach((assignments) => {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
 
         for (let i = 0; i < maxPeriods; i++) {
@@ -477,7 +472,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         classes: sortedClasses,
         conflicts: [],
     });
-  }, [updateTimetable, activeTimetable]);
+  }, [updateTimetable, activeTimetable, allTeachers]);
 
 
   const clearTimetable = () => {
@@ -586,9 +581,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     }
     
-    // Disable conflict detection
-    updateTimetable(activeTimetable.id, { conflicts: [] });
-}, [activeTimetable, updateTimetable]);
+    if (JSON.stringify(activeTimetable.conflicts) !== JSON.stringify(newConflicts)) {
+      updateTimetable(activeTimetable.id, { conflicts: newConflicts });
+    }
+  }, [activeTimetable, updateTimetable]);
 
 
   const isConflict = (sessionId: string) => {
@@ -600,6 +596,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       value={{
         timetables,
         activeTimetable,
+        allTeachers,
         addTimetable,
         removeTimetable,
         renameTimetable,
@@ -628,12 +625,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
- 
-    
-
-    
-
-
-
-
-    

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TimetableItem from "./timetable-item";
-import type { TimetableDragData, TimetableSession } from "@/lib/types";
+import type { TimetableDragData, TimetableSession, Teacher } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Trash2, Zap, ZapOff } from "lucide-react";
@@ -33,6 +33,7 @@ import ClientOnly from "./client-only";
 export default function TimetableGrid() {
   const { 
     activeTimetable,
+    allTeachers,
     moveSession, 
     isConflict, 
     viewMode, 
@@ -43,10 +44,14 @@ export default function TimetableGrid() {
   const timetable = activeTimetable?.timetable || {};
   const days = activeTimetable?.days || [];
   const timeSlots = activeTimetable?.timeSlots || [];
-  const teachers = activeTimetable?.teachers || [];
   const classes = activeTimetable?.classes || [];
   const conflicts = activeTimetable?.conflicts || [];
   
+  const teachers = useMemo(() => {
+    if (!activeTimetable) return [];
+    return allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
+  }, [activeTimetable, allTeachers]);
+
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const isSecondarySchool = useMemo(() => activeTimetable?.name.toLowerCase().includes('secondary'), [activeTimetable]);
@@ -56,7 +61,7 @@ export default function TimetableGrid() {
 
     const armSet = new Set<string>();
     
-    (activeTimetable.teachers || []).forEach(teacher => {
+    teachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
             
@@ -74,7 +79,7 @@ export default function TimetableGrid() {
 
     // Fallback for schools without defined arms but with classes.
     return classes.sort();
-  }, [activeTimetable, viewMode, classes]);
+  }, [activeTimetable, viewMode, classes, teachers]);
 
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {

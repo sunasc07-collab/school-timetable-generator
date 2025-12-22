@@ -530,9 +530,12 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
 
 export default function TeacherEditor() {
-  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables } = useTimetable();
-  const allTeachers = timetables.flatMap(t => (t as any).teachers || []);
-  const currentTeachers = activeTimetable?.teachers || [];
+  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers } = useTimetable();
+  
+  const currentTeachers = useMemo(() => {
+    if (!activeTimetable) return [];
+    return allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
+  }, [activeTimetable, allTeachers]);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
@@ -787,6 +790,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-
-    

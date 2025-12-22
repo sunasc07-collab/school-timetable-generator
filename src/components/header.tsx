@@ -28,14 +28,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
-import { useState } from "react";
-import type { ViewMode, TimetableSession } from "@/lib/types";
+import { useState, useMemo } from "react";
+import type { ViewMode, TimetableSession, Teacher } from "@/lib/types";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
 export default function Header() {
   const { 
     activeTimetable, 
+    allTeachers,
     timetables, 
     setActiveTimetableId,
     addTimetable,
@@ -50,12 +51,15 @@ export default function Header() {
   const [timetableName, setTimetableName] = useState("");
   const [timetableToEdit, setTimetableToEdit] = useState<string | null>(null);
 
-  const currentTimetable = activeTimetable ? timetables.find(t => t.id === activeTimetable.id) : null;
+  const currentTimetable = activeTimetable;
   const classes = currentTimetable?.classes || [];
   const timetable = currentTimetable?.timetable || {};
   const timeSlots = currentTimetable?.timeSlots || [];
   const days = currentTimetable?.days || [];
-  const teachers = (activeTimetable as any)?.teachers || [];
+  const teachers: Teacher[] = useMemo(() => {
+    if (!activeTimetable) return [];
+    return allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
+  }, [activeTimetable, allTeachers]);
   
   const handlePrint = () => {
     window.print();

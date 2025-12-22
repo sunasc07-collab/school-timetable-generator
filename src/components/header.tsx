@@ -151,8 +151,8 @@ export default function Header() {
         if (index > 0) {
             doc.addPage();
             startY = 20;
-            doc.text(mainTitle, 14, 10);
         }
+        doc.text(mainTitle, 14, 10);
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
         doc.text(itemTitle, 14, startY - 5);
         
@@ -164,9 +164,9 @@ export default function Header() {
             const rowData: any[] = [slot.time];
             
             if (slot.isBreak) {
-                days.forEach((day, dayIndex) => {
+                 days.forEach((day, dayIndex) => {
                     const isCenterCell = Math.floor(days.length / 2) === dayIndex;
-                    rowData.push({
+                     rowData.push({
                         content: isCenterCell ? slot.label : '',
                         styles: { fillColor: getSubjectColor(slot.label!) }
                     });
@@ -184,9 +184,24 @@ export default function Header() {
                     
                     if (relevantSessions.length > 0) {
                         const cellContent = relevantSessions.map(session => {
-                            return type === 'class' 
-                                ? `${session.subject}\n${session.teacher}` 
-                                : `${session.subject}\n${session.className}`;
+                            if (type === 'class') {
+                                return `${session.subject}\n${session.teacher}`;
+                            }
+                            // For teacher view, handle option groups where a teacher might teach multiple classes.
+                            if (session.optionGroup && session.classes.length > 1) {
+                                // Find which of the session's classes corresponds to the teacher's assignment for that subject.
+                                const teacherObj = allTeachers.find(t => t.name === itemName);
+                                const relevantAssignment = teacherObj?.assignments.find(a => a.subject === session.subject && a.optionGroup === session.optionGroup);
+                                const relevantClassesForTeacher = relevantAssignment?.grades.flatMap(g => 
+                                    (relevantAssignment.arms && relevantAssignment.arms.length > 0 ? relevantAssignment.arms : ['']).map(arm => `${g} ${arm}`.trim())
+                                ) || [];
+
+                                const displayClasses = session.classes.filter(c => relevantClassesForTeacher.includes(c));
+                                
+                                return `${session.subject}\n${displayClasses.join(', ')}`;
+
+                            }
+                            return `${session.subject}\n${session.className}`;
                         }).join('\n\n');
     
                         const mainSession = relevantSessions[0];

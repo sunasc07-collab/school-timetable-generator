@@ -165,7 +165,10 @@ export default function Header() {
             
             days.forEach((day, dayIndex) => {
                 if (slot.isBreak) {
-                    rowData.push({ content: slot.label, styles: { fillColor: getSubjectColor(slot.label!) }});
+                    // For breaks, push content only for the first day to span across
+                    if (dayIndex === 0) {
+                         rowData.push({ content: slot.label, colSpan: days.length, styles: { fillColor: getSubjectColor(slot.label!) }});
+                    }
                     return;
                 }
 

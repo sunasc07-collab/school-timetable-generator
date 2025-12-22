@@ -50,9 +50,9 @@ const assignmentSchema = z.object({
   subjectType: z.string().optional(),
   isCore: z.boolean().optional(),
   optionGroup: z.enum(['A', 'B', 'C', 'D', 'E']).nullable().optional(),
-}).refine(data => !(data.isCore && data.optionGroup), {
+}).refine(data => !(data.subjectType === 'core' && data.optionGroup), {
     message: "A subject cannot be both a Core Subject and an Option.",
-    path: ["isCore"],
+    path: ["subjectType"],
 });
 
 const teacherSchema = z.object({
@@ -193,11 +193,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     const handleSubjectTypeChange = (type: string) => {
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`, type);
-        if (type === 'core') {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, true);
+        if (type !== 'optional') {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
-        } else {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.isCore`, false);
         }
         trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
     }
@@ -374,7 +371,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                      )}
                                  />
                              )}
-                              {assignmentErrors?.isCore?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.isCore.message as string}</p>}
+                              {/* @ts-ignore */}
+                              {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
                     )}
                      <div className={cn("grid grid-cols-1 gap-y-2", hideGradesAndArms && "hidden")}>
@@ -580,58 +578,16 @@ export default function TeacherEditor() {
   function onSubmit(data: MultiTeacherFormValues) {
     if (!activeTimetable) return;
 
-    const finalTeachers: Teacher[] = data.teachers.map(teacherData => {
-        const newAssignments: SubjectAssignment[] = [];
-
-        teacherData.assignments.forEach(formAssignment => {
-            const hasSenior = formAssignment.grades.some(g => SENIOR_SECONDARY_GRADES.includes(g));
-            const hasJunior = formAssignment.grades.some(g => JUNIOR_SECONDARY_GRADES.includes(g));
-            const { subjectType, ...restOfAssignment } = formAssignment;
-
-            if (hasSenior && subjectType) {
-                // If it has senior grades and a type is selected, split the assignment
-                const seniorGrades = formAssignment.grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
-                newAssignments.push({
-                    ...restOfAssignment,
-                    id: restOfAssignment.id || crypto.randomUUID(),
-                    grades: seniorGrades,
-                    isCore: subjectType === 'core',
-                    optionGroup: subjectType === 'optional' ? restOfAssignment.optionGroup : null,
-                });
-
-                if (hasJunior) {
-                    const juniorGrades = formAssignment.grades.filter(g => JUNIOR_SECONDARY_GRADES.includes(g));
-                    newAssignments.push({
-                        ...restOfAssignment,
-                        id: crypto.randomUUID(), // new ID for the split part
-                        grades: juniorGrades,
-                        isCore: false, // Junior subjects are not core/optional in this logic
-                        optionGroup: null,
-                    });
-                }
-            } else {
-                // Not a senior assignment or no type selected, treat as a single assignment
-                newAssignments.push({
-                    ...restOfAssignment,
-                    id: restOfAssignment.id || crypto.randomUUID(),
-                    isCore: false,
-                    optionGroup: null,
-                });
-            }
-        });
-
-        return {
+    data.teachers.forEach(teacherData => {
+        const teacherWithId = {
             ...teacherData,
             id: teacherData.id || crypto.randomUUID(),
-            assignments: newAssignments
         };
-    });
 
-    finalTeachers.forEach(finalData => {
-        if (editingTeacher && finalData.id === editingTeacher.id) {
-            updateTeacher(finalData);
+        if (editingTeacher && teacherWithId.id === editingTeacher.id) {
+            updateTeacher(teacherWithId);
         } else {
-            addTeacher(finalData);
+            addTeacher(teacherWithId);
         }
     });
     
@@ -769,7 +725,7 @@ export default function TeacherEditor() {
                   </div>
                   <AccordionContent className="px-2 pb-4">
                     <div className="space-y-3">
-                      {teacher.assignments.filter(a => a.schoolId === activeTimetable.id).map((assignment) => (
+                      {teacher.assignments.filter(a => a.schoolId === activeTimetable?.id).map((assignment) => (
                         <div key={assignment.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
                              <Book className="mr-2 h-4 w-4 text-primary" />
@@ -793,9 +749,9 @@ export default function TeacherEditor() {
                            </div>
                         </div>
                       ))}
-                       {teacher.assignments.filter(a => a.schoolId !== activeTimetable.id).length > 0 && (
+                       {teacher.assignments.filter(a => a.schoolId !== activeTimetable?.id).length > 0 && (
                           <div className="text-xs text-muted-foreground italic pl-4 mt-4">
-                            Also has {teacher.assignments.filter(a => a.schoolId !== activeTimetable.id).length} assignment(s) in other schools.
+                            Also has {teacher.assignments.filter(a => a.schoolId !== activeTimetable?.id).length} assignment(s) in other schools.
                           </div>
                        )}
                     </div>

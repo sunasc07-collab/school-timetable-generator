@@ -14,9 +14,9 @@ type TimetableContextType = {
   renameTimetable: (timetableId: string, newName: string) => void;
   setActiveTimetableId: (id: string | null) => void;
 
-  addTeacher: (teacherData: Teacher) => void;
+  addTeacher: (teacherData: Omit<Teacher, 'assignments'> & { assignments: Omit<SubjectAssignment, 'id'>[] }) => void;
   removeTeacher: (teacherId: string) => void;
-  updateTeacher: (teacherData: Teacher) => void;
+  updateTeacher: (teacherData: Omit<Teacher, 'assignments'> & { assignments: Omit<SubjectAssignment, 'id'>[] }) => void;
   
   generateTimetable: () => void;
   clearTimetable: () => void;
@@ -44,6 +44,8 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 8, time: '13:40-14:20' },
     { period: 9, time: '14:20-15:00' },
 ];
+const JUNIOR_SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9"];
+const SENIOR_SECONDARY_GRADES = ["Grade 10", "Grade 11", "Grade 12"];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
@@ -87,10 +89,10 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
 type PlacementUnit = TimetableSession | TimetableSession[] | { session: TimetableSession; partner: TimetableSession };
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v11", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v11", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v11", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v11', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v12", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v12", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v12", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v12', 'class');
   
   useEffect(() => {
     setTimetables(prev => 
@@ -164,13 +166,84 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const addTeacher = useCallback((teacherData: Teacher) => {
-    setAllTeachers(prev => [...prev, teacherData]);
-    const schoolIds = new Set(teacherData.assignments.map(a => a.schoolId));
+  const processTeacherData = (teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
+    const finalAssignments: SubjectAssignment[] = [];
+    teacherData.assignments.forEach(formAssignment => {
+        const { subjectType, ...restOfAssignment } = formAssignment;
+        const seniorGrades = formAssignment.grades?.filter(g => SENIOR_SECONDARY_GRADES.includes(g)) || [];
+        const otherGrades = formAssignment.grades?.filter(g => !SENIOR_SECONDARY_GRADES.includes(g)) || [];
+
+        if (seniorGrades.length > 0 && subjectType) {
+            finalAssignments.push({
+                ...restOfAssignment,
+                id: restOfAssignment.id || crypto.randomUUID(),
+                grades: seniorGrades,
+                isCore: subjectType === 'core',
+                optionGroup: subjectType === 'optional' ? restOfAssignment.optionGroup : null,
+            });
+        }
+        if (otherGrades.length > 0) {
+            finalAssignments.push({
+                ...restOfAssignment,
+                id: crypto.randomUUID(), // new ID for the non-senior part
+                grades: otherGrades,
+                isCore: false,
+                optionGroup: null,
+            });
+        }
+        if (seniorGrades.length > 0 && !subjectType) {
+             finalAssignments.push({
+                ...restOfAssignment,
+                id: restOfAssignment.id || crypto.randomUUID(),
+                grades: seniorGrades,
+                isCore: false,
+                optionGroup: null,
+            });
+        }
+        if (seniorGrades.length === 0 && otherGrades.length === 0 && formAssignment.grades) {
+             finalAssignments.push({
+                ...restOfAssignment,
+                id: restOfAssignment.id || crypto.randomUUID(),
+                grades: formAssignment.grades,
+                isCore: false,
+                optionGroup: null,
+            });
+        }
+    });
+
+    return {
+        ...teacherData,
+        assignments: finalAssignments.filter(a => a.grades && a.grades.length > 0)
+    };
+  };
+
+  const addTeacher = useCallback((teacherData: Omit<Teacher, 'id' | 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
+    const newTeacher: Teacher = {
+        id: crypto.randomUUID(),
+        ...processTeacherData(teacherData),
+    };
+    setAllTeachers(prev => [...prev, newTeacher]);
+    const schoolIds = new Set(newTeacher.assignments.map(a => a.schoolId));
     schoolIds.forEach(schoolId => {
         resetTimetableForSchool(schoolId);
     });
   }, [setAllTeachers, resetTimetableForSchool]);
+
+  const updateTeacher = useCallback((teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
+    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
+    const updatedTeacher = processTeacherData(teacherData);
+    
+    const schoolIdsToReset = new Set<string>();
+    updatedTeacher.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
+    oldTeacher?.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
+
+    setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? updatedTeacher as Teacher : t));
+
+    schoolIdsToReset.forEach(schoolId => {
+       resetTimetableForSchool(schoolId);
+    });
+  }, [allTeachers, setAllTeachers, resetTimetableForSchool]);
+
 
   const removeTeacher = useCallback((teacherId: string) => {
     const teacher = allTeachers.find(t => t.id === teacherId);
@@ -182,21 +255,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
   }, [allTeachers, setAllTeachers, resetTimetableForSchool]);
-  
-  const updateTeacher = useCallback((teacherData: Teacher) => {
-    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
-    const schoolIdsToReset = new Set<string>();
-
-    teacherData.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
-    oldTeacher?.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
-
-    setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-
-    schoolIdsToReset.forEach(schoolId => {
-       resetTimetableForSchool(schoolId);
-    });
-  }, [allTeachers, setAllTeachers, resetTimetableForSchool]);
-
 
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);

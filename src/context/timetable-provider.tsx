@@ -251,7 +251,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const doubleSessionPairs = new Map<string, { part1?: TimetableSession, part2?: TimetableSession}>();
 
     allRequiredSessions.forEach(req => {
-        const { subject, teacher, periods, grades, arms, isCore, optionGroup } = req;
+        const { id: assignmentId, subject, teacher, periods, grades, arms, isCore, optionGroup } = req;
         
         const classNames: string[] = [];
         grades.forEach(grade => {
@@ -265,11 +265,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const uniqueClasses = [...new Set(classNames)];
             
             const representativeSession: TimetableSession = {
-                id: req.id, // Use assignment ID to group sessions from the same assignment
+                id: assignmentId, 
                 subject,
                 teacher,
-                className: uniqueClasses.join(', '), // For display
-                classes: uniqueClasses, // For conflict checking
+                className: uniqueClasses.join(', '), 
+                classes: uniqueClasses,
                 isDouble: false,
                 isCore,
                 optionGroup
@@ -280,7 +280,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (!optionGroups.has(groupKey)) {
                     optionGroups.set(groupKey, []);
                 }
-                optionGroups.get(groupKey)!.push({ ...representativeSession, id: `${req.id}-${i}` });
+                optionGroups.get(groupKey)!.push({ ...representativeSession, id: `${assignmentId}-${i}` });
             }
             return;
         }
@@ -558,5 +558,4 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
+ 

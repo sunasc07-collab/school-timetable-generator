@@ -19,7 +19,7 @@ type TimetableContextType = {
   
   generateTimetable: () => void;
   clearTimetable: () => void;
-  moveSession: (session: TimetableSession, from: { day: string, period: number }, to: { day: string, period: number }) => void;
+  moveSession: (session: TimetableSession, from: { day: string; period: number }, to: { day: string; period: number }) => void;
   resolveConflicts: () => void;
   isConflict: (sessionId: string) => boolean;
   
@@ -198,7 +198,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
 
   const activeTimetable = useMemo(() => {
-    return timetables.find(t => t.id === activeTimetableId) || null;
+    const currentTimetable = timetables.find(t => t.id === activeTimetableId);
+    if (!currentTimetable) return null;
+    return currentTimetable;
   }, [activeTimetableId, timetables]);
 
 
@@ -363,8 +365,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
         
+        // Prevent same subject for same class more than once per day
         for (const c of session.classes) {
-            const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject && s.id !== session.id);
+            const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
             if (subjectsOnDayForClass.length > 0) { 
                 return false;
             }

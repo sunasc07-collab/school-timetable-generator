@@ -246,7 +246,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
     
     const sessionsToPlace: PlacementUnit[] = [];
-    const optionGroups = new Map<string, TimetableSession[]>();
+    const optionGroupsByAssignment = new Map<string, TimetableSession[]>();
     const singleSessions: TimetableSession[] = [];
     const doubleSessionPairs = new Map<string, { part1?: TimetableSession, part2?: TimetableSession}>();
 
@@ -275,12 +275,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 optionGroup
             };
 
+            const groupKey = `${grades.join(',')}-${optionGroup}-${subject}-${teacher}`;
+            if (!optionGroupsByAssignment.has(groupKey)) {
+                optionGroupsByAssignment.set(groupKey, []);
+            }
+
             for(let i=0; i < periods; i++) {
-                const groupKey = `${grades.join(',')}-${optionGroup}`;
-                if (!optionGroups.has(groupKey)) {
-                    optionGroups.set(groupKey, []);
-                }
-                optionGroups.get(groupKey)!.push({ ...representativeSession, id: `${assignmentId}-${i}` });
+                optionGroupsByAssignment.get(groupKey)!.push({ ...representativeSession, id: `${assignmentId}-${i}` });
             }
             return;
         }
@@ -308,7 +309,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       }
     });
     
-    optionGroups.forEach((group) => {
+    const sessionsByOptionBlock = new Map<string, TimetableSession[]>();
+    optionGroupsByAssignment.forEach((sessions, assignmentKey) => {
+        sessions.forEach(session => {
+            const blockKey = `${session.grades.join(',')}-${session.optionGroup}`;
+            if (!sessionsByOptionBlock.has(blockKey)) {
+                sessionsByOptionBlock.set(blockKey, []);
+            }
+            sessionsByOptionBlock.get(blockKey)!.push(session);
+        });
+    });
+
+    sessionsByOptionBlock.forEach((group) => {
         sessionsToPlace.push(group);
     });
 
@@ -559,3 +571,5 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
  
+
+    

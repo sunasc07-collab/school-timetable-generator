@@ -160,7 +160,6 @@ export default function Header() {
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
         doc.text(itemTitle, 14, startY - 5);
         
-        // --- Data Pre-processing Step ---
         const cellContentMap = new Map<string, CellContent[]>(); // key: `${dayIndex}-${periodIndex}`
         days.forEach((day, dayIndex) => {
             let periodIndex = 0;
@@ -181,7 +180,7 @@ export default function Header() {
                             const initials = getTeacherInitials(session.teacher);
                             const text = `${session.optionGroup}\n${initials}`;
                             const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
-                            if (!existing) { // Add only once per option group for a given class timetable
+                            if (!existing) { 
                                 cellContents.push({
                                     text: text,
                                     isOptionGroup: true,
@@ -206,7 +205,6 @@ export default function Header() {
             });
         });
 
-        // --- PDF Body Creation ---
         const head = [['Time', ...days]];
         const body: any[][] = [];
 
@@ -215,21 +213,22 @@ export default function Header() {
             const rowData: any[] = [{ content: slot.time, styles: { valign: 'middle', halign: 'center' } }];
             
             if (slot.isBreak) {
-                days.forEach((day, dayIndex) => {
-                    const cell = {
-                        raw: `break-cell-${slot.label}`,
-                        content: '', // Custom drawn
-                        styles: { fillColor: getSubjectColor(slot.label!) }
-                    };
-                    rowData.push(cell);
-                });
+                const breakCell = {
+                    content: slot.label?.replace('-', ' '),
+                    colSpan: days.length,
+                    styles: { halign: 'center', valign: 'middle', fillColor: getSubjectColor(slot.label!) }
+                };
+                rowData.push(breakCell);
+                // We fill the rest of the row with empty cells for colSpan to work
+                for (let i = 0; i < days.length -1; i++) {
+                    rowData.push('');
+                }
             } else {
                 days.forEach((day, dayIndex) => {
                     const key = `${dayIndex}-${periodIdxCounter}`;
                     const cellContents = cellContentMap.get(key) || [];
                     
                     if (cellContents.length > 0) {
-                         // For option groups shown for a class, we only want one entry.
                         const uniqueCellContents = type === 'class' ? 
                             Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values())
                             : cellContents;
@@ -256,40 +255,30 @@ export default function Header() {
             styles: { fontSize: 8, cellPadding: 1, valign: "middle", halign: "center", lineWidth: 0.1, lineColor: [200, 200, 200], minCellHeight: 12 },
             headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontStyle: "bold" },
             didDrawCell: (data) => {
+                if (data.section !== 'body' || !data.cell.raw || !Array.isArray(data.cell.raw)) return;
                 doc.setTextColor(0, 0, 0);
 
-                if (data.section === 'body' && data.cell.raw && Array.isArray(data.cell.raw)) {
-                    const contentParts = data.cell.raw as CellContent[];
-                    if (contentParts.length > 0) {
-                        const firstPart = contentParts[0];
-                        doc.setFillColor(...(firstPart.color as [number, number, number]));
-                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                        
+                const contentParts = data.cell.raw as CellContent[];
+                if (contentParts.length > 0) {
+                    const firstPart = contentParts[0];
+                    doc.setFillColor(...(firstPart.color as [number, number, number]));
+                    doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                    
+                    if (firstPart.isOptionGroup) {
+                         const [option, initials] = firstPart.text.split('\n');
+                         doc.setFontSize(14);
+                         doc.setFont(undefined, 'bold');
+                         doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, { halign: 'center' });
+                         doc.setFontSize(8);
+                         doc.setFont(undefined, 'normal');
+                         doc.text(initials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { halign: 'center' });
+                    } else {
                         const textToRender = contentParts.map(p => p.text).join('\n\n');
                         const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
-                        
-                        if (firstPart.isOptionGroup) {
-                             const [option, initials] = firstPart.text.split('\n');
-                             doc.setFontSize(14);
-                             doc.setFont(undefined, 'bold');
-                             doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, { halign: 'center' });
-                             doc.setFontSize(8);
-                             doc.setFont(undefined, 'normal');
-                             doc.text(initials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { halign: 'center' });
-                        } else {
-                            doc.setFontSize(8);
-                            doc.setFont(undefined, 'bold');
-                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
-                        }
-                    }
-                } else if (data.section === 'body' && data.cell.raw && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('break-cell-')) {
-                     const label = data.cell.raw.replace('break-cell-', '');
-                     const isCenterCell = Math.floor(days.length / 2) === data.column.index - 1;
-                     if(isCenterCell) {
-                        doc.setFontSize(10);
+                        doc.setFontSize(8);
                         doc.setFont(undefined, 'bold');
-                        doc.text(label.replace('-',' '), data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
-                     }
+                        doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
+                    }
                 }
             },
         });
@@ -464,5 +453,3 @@ export default function Header() {
     </>
   );
 }
-
-    

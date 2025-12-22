@@ -250,19 +250,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const singleSessions: TimetableSession[] = [];
     const doubleSessionPairs = new Map<string, { part1?: TimetableSession, part2?: TimetableSession}>();
 
-    // Group optionals by grade and option group
-    const optionalAssignments = new Map<string, (SubjectAssignment & { teacher: string })[]>();
+    const optionalGroups = new Map<string, (SubjectAssignment & { teacher: string })[]>();
 
     allRequiredSessions.forEach(req => {
         if (req.optionGroup) {
-            const grade = req.grades[0]; // Assuming optionals are per grade
+            // An optional subject. Group by grade and option group.
+            const grade = req.grades[0]; // Assume optionals are per grade for grouping.
             const key = `${grade}-${req.optionGroup}`;
-            if (!optionalAssignments.has(key)) {
-                optionalAssignments.set(key, []);
+            if (!optionalGroups.has(key)) {
+                optionalGroups.set(key, []);
             }
-            optionalAssignments.get(key)!.push(req);
+            optionalGroups.get(key)!.push(req);
         } else {
-            // Handle core subjects (singles and doubles)
+            // A core subject.
             const classNames: string[] = [];
             req.grades.forEach(grade => {
                 const gradeArms = req.arms && req.arms.length > 0 ? req.arms : [''];
@@ -289,32 +289,27 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    // Process doubles
     doubleSessionPairs.forEach(pair => {
       if(pair.part1 && pair.part2) {
         sessionsToPlace.push({ session: pair.part1, partner: pair.part2 });
       }
     });
-    
-    // Process optionals
-    optionalAssignments.forEach((assignments) => {
-        const maxPeriods = Math.max(...assignments.map(a => a.periods));
-        const allOptionClasses = Array.from(new Set(assignments.flatMap(a => a.grades.map(grade => {
-            const gradeArms = a.arms && a.arms.length > 0 ? a.arms : [''];
-            return gradeArms.map(arm => `${grade} ${arm}`.trim());
-        }).flat())));
 
-        for (let i = 0; i < maxPeriods; i++) {
-            const optionBlock: TimetableSession[] = [];
-            assignments.forEach(assign => {
-                if (i < assign.periods) {
-                    const sessionClasses = assign.grades.map(grade => {
-                         const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-                         return gradeArms.map(arm => `${grade} ${arm}`.trim());
-                    }).flat();
+    optionalGroups.forEach((assignmentsInGroup) => {
+        const highestPeriodCount = Math.max(...assignmentsInGroup.map(a => a.periods), 0);
 
-                    optionBlock.push({
-                        id: `${assign.id}-${i}`,
+        for (let periodNum = 0; periodNum < highestPeriodCount; periodNum++) {
+            const optionBlockForPeriod: TimetableSession[] = [];
+            
+            assignmentsInGroup.forEach(assign => {
+                if (periodNum < assign.periods) {
+                    const sessionClasses = assign.grades.flatMap(grade => {
+                        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+                        return gradeArms.map(arm => `${grade} ${arm}`.trim());
+                    });
+                    
+                    optionBlockForPeriod.push({
+                        id: `${assign.id}-${periodNum}`,
                         subject: assign.subject,
                         teacher: assign.teacher,
                         className: sessionClasses.join(', '),
@@ -325,11 +320,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     });
                 }
             });
-            sessionsToPlace.push(optionBlock);
+            
+            if (optionBlockForPeriod.length > 0) {
+                sessionsToPlace.push(optionBlockForPeriod);
+            }
         }
     });
-    
-    // Process singles
+
     sessionsToPlace.push(...singleSessions);
 
     sessionsToPlace.sort((a,b) => {
@@ -380,10 +377,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
         
-        // 3. Subject per day limit: A class shouldn't have the same subject more than twice a day.
+        // 3. Subject per day limit: A class shouldn't have the same subject more than once a day.
         for (const c of session.classes) {
             const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
-            if (subjectsOnDayForClass.length >= 2) {
+            if (subjectsOnDayForClass.length >= 1) {
                 return false;
             }
         }
@@ -529,10 +526,81 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-     if (!activeTimetable?.timetable || !activeTimetable.id) return;
-     updateTimetable(activeTimetable.id, { conflicts: [] });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTimetable?.timetable, activeTimetable?.id]);
+    if (!activeTimetable?.timetable || !activeTimetable.id) return;
+    
+    const newConflicts: Conflict[] = [];
+    const { timetable, days, timeSlots } = activeTimetable;
+    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
+
+    for (const day of days) {
+        for (let period = 0; period < periodCount; period++) {
+            const slot = timetable[day]?.[period] || [];
+            if (slot.length <= 1) continue;
+
+            const teacherCounts: { [key: string]: string[] } = {};
+            const classCounts: { [key: string]: TimetableSession[] } = {};
+
+            slot.forEach(session => {
+                if (!teacherCounts[session.teacher]) {
+                    teacherCounts[session.teacher] = [];
+                }
+                teacherCounts[session.teacher].push(session.id);
+
+                session.classes.forEach(className => {
+                    if (!classCounts[className]) {
+                        classCounts[className] = [];
+                    }
+                    classCounts[className].push(session);
+                });
+            });
+
+            for (const teacher in teacherCounts) {
+                if (teacherCounts[teacher].length > 1) {
+                    teacherCounts[teacher].forEach(sessionId => {
+                        if (!newConflicts.some(c => c.id === sessionId)) {
+                            newConflicts.push({
+                                id: sessionId,
+                                type: "teacher",
+                                message: `Teacher ${teacher} is double booked.`
+                            });
+                        }
+                    });
+                }
+            }
+
+            for (const className in classCounts) {
+                const sessionsForClass = classCounts[className];
+                if (sessionsForClass.length > 1) {
+                    const hasCoreSubject = sessionsForClass.some(s => s.isCore);
+                    const optionGroups = new Set(sessionsForClass.map(s => s.optionGroup).filter(g => g));
+                    
+                    let isConflict = false;
+                    if (hasCoreSubject) {
+                       isConflict = true;
+                    } else if (optionGroups.size < sessionsForClass.filter(s => s.optionGroup).length) {
+                       isConflict = true;
+                    }
+
+                    if (isConflict) {
+                        sessionsForClass.forEach(session => {
+                            if (!newConflicts.some(c => c.id === session.id)) {
+                                newConflicts.push({
+                                    id: session.id,
+                                    type: "class",
+                                    message: `Class ${className} has a scheduling conflict.`
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    // Disable conflict detection
+    updateTimetable(activeTimetable.id, { conflicts: [] });
+}, [activeTimetable, setTimetables, timetables]);
+
 
   const isConflict = (sessionId: string) => {
     return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;

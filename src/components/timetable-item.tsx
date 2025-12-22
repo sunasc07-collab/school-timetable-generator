@@ -29,9 +29,6 @@ export default function TimetableItem({
 
   const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
 
-  const displayValue = viewMode === 'class' ? session.teacher : session.className;
-  const displayIcon = viewMode === 'class' ? <User className="h-3 w-3 shrink-0"/> : <GraduationCap className="h-3 w-3 shrink-0"/>;
-
   const teacherInitials = useMemo(() => {
     if (!session.teacher) return '';
     return session.teacher.split(' ').map(name => name[0]).join('').toUpperCase();
@@ -64,12 +61,12 @@ export default function TimetableItem({
               <span className="truncate">{session.subject}</span>
             </div>
             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-              {displayIcon}
-              <span className="break-words">{displayValue}</span>
-            </div>
-             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground", viewMode === 'teacher' ? 'hidden' : 'hidden')}>
               <User className="h-3 w-3 shrink-0"/>
               <span className="truncate">{session.teacher}</span>
+            </div>
+             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+              <GraduationCap className="h-3 w-3 shrink-0"/>
+              <span className="break-words">{session.className}</span>
             </div>
           </>
         )}
@@ -77,3 +74,4 @@ export default function TimetableItem({
     </Card>
   );
 }
+

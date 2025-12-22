@@ -118,7 +118,6 @@ export default function Header() {
 
     const doc = new jsPDF({ orientation: "landscape" });
     const mainTitle = type === 'class' ? `School Timetable - ${currentTimetable.name} - By Class` : `School Timetable - ${currentTimetable.name} - By Teacher`;
-    doc.text(mainTitle, 14, 10);
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
@@ -160,46 +159,49 @@ export default function Header() {
         const head = [['Time', ...days]];
         const body: any[][] = [];
 
-        timeSlots.forEach((slot, slotIndex) => {
+        let periodIndex = 0;
+        timeSlots.forEach((slot) => {
             const rowData: any[] = [slot.time];
             
-            days.forEach((day, dayIndex) => {
-                if (slot.isBreak) {
-                    // For breaks, push content only for the first day to span across
-                    if (dayIndex === 0) {
-                         rowData.push({ content: slot.label, colSpan: days.length, styles: { fillColor: getSubjectColor(slot.label!) }});
-                    }
-                    return;
-                }
-
-                const periodIndex = timeSlots.filter((ts, i) => !ts.isBreak && i < slotIndex).length;
-                const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                let relevantSessions: TimetableSession[];
-
-                if (type === 'class') {
-                    relevantSessions = sessionsInSlot.filter(s => s.classes.includes(itemName));
-                } else {
-                    relevantSessions = sessionsInSlot.filter(s => s.teacher === itemName);
-                }
-                
-                if (relevantSessions.length > 0) {
-                    const cellContent = relevantSessions.map(session => {
-                        return type === 'class' 
-                            ? `${session.subject}\n${session.teacher}` 
-                            : `${session.subject}\n${session.className}`;
-                    }).join('\n\n');
-
-                    const mainSession = relevantSessions[0];
-
+            if (slot.isBreak) {
+                days.forEach((day, dayIndex) => {
+                    const isCenterCell = Math.floor(days.length / 2) === dayIndex;
                     rowData.push({
-                        content: cellContent,
-                        styles: { fillColor: getSubjectColor(mainSession.subject) }
+                        content: isCenterCell ? slot.label : '',
+                        styles: { fillColor: getSubjectColor(slot.label!) }
                     });
-
-                } else {
-                    rowData.push('');
-                }
-            });
+                });
+            } else {
+                days.forEach((day) => {
+                    const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+                    let relevantSessions: TimetableSession[];
+    
+                    if (type === 'class') {
+                        relevantSessions = sessionsInSlot.filter(s => s.classes.includes(itemName));
+                    } else {
+                        relevantSessions = sessionsInSlot.filter(s => s.teacher === itemName);
+                    }
+                    
+                    if (relevantSessions.length > 0) {
+                        const cellContent = relevantSessions.map(session => {
+                            return type === 'class' 
+                                ? `${session.subject}\n${session.teacher}` 
+                                : `${session.subject}\n${session.className}`;
+                        }).join('\n\n');
+    
+                        const mainSession = relevantSessions[0];
+    
+                        rowData.push({
+                            content: cellContent,
+                            styles: { fillColor: getSubjectColor(mainSession.subject) }
+                        });
+    
+                    } else {
+                        rowData.push('');
+                    }
+                });
+                periodIndex++;
+            }
             body.push(rowData);
         });
 

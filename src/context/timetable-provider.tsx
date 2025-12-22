@@ -7,6 +7,7 @@ import type { Teacher, TimetableData, TimetableSession, Conflict, TimeSlot, Time
 type TimetableContextType = {
   timetables: Timetable[];
   activeTimetable: Timetable | null;
+  activeTimetableId: string | null;
   allTeachers: Teacher[];
   addTimetable: (name: string) => void;
   removeTimetable: (timetableId: string) => void;
@@ -200,7 +201,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
     if (!currentTimetable) return null;
-    return currentTimetable;
+    
+    // This is the stable object without teachers
+    const { ...restOfTimetable } = currentTimetable;
+    return restOfTimetable;
   }, [activeTimetableId, timetables]);
 
 
@@ -520,14 +524,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const resolveConflicts = () => {
-    if (!activeTimetable || conflicts.length === 0) return;
+    if (!activeTimetable || activeTimetable.conflicts.length === 0) return;
   };
 
   useEffect(() => {
     if (!activeTimetable?.timetable || !activeTimetable.id) return;
     
     const newConflicts: Conflict[] = [];
-    const { timetable, days, timeSlots } = activeTimetable;
+    const { timetable, days, timeSlots, conflicts } = activeTimetable;
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
 
     for (const day of days) {
@@ -595,7 +599,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     }
     
-    if (JSON.stringify(activeTimetable.conflicts) !== JSON.stringify(newConflicts)) {
+    if (JSON.stringify(conflicts) !== JSON.stringify(newConflicts)) {
       updateTimetable(activeTimetable.id, { conflicts: newConflicts });
     }
   }, [activeTimetable, updateTimetable]);
@@ -610,6 +614,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       value={{
         timetables,
         activeTimetable,
+        activeTimetableId,
         allTeachers,
         addTimetable,
         removeTimetable,
@@ -639,5 +644,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

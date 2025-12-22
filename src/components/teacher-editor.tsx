@@ -156,6 +156,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         }
     }, [showArms, setValue, teacherIndex, assignmentIndex]);
      
+    const gradeOptions = useMemo(() => {
+        if (!selectedSchool) return ALL_GRADE_OPTIONS;
+        return getGradeOptionsForSchool(selectedSchool.name);
+    }, [selectedSchool]);
+
     useEffect(() => {
         if(isALevelSchool) {
              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
@@ -165,31 +170,24 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool?.name || "Nursery"]);
              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex, selectedSchool?.name]);
-
-    const gradeOptions = useMemo(() => {
-        if (!selectedSchool) return ALL_GRADE_OPTIONS;
-        return getGradeOptionsForSchool(selectedSchool.name);
-    }, [selectedSchool]);
-
-    const handleSchoolChange = (newSchoolId: string) => {
-        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
-        const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
-        const newSelectedSchool = timetables.find(t => t.id === newSchoolId);
-        if (currentGrades && newSelectedSchool) {
-            const newGradeOptions = getGradeOptionsForSchool(newSelectedSchool.name);
-            const newSchoolName = newSelectedSchool.name.toLowerCase();
+        if (selectedSchool) {
+            const newSchoolName = selectedSchool.name.toLowerCase();
             if(newSchoolName.includes('a-level')) {
                  setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
             } else if(newSchoolName.includes('nursery')) {
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [newSelectedSchool.name]);
+                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool.name]);
             } else {
-                const stillValidGrades = currentGrades.filter((g: string) => newGradeOptions.includes(g));
-                 if (stillValidGrades.length !== currentGrades.length) {
+                const stillValidGrades = selectedGrades.filter((g: string) => gradeOptions.includes(g));
+                 if (stillValidGrades.length !== selectedGrades.length) {
                     setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, stillValidGrades);
                 }
             }
         }
+    }, [isALevelSchool, isNurserySchool, setValue, teacherIndex, assignmentIndex, selectedSchool, gradeOptions, selectedGrades]);
+
+    const handleSchoolChange = (newSchoolId: string) => {
+        setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
+        trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`);
     };
     
     // @ts-ignore

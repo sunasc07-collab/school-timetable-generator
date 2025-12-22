@@ -33,6 +33,12 @@ import type { ViewMode, TimetableSession, Teacher } from "@/lib/types";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
+type CellContent = {
+    text: string;
+    isOptionGroup: boolean;
+    color: number[];
+};
+
 export default function Header() {
   const { 
     activeTimetable, 
@@ -121,24 +127,18 @@ export default function Header() {
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
+    const periodCount = timeSlots.filter(slot => !slot.isBreak).length;
     
     const subjectColorMap = new Map<string, number[]>();
     const pastelColors = [
-        [255, 182, 193], // LightPink
-        [255, 218, 185], // PeachPuff
-        [221, 160, 221], // Plum
-        [173, 216, 230], // LightBlue
-        [144, 238, 144], // LightGreen
-        [255, 255, 224], // LightYellow
-        [240, 230, 140], // Khaki
-        [250, 235, 215], // AntiqueWhite
-        [176, 224, 230], // PowderBlue
-        [255, 228, 225], // MistyRose
+        [255, 182, 193], [255, 218, 185], [221, 160, 221], [173, 216, 230],
+        [144, 238, 144], [255, 255, 224], [240, 230, 140], [250, 235, 215],
+        [176, 224, 230], [255, 228, 225],
     ];
     let colorIndex = 0;
 
     const getSubjectColor = (subject: string) => {
-        if (subject === 'SHORT-BREAK' || subject === 'LUNCH' || subject === 'Sports') return [220, 220, 220]; // Grey for breaks/sports
+        if (subject === 'SHORT-BREAK' || subject === 'LUNCH' || subject === 'Sports') return [220, 220, 220];
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, pastelColors[colorIndex % pastelColors.length]);
             colorIndex++;
@@ -149,7 +149,7 @@ export default function Header() {
     const getTeacherInitials = (teacherName: string) => {
       if (!teacherName) return '';
       return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
-    }
+    };
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
@@ -161,80 +161,73 @@ export default function Header() {
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
         doc.text(itemTitle, 14, startY - 5);
         
+        // --- Data Pre-processing Step ---
+        const cellContentMap = new Map<string, CellContent[]>(); // key: `${dayIndex}-${periodIndex}`
+        days.forEach((day, dayIndex) => {
+            for (let periodIndex = 0; periodIndex < periodCount; periodIndex++) {
+                const sessionsInSlot = timetable[day]?.[periodIndex] || [];
+                const key = `${dayIndex}-${periodIndex}`;
+                cellContentMap.set(key, []);
+
+                sessionsInSlot.forEach(session => {
+                    const isRelevant = type === 'class' 
+                        ? session.classes.includes(itemName)
+                        : session.teacher === itemName;
+
+                    if (isRelevant) {
+                        if (session.optionGroup) {
+                            const initials = getTeacherInitials(session.teacher);
+                            const text = `${session.optionGroup}\n${initials}`;
+                            const existing = cellContentMap.get(key)!.find(c => c.text.startsWith(session.optionGroup!));
+                            if (!existing) { // Add only once per option group
+                                cellContentMap.get(key)!.push({
+                                    text: text,
+                                    isOptionGroup: true,
+                                    color: getSubjectColor(session.subject),
+                                });
+                            }
+                        } else {
+                            const details = type === 'class' ? session.teacher : session.className;
+                            const text = `${session.subject}\n${details}`;
+                            cellContentMap.get(key)!.push({
+                                text: text,
+                                isOptionGroup: false,
+                                color: getSubjectColor(session.subject),
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // --- PDF Body Creation ---
         const head = [['Time', ...days]];
         const body: any[][] = [];
 
         let periodIndex = 0;
-        timeSlots.forEach((slot) => {
+        timeSlots.forEach((slot, slotIndex) => {
             const rowData: any[] = [{ content: slot.time, styles: { valign: 'middle', halign: 'center' } }];
             
             if (slot.isBreak) {
-                const breakContent = slot.label || '';
-                days.forEach(() => {
-                    rowData.push({ content: '', raw: `break-cell-${breakContent}`, styles: { fillColor: getSubjectColor(breakContent), valign: 'middle', halign: 'center' } });
+                days.forEach((day, dayIndex) => {
+                    const cell = {
+                        raw: `break-cell-${slot.label}`,
+                        content: '', // Custom drawn
+                        styles: { fillColor: getSubjectColor(slot.label!) }
+                    };
+                    rowData.push(cell);
                 });
             } else {
                 days.forEach((day, dayIndex) => {
-                    const sessionsInSlot = timetable[day]?.[periodIndex] || [];
-                    const relevantSessionsForCell: TimetableSession[] = [];
-
-                    if (type === 'class') {
-                       sessionsInSlot.forEach(s => {
-                            if (s.classes.includes(itemName)) {
-                                relevantSessionsForCell.push(s);
-                            }
-                        });
-                    } else { // type === 'teacher'
-                        sessionsInSlot.forEach(s => {
-                            if (s.teacher === itemName) {
-                                relevantSessionsForCell.push(s);
-                            }
-                        });
-                    }
+                    const key = `${dayIndex}-${periodIndex}`;
+                    const cellContents = cellContentMap.get(key) || [];
                     
-                    if (relevantSessionsForCell.length > 0) {
-                        const cellContentParts: any[] = [];
-                        
-                        relevantSessionsForCell.forEach(session => {
-                            const color = getSubjectColor(session.subject);
-                             if (session.optionGroup) {
-                                // For option groups, find the specific class taught by this teacher if we're in teacher view
-                                let teacherForInitials = session.teacher;
-                                if(type === 'class'){
-                                   // In class view, we want the initials of the teacher for that option
-                                    const teacherSession = sessionsInSlot.find(s => s.optionGroup === session.optionGroup && s.classes.includes(itemName));
-                                    if(teacherSession) teacherForInitials = teacherSession.teacher;
-                                }
-
-                                cellContentParts.push({
-                                    optionGroup: session.optionGroup,
-                                    teacherInitials: getTeacherInitials(teacherForInitials),
-                                    color: color,
-                                });
-                            } else {
-                                let displayValue: string;
-                                if (type === 'class') {
-                                    displayValue = session.teacher;
-                                } else { // type === 'teacher'
-                                    displayValue = session.className;
-                                }
-                                cellContentParts.push({
-                                    subject: session.subject,
-                                    details: displayValue,
-                                    color: color,
-                                });
-                            }
-                        });
-
-                        // Since all in the same slot should have the same option group or be a single subject
-                        // We take the first one for color consistency, but render details for all.
-                        const mainSessionForColor = relevantSessionsForCell[0];
+                    if (cellContents.length > 0) {
                         rowData.push({
-                            raw: cellContentParts,
-                            content: '', // Content is custom drawn
-                            styles: { fillColor: getSubjectColor(mainSessionForColor.subject) }
+                            raw: cellContents,
+                            content: '', // Custom drawn
+                            styles: { fillColor: cellContents[0].color }
                         });
-    
                     } else {
                         rowData.push('');
                     }
@@ -244,65 +237,38 @@ export default function Header() {
             body.push(rowData);
         });
 
-
         autoTable(doc, {
             head: head,
             body: body,
             startY: startY,
             theme: "grid",
-            styles: {
-                fontSize: 8,
-                cellPadding: 1,
-                valign: "middle",
-                halign: "center",
-                lineWidth: 0.1,
-                lineColor: [200, 200, 200],
-                minCellHeight: 12
-            },
-            headStyles: {
-                fillColor: [240, 240, 240],
-                textColor: [50, 50, 50],
-                fontStyle: "bold",
-            },
+            styles: { fontSize: 8, cellPadding: 1, valign: "middle", halign: "center", lineWidth: 0.1, lineColor: [200, 200, 200], minCellHeight: 12 },
+            headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontStyle: "bold" },
             didDrawCell: (data) => {
                 doc.setTextColor(0, 0, 0);
 
                 if (data.section === 'body' && data.cell.raw && Array.isArray(data.cell.raw)) {
-                    const contentParts = data.cell.raw as any[];
-                    // Remove duplicates for option groups to render them once
-                    const uniqueContentParts = contentParts.filter((part, index, self) =>
-                       part.optionGroup ? self.findIndex(p => p.optionGroup === part.optionGroup && p.teacherInitials === part.teacherInitials) === index : true
-                    );
-
-                    const firstPart = uniqueContentParts[0];
-
-                    if (firstPart) {
-                        const cellColor = firstPart.color || [255, 255, 255];
-                        doc.setFillColor(...(cellColor as [number, number, number]));
+                    const contentParts = data.cell.raw as CellContent[];
+                    if (contentParts.length > 0) {
+                        const firstPart = contentParts[0];
+                        doc.setFillColor(...(firstPart.color as [number, number, number]));
                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                         
-                        if (firstPart.optionGroup) {
+                        const textToRender = contentParts.map(p => p.text).join('\n\n');
+                        const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
+                        
+                        if (firstPart.isOptionGroup) {
+                             const [option, initials] = textToRender.split('\n');
                              doc.setFontSize(14);
                              doc.setFont(undefined, 'bold');
-                             doc.text(firstPart.optionGroup, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, {
-                                 halign: 'center'
-                             });
+                             doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, { halign: 'center' });
                              doc.setFontSize(8);
                              doc.setFont(undefined, 'normal');
-                             doc.text(firstPart.teacherInitials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, {
-                                 halign: 'center'
-                             });
-
+                             doc.text(initials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { halign: 'center' });
                         } else {
-                            // Render regular subject format
-                            const content = uniqueContentParts.map(p => `${p.subject}\n${p.details}`).join('\n\n');
-                            const textLines = doc.splitTextToSize(content, data.cell.width - 2);
                             doc.setFontSize(8);
                             doc.setFont(undefined, 'bold');
-                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
-                                halign: 'center',
-                                valign: 'middle'
-                            });
+                            doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
                         }
                     }
                 } else if (data.section === 'body' && data.cell.raw && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('break-cell-')) {
@@ -311,10 +277,7 @@ export default function Header() {
                      if(isCenterCell) {
                         doc.setFontSize(10);
                         doc.setFont(undefined, 'bold');
-                        doc.text(label.replace('-',' '), data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, {
-                            halign: 'center',
-                            valign: 'middle'
-                        });
+                        doc.text(label.replace('-',' '), data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
                      }
                 }
             },

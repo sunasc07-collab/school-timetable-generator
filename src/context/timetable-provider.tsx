@@ -368,13 +368,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
         // 3. Subject per day check: A subject should not be scheduled more than once per day for a class, unless it's a double.
         for (const classToCheck of session.classes) {
-            for (const p of board[day]) {
-                for (const existingSession of p) {
-                    if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
-                        // Allow parts of the same double period, but not separate sessions of the same subject.
-                        if (existingSession.id !== session.id) {
-                            return false;
-                        }
+            const daySessions = board[day].flat();
+            for (const existingSession of daySessions) {
+                if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
+                    // Allow parts of the same double period, but not separate sessions of the same subject.
+                    if (existingSession.id !== session.id) {
+                        return false;
                     }
                 }
             }
@@ -538,7 +537,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
 
   const isConflict = (sessionId: string) => {
-    return activeTimetable?.conflicts.some(c => c.id === sessionId) || false;
+    return false;
   }
   
   return (

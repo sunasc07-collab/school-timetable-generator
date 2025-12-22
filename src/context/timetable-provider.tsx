@@ -275,43 +275,56 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    // Process Optional Subjects
     const optionalGroups = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
+    optionalAssignments.forEach(assign => {
+      assign.grades.forEach(grade => {
+        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+        gradeArms.forEach(arm => {
+          const classKey = `${grade} ${arm}`.trim();
+          const groupKey = `${classKey}-${assign.optionGroup}`;
+          if (!optionalGroups.has(groupKey)) {
+            optionalGroups.set(groupKey, []);
+          }
+          optionalGroups.get(groupKey)!.push(assign);
+        });
+      });
+    });
+
+    const combinedOptionalBlocks = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
     optionalAssignments.forEach(assign => {
         assign.grades.forEach(grade => {
             const key = `${grade}-${assign.optionGroup}`;
-            if (!optionalGroups.has(key)) {
-                optionalGroups.set(key, []);
+            if (!combinedOptionalBlocks.has(key)) {
+                combinedOptionalBlocks.set(key, []);
             }
-            optionalGroups.get(key)!.push(assign);
+            combinedOptionalBlocks.get(key)!.push(assign);
         });
     });
 
-    optionalGroups.forEach((assignments, groupKey) => {
+    combinedOptionalBlocks.forEach((assignments) => {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
-        
         for (let i = 0; i < maxPeriods; i++) {
             const periodBlock: TimetableSession[] = [];
             const allClassNamesInBlock = new Set<string>();
+
             assignments.forEach(assign => {
                 assign.grades.forEach(grade => {
                     const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
                     gradeArms.forEach(arm => {
                         allClassNamesInBlock.add(`${grade} ${arm}`.trim());
-                    })
-                })
-            })
+                    });
+                });
+            });
+            const sessionClasses = Array.from(allClassNamesInBlock);
 
             assignments.forEach(assign => {
                 if (i < assign.periods) {
-                    const sessionClasses = Array.from(allClassNamesInBlock);
-                    
                     periodBlock.push({
                         id: crypto.randomUUID(),
                         subject: assign.subject,
                         teacher: assign.teacher,
-                        className: sessionClasses.join(', '), // for display name
-                        classes: sessionClasses, // for filtering
+                        className: sessionClasses.join(', '),
+                        classes: sessionClasses,
                         isDouble: false,
                         isCore: false,
                         optionGroup: assign.optionGroup
@@ -323,7 +336,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     });
-    
+
     sessionsToPlace.sort((a, b) => {
         const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);
         const sizeB = Array.isArray(b) ? b.length : (('session' in b) ? 2 : 1);
@@ -550,7 +563,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!activeTimetable || !activeTimetable.timetable) return;
+    if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
+        if(activeTimetable && activeTimetable.conflicts.length > 0) {
+            updateTimetable(activeTimetable.id, { conflicts: [] });
+        }
+        return;
+    };
 
     const newConflicts: Conflict[] = [];
     const { timetable } = activeTimetable;
@@ -595,9 +613,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    // Only update if conflicts have actually changed to avoid infinite loops
-    if (JSON.stringify(newConflicts) !== JSON.stringify(activeTimetable.conflicts)) {
-        // updateTimetable(activeTimetable.id, { conflicts: newConflicts });
+    const currentConflicts = activeTimetable.conflicts || [];
+    if (JSON.stringify(newConflicts) !== JSON.stringify(currentConflicts)) {
+        updateTimetable(activeTimetable.id, { conflicts: newConflicts });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTimetable?.timetable]);
@@ -643,3 +661,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

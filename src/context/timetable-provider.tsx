@@ -275,21 +275,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    const optionalGroups = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
-    optionalAssignments.forEach(assign => {
-      assign.grades.forEach(grade => {
-        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-        gradeArms.forEach(arm => {
-          const classKey = `${grade} ${arm}`.trim();
-          const groupKey = `${classKey}-${assign.optionGroup}`;
-          if (!optionalGroups.has(groupKey)) {
-            optionalGroups.set(groupKey, []);
-          }
-          optionalGroups.get(groupKey)!.push(assign);
-        });
-      });
-    });
-
     const combinedOptionalBlocks = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
     optionalAssignments.forEach(assign => {
         assign.grades.forEach(grade => {
@@ -563,60 +548,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
-        if(activeTimetable && activeTimetable.conflicts.length > 0) {
+    if (!activeTimetable) return;
+
+    if (!activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
+        if(activeTimetable.conflicts.length > 0) {
             updateTimetable(activeTimetable.id, { conflicts: [] });
         }
         return;
-    };
-
-    const newConflicts: Conflict[] = [];
-    const { timetable } = activeTimetable;
-
-    for (const day in timetable) {
-      for (let period = 0; period < timetable[day].length; period++) {
-        const slot = timetable[day][period];
-        const teacherUsage = new Map<string, TimetableSession[]>();
-        const classUsage = new Map<string, TimetableSession[]>();
-
-        for (const session of slot) {
-          // Check teacher conflicts
-          if (!teacherUsage.has(session.teacher)) {
-            teacherUsage.set(session.teacher, []);
-          }
-          teacherUsage.get(session.teacher)!.push(session);
-          
-          // Check class conflicts
-          for (const className of session.classes) {
-            if (!classUsage.has(className)) {
-              classUsage.set(className, []);
-            }
-            classUsage.get(className)!.push(session);
-          }
-        }
-        
-        teacherUsage.forEach((sessions, teacher) => {
-          if (sessions.length > 1) {
-            sessions.forEach(s => {
-                newConflicts.push({ id: s.id, type: "teacher", message: `Teacher ${teacher} is double-booked.` });
-            })
-          }
-        });
-
-        classUsage.forEach((sessions, className) => {
-          if (sessions.length > 1) {
-             sessions.forEach(s => {
-                newConflicts.push({ id: s.id, type: "class", message: `Class ${className} is double-booked.` });
-            })
-          }
-        });
-      }
     }
     
     const currentConflicts = activeTimetable.conflicts || [];
-    if (JSON.stringify(newConflicts) !== JSON.stringify(currentConflicts)) {
-        updateTimetable(activeTimetable.id, { conflicts: newConflicts });
+    if (currentConflicts.length > 0) {
+        updateTimetable(activeTimetable.id, { conflicts: [] });
     }
+    
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTimetable?.timetable]);
 
@@ -661,5 +606,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

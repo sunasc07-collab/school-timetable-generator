@@ -262,29 +262,31 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
 
         if (optionGroup) {
-            const uniqueClasses = [...new Set(classNames)];
-            
+             // Create one representative session for the entire assignment
             const representativeSession: TimetableSession = {
                 id: assignmentId, 
                 subject,
                 teacher,
-                className: uniqueClasses.join(', '), 
-                classes: uniqueClasses,
+                className: classNames.join(', '), 
+                classes: classNames,
                 isDouble: false,
                 isCore,
                 optionGroup
             };
 
-            const groupKey = `${grades.join(',')}-${optionGroup}-${subject}-${teacher}`;
+            // Use a key that is unique to the assignment itself
+            const groupKey = `${assignmentId}`; 
             if (!optionGroupsByAssignment.has(groupKey)) {
                 optionGroupsByAssignment.set(groupKey, []);
             }
 
             for(let i=0; i < periods; i++) {
+                // All sessions created here share the same core info, but get a unique ID for placement
                 optionGroupsByAssignment.get(groupKey)!.push({ ...representativeSession, id: `${assignmentId}-${i}` });
             }
             return;
         }
+
 
         classNames.forEach(className => {
             let remainingPeriods = periods;
@@ -309,10 +311,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       }
     });
     
+    // This map will group all sessions that need to be in the same period.
+    // Key: e.g., "Grade 10-A" (Grade-OptionGroup)
     const sessionsByOptionBlock = new Map<string, TimetableSession[]>();
-    optionGroupsByAssignment.forEach((sessions, assignmentKey) => {
-        sessions.forEach(session => {
-            const blockKey = `${session.grades.join(',')}-${session.optionGroup}`;
+    
+    optionGroupsByAssignment.forEach((sessionsFromOneAssignment) => {
+        sessionsFromOneAssignment.forEach(session => {
+            // All classes in this session belong to the same option group.
+            // We use the first class and the option group to define the block.
+            const grade = session.classes[0].split(' ')[0] + " " + session.classes[0].split(' ')[1];
+            const blockKey = `${grade}-${session.optionGroup}`;
+            
             if (!sessionsByOptionBlock.has(blockKey)) {
                 sessionsByOptionBlock.set(blockKey, []);
             }
@@ -362,25 +371,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
         
+        // 1. Teacher Conflict: Check if the teacher is already booked in this slot.
         if (slot.some(s => s.teacher === session.teacher)) {
             return false;
         }
 
+        // 2. Class Conflict: Check if any of the session's classes are already booked.
         for (const c of session.classes) {
-            const sessionsForThisClassInSlot = slot.filter(s => s.classes.includes(c));
-            if (sessionsForThisClassInSlot.length === 0) continue;
-
-            if(session.isCore) return false;
-
-            if (sessionsForThisClassInSlot.some(s => s.isCore)) return false;
-            
-            if(session.optionGroup) {
-                if (sessionsForThisClassInSlot.some(s => s.optionGroup === session.optionGroup)) {
-                    return false;
-                }
+            if (slot.some(s => s.classes.includes(c))) {
+                 return false;
             }
         }
         
+        // 3. Subject per day limit: A class shouldn't have the same subject more than twice a day.
         for (const c of session.classes) {
             const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
             if (subjectsOnDayForClass.length >= 2) {
@@ -420,6 +423,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
                 for (const period of shuffledPeriods) {
+                    // Check if the entire group can be placed in this slot
                     const canPlaceGroup = sessionGroup.every(session => isValidPlacement(board, session, day, period));
                     if (canPlaceGroup) {
                         const newBoard = JSON.parse(JSON.stringify(board));

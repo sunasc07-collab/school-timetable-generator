@@ -150,16 +150,6 @@ export default function Header() {
       return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
     };
 
-    const getArmFromClassName = (className: string) => {
-        const parts = className.split(' ');
-        if (parts.length > 1) {
-            const lastPart = parts[parts.length - 1];
-            // Check if it's a typical arm (e.g., 'A', 'P', 'Primrose')
-            if (lastPart.length < 10) return lastPart;
-        }
-        return '';
-    };
-    
     const periodCount = timeSlots.filter(s => !s.isBreak).length;
 
     listToIterate.forEach((item, index) => {
@@ -192,21 +182,18 @@ export default function Header() {
                         if (session.optionGroup) {
                             const initials = getTeacherInitials(session.teacher);
                             let text = `${session.optionGroup}\n${initials}`;
+                            
                             let relevantClassName = session.className;
-
                             if (type === 'teacher') {
+                                // For teacher view, find which of their assigned classes fall in this option block
                                 const teacherClasses = session.classes.filter(c => {
                                     const teacherAssignments = (item as Teacher).assignments;
                                     return teacherAssignments.some(a => a.subject === session.subject && a.grades.some(g => c.startsWith(g)));
                                 });
                                 if(teacherClasses.length > 0) relevantClassName = teacherClasses.join(', ');
-                            }
-
-                            if (type === 'class') {
-                                const arm = getArmFromClassName(itemName);
-                                if (arm) text += `\n${arm}`;
-                            } else {
                                 text += `\n${relevantClassName}`;
+                            } else { // class view
+                                text += `\n${itemName}`;
                             }
                             
                             const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
@@ -283,7 +270,6 @@ export default function Header() {
             didDrawCell: (data) => {
                 if (data.section !== 'body' || !data.cell.raw || !Array.isArray(data.cell.raw)) return;
                 
-                // Don't custom draw for the time column
                 if (data.column.index === 0) return;
 
                 const contentParts = data.cell.raw as CellContent[];
@@ -293,6 +279,7 @@ export default function Header() {
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     
                     doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
 
                     if (firstPart.isOptionGroup) {
                          const [option, initials, details] = firstPart.text.split('\n');
@@ -303,6 +290,7 @@ export default function Header() {
                          doc.setFont(undefined, 'normal');
                          let detailsY = data.cell.y + data.cell.height / 2 + 6;
                          let initialsY = detailsY - 3;
+                         
                          if (details) {
                             initialsY -= 1;
                          } else {
@@ -496,5 +484,3 @@ export default function Header() {
     </>
   );
 }
-
-    

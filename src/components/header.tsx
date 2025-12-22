@@ -127,7 +127,6 @@ export default function Header() {
     let startY = 20;
 
     const listToIterate = type === 'class' ? classes : teachers;
-    const periodCount = timeSlots.filter(slot => !slot.isBreak).length;
     
     const subjectColorMap = new Map<string, number[]>();
     const pastelColors = [
@@ -190,7 +189,7 @@ export default function Header() {
                                 });
                             }
                         } else {
-                            const details = type === 'class' ? session.teacher : session.className;
+                            const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
                             const text = `${session.subject}\n${details}`;
                             cellContents.push({
                                 text: text,
@@ -266,11 +265,10 @@ export default function Header() {
                         doc.setFillColor(...(firstPart.color as [number, number, number]));
                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                         
-                        // Join all parts for rendering
                         const textToRender = contentParts.map(p => p.text).join('\n\n');
+                        const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
                         
                         if (firstPart.isOptionGroup) {
-                             // For option groups, we expect a single entry per class view.
                              const [option, initials] = firstPart.text.split('\n');
                              doc.setFontSize(14);
                              doc.setFont(undefined, 'bold');
@@ -279,7 +277,6 @@ export default function Header() {
                              doc.setFont(undefined, 'normal');
                              doc.text(initials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { halign: 'center' });
                         } else {
-                            const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
                             doc.setFontSize(8);
                             doc.setFont(undefined, 'bold');
                             doc.text(textLines, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { halign: 'center', valign: 'middle' });
@@ -467,3 +464,5 @@ export default function Header() {
     </>
   );
 }
+
+    

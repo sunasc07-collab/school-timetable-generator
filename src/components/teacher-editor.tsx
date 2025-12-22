@@ -127,19 +127,21 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const hasJuniorSecondary = selectedGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
     const hasSeniorSecondary = Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
 
-    let armOptions = SENIOR_SECONDARY_ARMS;
+    let armOptions: string[] = [];
     let showArms = false;
     if (isSecondary && !hasALevel) {
-        if (hasJuniorSecondary && !hasSeniorSecondary) {
-            armOptions = JUNIOR_SECONDARY_ARMS;
-            showArms = true;
-        } else if (hasSeniorSecondary && !hasJuniorSecondary) {
-            armOptions = SENIOR_SECONDARY_ARMS;
-            showArms = true;
-        } else {
-            // Mixed selection or no selection, don't show arms.
-            showArms = false;
-        }
+      if (hasJuniorSecondary && !hasSeniorSecondary) {
+        armOptions = JUNIOR_SECONDARY_ARMS;
+        showArms = true;
+      } else if (hasSeniorSecondary && !hasJuniorSecondary) {
+        armOptions = SENIOR_SECONDARY_ARMS;
+        showArms = true;
+      } else if (hasSeniorSecondary && hasJuniorSecondary) {
+        showArms = true; // Show for mixed, but options might need adjustment based on context
+        armOptions = [...new Set([...JUNIOR_SECONDARY_ARMS, ...SENIOR_SECONDARY_ARMS])];
+      } else {
+        showArms = false;
+      }
     }
     
     const hideGradesAndArms = isALevelSchool || isNurserySchool;
@@ -326,13 +328,15 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                     />
                     </div>
                     {hasSeniorSecondary && (
-                         <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-4 rounded-md border p-2">
+                          <Label className="text-xs font-medium text-muted-foreground">Senior Secondary Options</Label>
+                          <div className="grid grid-cols-2 gap-2">
                              <FormField
                                  control={control}
                                  name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`}
                                  render={({ field }) => (
                                      <FormItem>
-                                         <FormLabel>Subject Type (Senior Secondary)</FormLabel>
+                                         <FormLabel>Subject Type</FormLabel>
                                          <Select onValueChange={handleSubjectTypeChange} value={field.value}>
                                              <FormControl>
                                                  <SelectTrigger>
@@ -349,6 +353,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                  )}
                              />
                              {subjectType === 'optional' && (
+                              <div className="grid grid-cols-2 gap-2">
                                  <FormField
                                      control={control}
                                      name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
@@ -358,12 +363,12 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                              <Select onValueChange={handleOptionGroupChange} value={field.value || ""}>
                                                  <FormControl>
                                                      <SelectTrigger>
-                                                         <SelectValue placeholder="Select group" />
+                                                         <SelectValue placeholder="Group" />
                                                      </SelectTrigger>
                                                  </FormControl>
                                                  <SelectContent>
                                                      {OPTION_GROUPS.map(group => (
-                                                         <SelectItem key={group} value={group}>Option {group}</SelectItem>
+                                                         <SelectItem key={group} value={group}> {group}</SelectItem>
                                                      ))}
                                                  </SelectContent>
                                              </Select>
@@ -371,12 +376,49 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                          </FormItem>
                                      )}
                                  />
+                                  <FormField
+                                    control={control}
+                                    name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                    render={() => (
+                                      <FormItem>
+                                        <FormLabel>Arms</FormLabel>
+                                        <div className="flex flex-col space-y-2 pt-2">
+                                          {SENIOR_SECONDARY_ARMS.map((arm) => (
+                                            <FormField
+                                              key={arm}
+                                              control={control}
+                                              name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                              render={({ field: checkboxField }) => (
+                                                <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
+                                                  <FormControl>
+                                                    <Checkbox
+                                                      checked={checkboxField.value?.includes(arm)}
+                                                      onCheckedChange={(checked) => {
+                                                        const currentValue = checkboxField.value || [];
+                                                        const newValue = checked
+                                                          ? [...currentValue, arm]
+                                                          : currentValue.filter(value => value !== arm);
+                                                        checkboxField.onChange(newValue);
+                                                      }}
+                                                    />
+                                                  </FormControl>
+                                                  <FormLabel className="font-normal text-sm">{arm}</FormLabel>
+                                                </FormItem>
+                                              )}
+                                            />
+                                          ))}
+                                        </div>
+                                      </FormItem>
+                                    )}
+                                  />
+                              </div>
                              )}
                               {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
+                        </div>
                     )}
-                     <div className={cn("grid grid-cols-1 gap-y-2", hideGradesAndArms && "hidden")}>
+                     <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || hasSeniorSecondary) && "hidden")}>
                         {showArms && (
                             <FormField
                                 control={control}
@@ -770,5 +812,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

@@ -291,6 +291,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
         for (let i = 0; i < maxPeriods; i++) {
             const periodBlock: TimetableSession[] = [];
+            const blockId = `${groupKey}-period-${i + 1}-${crypto.randomUUID()}`;
+
             assignments.forEach(assign => {
                 if (i < assign.periods) {
                     const sessionClasses = assign.grades.flatMap(grade => {
@@ -298,10 +300,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         return gradeArms.map(arm => `${grade} ${arm}`.trim());
                     });
                     
-                    const sessionId = `${groupKey}-period-${i + 1}-${assign.subject}-${crypto.randomUUID()}`;
-
                     periodBlock.push({
-                        id: sessionId,
+                        id: blockId, // All sessions in this block share an ID for this period
                         subject: assign.subject,
                         teacher: assign.teacher,
                         className: sessionClasses.join(', '),
@@ -366,14 +366,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     
-        // 3. Subject per day check: A subject should not be scheduled more than once per day for a class, unless it's a double.
+        // 3. Subject per day check: A subject should not be scheduled more than once per day for a class.
         for (const classToCheck of session.classes) {
-            const daySessions = board[day].flat();
-            for (const existingSession of daySessions) {
-                if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
-                    // Allow parts of the same double period, but not separate sessions of the same subject.
-                    if (existingSession.id !== session.id) {
-                        return false;
+            for (const p of board[day]) {
+                 for (const existingSession of p) {
+                    if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
+                        // Allow parts of the same double period, but not separate sessions.
+                        if (existingSession.id !== session.id) {
+                            return false;
+                        }
                     }
                 }
             }
@@ -417,8 +418,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 // Check if any subject from the group is already on this day for any of the classes
                 const subjectAlreadyOnDay = sessionGroup.some(sess => {
                     return sess.classes.some(c => {
-                        const daySessions = board[day].flat().filter(s => s.classes.includes(c));
-                        return daySessions.some(ds => ds.subject === sess.subject && ds.id !== sess.id);
+                        return board[day].flat().some(ds => ds.classes.includes(c) && ds.subject === sess.subject && ds.id !== sess.id);
                     });
                 });
                 if (subjectAlreadyOnDay) continue;
@@ -528,16 +528,86 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const resolveConflicts = () => {
-    if (!activeTimetable || activeTimetable.conflicts.length === 0) return;
+    if (!activeTimetable || !activeTimetable.conflicts || activeTimetable.conflicts.length === 0) return;
+
+    const newTimetable = JSON.parse(JSON.stringify(activeTimetable.timetable));
+    const conflictIds = new Set(activeTimetable.conflicts.map(c => c.id));
+
+    for (const day in newTimetable) {
+        for (const period of newTimetable[day]) {
+            for (let i = period.length - 1; i >= 0; i--) {
+                if (conflictIds.has(period[i].id)) {
+                    period.splice(i, 1);
+                }
+            }
+        }
+    }
+    updateTimetable(activeTimetable.id, { timetable: newTimetable, conflicts: [] });
   };
 
   useEffect(() => {
-    // Conflict detection is disabled.
-  }, [activeTimetable, updateTimetable]);
+    if (!activeTimetable || !activeTimetable.timetable) return;
+
+    const newConflicts: Conflict[] = [];
+    const timetable = activeTimetable.timetable;
+
+    for (const day in timetable) {
+        for (const period of timetable[day]) {
+            const teacherUsage = new Map<string, TimetableSession[]>();
+            const classUsage = new Map<string, TimetableSession[]>();
+
+            for (const session of period) {
+                // Teacher conflict check
+                if (!teacherUsage.has(session.teacher)) {
+                    teacherUsage.set(session.teacher, []);
+                }
+                teacherUsage.get(session.teacher)!.push(session);
+
+                // Class conflict check
+                for (const className of session.classes) {
+                    if (!classUsage.has(className)) {
+                        classUsage.set(className, []);
+                    }
+                    classUsage.get(className)!.push(session);
+                }
+            }
+
+            teacherUsage.forEach((sessions, teacher) => {
+                if (sessions.length > 1) {
+                    sessions.forEach(session => {
+                        newConflicts.push({
+                            id: session.id,
+                            type: 'teacher',
+                            message: `Teacher ${teacher} is double booked.`,
+                        });
+                    });
+                }
+            });
+
+            classUsage.forEach((sessions, className) => {
+                if (sessions.length > 1) {
+                    sessions.forEach(session => {
+                        newConflicts.push({
+                            id: session.id,
+                            type: 'class',
+                            message: `Class ${className} is double booked.`,
+                        });
+                    });
+                }
+            });
+        }
+    }
+
+    // Only update if conflicts have actually changed
+    if (JSON.stringify(newConflicts) !== JSON.stringify(activeTimetable.conflicts)) {
+        updateTimetable(activeTimetable.id, { conflicts: newConflicts });
+    }
+}, [activeTimetable, updateTimetable]);
 
 
   const isConflict = (sessionId: string) => {
-    return false;
+    if (!activeTimetable || !activeTimetable.conflicts) return false;
+    return activeTimetable.conflicts.some(c => c.id === sessionId);
   }
   
   return (
@@ -575,5 +645,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

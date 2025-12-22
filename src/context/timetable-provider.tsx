@@ -368,8 +368,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         // Prevent same subject for same class more than once per day
         for (const c of session.classes) {
             const subjectsOnDayForClass = board[day].flat().filter(s => s.classes.includes(c) && s.subject === session.subject);
-            if (subjectsOnDayForClass.length > 0) { 
-                return false;
+            // For double periods, we need to check the ID, not just the subject name, to allow the two parts of the *same* double period to exist.
+            if (session.isDouble) {
+                if (subjectsOnDayForClass.some(s => s.id !== session.id)) {
+                    return false;
+                }
+            } else {
+                 if (subjectsOnDayForClass.length > 0) {
+                    return false;
+                }
             }
         }
         
@@ -388,6 +395,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
             for (const day of shuffledDays) {
+                // Check if this subject (identified by session.id) is already on this day
+                 const subjectAlreadyOnDay = board[day].flat().some(s => s.id === session.id);
+                 if (subjectAlreadyOnDay) continue;
+
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
@@ -628,3 +639,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -149,6 +149,16 @@ export default function Header() {
       if (!teacherName) return '';
       return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
     };
+
+    const getArmFromClassName = (className: string) => {
+        const parts = className.split(' ');
+        if (parts.length > 1) {
+            const lastPart = parts[parts.length - 1];
+            // Check if it's a typical arm (e.g., 'A', 'P', 'Primrose')
+            if (lastPart.length < 10) return lastPart;
+        }
+        return '';
+    };
     
     const periodCount = timeSlots.filter(s => !s.isBreak).length;
 
@@ -178,7 +188,14 @@ export default function Header() {
                     if (isRelevant) {
                         if (session.optionGroup) {
                             const initials = getTeacherInitials(session.teacher);
-                            const text = `${session.optionGroup}\n${initials}`;
+                            let text = `${session.optionGroup}\n${initials}`;
+                            if (type === 'class') {
+                                const arm = getArmFromClassName(itemName);
+                                if (arm) {
+                                    text += `\n${arm}`;
+                                }
+                            }
+                            
                             const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
                             if (!existing) { 
                                 cellContents.push({
@@ -267,13 +284,20 @@ export default function Header() {
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     
                     if (firstPart.isOptionGroup) {
-                         const [option, initials] = firstPart.text.split('\n');
+                         const [option, initials, arm] = firstPart.text.split('\n');
                          doc.setFontSize(14);
                          doc.setFont(undefined, 'bold');
-                         doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 1, { halign: 'center' });
+                         doc.text(option, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 2, { halign: 'center' });
                          doc.setFontSize(8);
                          doc.setFont(undefined, 'normal');
-                         doc.text(initials, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { halign: 'center' });
+                         let initialsY = data.cell.y + data.cell.height / 2 + 3;
+                         if (arm) {
+                            initialsY -= 1;
+                         }
+                         doc.text(initials, data.cell.x + data.cell.width / 2, initialsY, { halign: 'center' });
+                         if (arm) {
+                            doc.text(arm, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 6, { halign: 'center' });
+                         }
                     } else {
                         const textToRender = contentParts.map(p => p.text).join('\n\n');
                         const textLines = doc.splitTextToSize(textToRender, data.cell.width - 2);
@@ -455,5 +479,3 @@ export default function Header() {
     </>
   );
 }
-
-    

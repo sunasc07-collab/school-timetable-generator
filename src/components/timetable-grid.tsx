@@ -132,7 +132,7 @@ export default function TimetableGrid() {
         <div className="space-y-1">
         {relevantSessions.map(session => (
             <TimetableItem
-              key={`${session.id}-${session.part || ''}`}
+              key={`${session.id}-${session.part || ''}-${session.className}`}
               session={session}
               isConflict={isConflict(session.id)}
               from={{ day, period }}
@@ -359,3 +359,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

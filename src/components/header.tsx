@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -144,6 +145,16 @@ export default function Header() {
       return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
     };
 
+    const getSubjectInitials = (subject: string) => {
+      if (!subject) return '';
+      return subject.substring(0, 3).toUpperCase();
+    };
+
+    const getClassInitials = (className: string) => {
+      if (!className) return '';
+      return className.substring(0, 2).toUpperCase();
+    };
+
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
         if (index > 0) {
@@ -154,7 +165,7 @@ export default function Header() {
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
         doc.text(itemTitle, 14, startY - 5);
 
-        const head = [['Time', ...days]];
+        const head = [['Time', ...days.map(d => d.toUpperCase())]];
         const body: any[][] = [];
         let periodIdxCounter = 0;
 
@@ -196,7 +207,7 @@ export default function Header() {
             startY: startY,
             theme: "grid",
             styles: { fontSize: 8, cellPadding: 1, valign: "middle", halign: "center", lineWidth: 0.1, lineColor: [200, 200, 200], minCellHeight: 15 },
-            headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontStyle: "bold" },
+            headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontStyle: "bold", halign: 'center' },
             didDrawCell: (data) => {
                 if (data.section !== 'body' || !data.cell.raw || !Array.isArray(data.cell.raw)) return;
                 
@@ -223,12 +234,10 @@ export default function Header() {
                     doc.setTextColor(0, 0, 0);
                     doc.setFont(undefined, 'normal');
 
-                    let textLines: string[] = [];
-
                     if (session.optionGroup) {
-                         const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
+                         const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
                          const optionText = `${session.optionGroup}`;
-                         const subjectText = `${session.subject}`;
+                         const subjectText = `${getSubjectInitials(session.subject)}`;
                          const detailsText = `${details}`;
                         
                          doc.setFontSize(10);
@@ -240,8 +249,8 @@ export default function Header() {
                          doc.text(subjectText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 2, { halign: 'center' });
                          doc.text(detailsText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 5, { halign: 'center' });
                     } else {
-                        const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
-                        const subjectText = `${session.subject}`;
+                        const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
+                        const subjectText = `${getSubjectInitials(session.subject)}`;
                         const detailsText = `${details}`;
 
                         doc.setFontSize(8);
@@ -426,3 +435,5 @@ export default function Header() {
     </>
   );
 }
+
+    

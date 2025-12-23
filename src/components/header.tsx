@@ -149,7 +149,10 @@ export default function Header() {
 
     const getSubjectInitials = (subject: string) => {
       if (!subject) return '';
-      return subject.substring(0, 3).toUpperCase();
+      if (subject.toLowerCase().startsWith("option")) {
+        return subject.replace("Option", "Opt");
+      }
+      return subject.substring(0, 3);
     };
 
     const getClassInitials = (className: string) => {
@@ -228,11 +231,17 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                        const optionText = `${session.subject}`;
+                        const optionText = getSubjectInitials(session.subject);
                         const actualSubjectText = getSubjectInitials(session.actualSubject || '');
                         const teacherInitials = getTeacherInitials(session.teacher);
                         const classInitials = getClassInitials(session.className);
-                        const details = type === 'class' ? teacherInitials : classInitials;
+                        
+                        let details = '';
+                        if (type === 'class') {
+                           details = `${actualSubjectText} (${teacherInitials})`;
+                        } else {
+                           details = `${actualSubjectText} (${classInitials})`;
+                        }
 
                         doc.setFontSize(10);
                         doc.setFont(undefined, 'bold');
@@ -240,7 +249,8 @@ export default function Header() {
                         
                         doc.setFontSize(7);
                         doc.setFont(undefined, 'normal');
-                        doc.text(`${actualSubjectText} (${details})`, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
+                        doc.text(details, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
+
                     } else {
                         const subjectText = getSubjectInitials(session.subject);
                         const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
@@ -427,5 +437,7 @@ export default function Header() {
     </>
   );
 }
+
+    
 
     

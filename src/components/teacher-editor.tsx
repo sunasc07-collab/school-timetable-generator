@@ -724,7 +724,7 @@ export default function TeacherEditor() {
     Object.values(activeTimetable.timetable).forEach(day => {
         day.forEach(period => {
             period.forEach(session => {
-                if (session.teacher === teacher.name && session.subject !== 'Assembly' && session.subject !== 'Sports') {
+                if (session.teacherId === teacher.id && session.subject !== 'Assembly' && session.subject !== 'Sports') {
                     count++;
                 }
             });
@@ -882,3 +882,4 @@ export default function TeacherEditor() {
     
 
     
+

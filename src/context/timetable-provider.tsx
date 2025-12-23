@@ -354,7 +354,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         });
     });
-
+    
     const optionalGroups = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
     optionalAssignments.forEach(a => {
         a.grades.forEach(grade => {
@@ -369,27 +369,24 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     optionalGroups.forEach((assignmentsInGroup) => {
         const firstAssignment = assignmentsInGroup[0];
         const optionGroupName = firstAssignment.optionGroup!;
-        const grade = firstAssignment.grades[0];
         const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
 
         for (let i = 0; i < maxPeriods; i++) {
             const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
-            const classesInBlock = new Set<string>();
 
             assignmentsInGroup.forEach(assignment => {
                  if (i < assignment.periods) {
                     const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
                     arms.forEach(arm => {
-                        const className = `${grade} ${arm}`.trim();
+                        const className = `${firstAssignment.grades[0]} ${arm}`.trim();
                         classSet.add(className);
-                        classesInBlock.add(className);
 
                         if (teachersInBlock.has(assignment.teacherId!)) {
                             const conflictId = `${blockId}-${assignment.teacherId}`;
                             if (!newConflicts.some(c => c.id === conflictId)) {
-                                newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for ${grade}.` });
+                                newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for ${firstAssignment.grades[0]}.` });
                             }
                             return; 
                         }
@@ -402,7 +399,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                             teacher: assignment.teacherName,
                             teacherId: assignment.teacherId,
                             className: className,
-                            classes: [className],
+                            classes: [], // Will be populated later
                             isDouble: false,
                             optionGroup: optionGroupName,
                         });
@@ -410,13 +407,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             });
 
-            if (newConflicts.some(c => c.id.startsWith(blockId))) return;
+            if (newConflicts.some(c => c.id.startsWith(blockId))) continue;
 
             if (blockSessions.length > 0) {
-                 const allBlockClasses = Array.from(classesInBlock);
-                 const commonId = blockSessions[0].id;
-                 const sessionsWithAllClasses = blockSessions.map(s => ({...s, classes: allBlockClasses, id: commonId }));
-                optionBlocks.push({ id: commonId, sessions: sessionsWithAllClasses, optionGroup: optionGroupName });
+                const allBlockClasses = [...new Set(assignmentsInGroup.flatMap(a => (a.arms && a.arms.length > 0) ? a.arms.map(arm => `${firstAssignment.grades[0]} ${arm}`.trim()) : [`${firstAssignment.grades[0]}`.trim()]))];
+                const sessionsWithAllClasses = blockSessions.map(s => ({...s, classes: allBlockClasses }));
+                optionBlocks.push({ id: blockId, sessions: sessionsWithAllClasses, optionGroup: optionGroupName });
             }
         }
     });
@@ -454,7 +450,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     return false;
                 }
                 
-                for (let i = 0; i < p; i++) {
+                // Check if this subject has already been taught to this class today in a *filled* slot
+                for (let i = 0; i < period; i++) {
                     const existingPeriod = board[day][i];
                     if (existingPeriod.some(existingSession => 
                         existingSession.classes.includes(className) &&
@@ -673,5 +670,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
 
     

@@ -293,7 +293,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     const optionBlocks: OptionBlockUnit[] = [];
     const optionalAssignments = allRequiredAssignments.filter(a => a.optionGroup);
-
+    
     const groupedOptions = optionalAssignments.reduce((acc, assignment) => {
         const grade = assignment.grades[0] || 'all_grades';
         const key = `${assignment.schoolId}-${assignment.optionGroup}-${grade}`;
@@ -306,43 +306,45 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     Object.values(groupedOptions).forEach(assignments => {
         if (assignments.length === 0) return;
+
         const maxPeriods = Math.max(0, ...assignments.map(a => a.periods));
         const groupDetails = assignments[0];
-        
+        const grade = groupDetails.grades[0] || 'all_grades';
+
+        const classesInGroup = [...new Set(assignments.flatMap(a => a.className ? [a.className] : []))];
+
         for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = crypto.randomUUID();
             const teachersInBlock = new Set<string>();
-            const classesInBlock = new Set<string>();
             let blockSessions: TimetableSession[] = [];
             
             assignments.forEach(assignment => {
-                if(assignment.periods <= periodIndex) return;
+                if (assignment.periods <= periodIndex) return;
 
                 if (teachersInBlock.has(assignment.teacher)) {
-                    const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} is double-booked.`;
-                    if (assignment.id) {
-                      const existingConflict = newConflicts.find(c => c.id === assignment.id);
-                      if (!existingConflict) {
-                        newConflicts.push({ id: assignment.id, type: 'teacher', message: conflictMessage });
-                      }
-                    }
-                    return; // Skip this assignment for this block
+                     const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} is double-booked for grade ${grade}.`;
+                     if (assignment.id) {
+                         const existingConflict = newConflicts.find(c => c.id === assignment.id);
+                         if (!existingConflict) {
+                             newConflicts.push({ id: assignment.id, type: 'teacher', message: conflictMessage });
+                         }
+                     }
+                     return; // Skip this assignment for this block
                 }
                 teachersInBlock.add(assignment.teacher);
-                classesInBlock.add(assignment.className);
 
                 blockSessions.push({
                     id: blockId,
                     subject: `Option ${assignment.optionGroup}`,
                     actualSubject: assignment.subject,
                     teacher: assignment.teacher,
-                    className: assignment.className, 
+                    className: assignment.className,
                     classes: [assignment.className],
                     isDouble: false,
                     optionGroup: assignment.optionGroup,
                 });
             });
-
+            
             if (blockSessions.length > 0) {
                  optionBlocks.push({
                     id: blockId,
@@ -352,7 +354,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     });
-
 
     const sessionsToPlace: PlacementUnit[] = [...doubleSessions, ...singleSessions, ...optionBlocks];
     const sortedClasses = Array.from(classSet).sort();
@@ -450,8 +451,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return [false, board];
     }
     
+    const conflictingAssignmentIds = new Set(newConflicts.map(c => c.id));
+    const validSessionsToPlace = sessionsToPlace.filter(unit => {
+        if ('sessions' in unit) {
+            unit.sessions = unit.sessions.filter(s => {
+                const assignment = optionalAssignments.find(oa => oa.teacher === s.teacher && oa.className === s.className);
+                return !conflictingAssignmentIds.has(assignment?.id || '');
+            });
+            return unit.sessions.length > 0;
+        }
+        return true;
+    });
+
     let boardCopy = JSON.parse(JSON.stringify(newTimetable));
-    const [isSolved, solvedBoard] = solve(boardCopy, sessionsToPlace);
+    const [isSolved, solvedBoard] = solve(boardCopy, validSessionsToPlace);
     
     if (!isSolved) {
         newConflicts.push({ id: 'solver-fail', type: 'class', message: 'Could not generate a valid timetable. Check for too many constraints.' });

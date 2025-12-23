@@ -105,7 +105,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const updateTimetable = useCallback((timetableId: string, updates: Partial<Timetable>) => {
       setTimetables(prev => prev.map(t => t.id === timetableId ? { ...t, ...updates } : t));
   }, [setTimetables]);
-
+  
   const findConflicts = useCallback((timetableData: TimetableData, timetableId: string) => {
     const currentTT = timetables.find(t => t.id === timetableId);
     if (!currentTT || !timetableData || Object.keys(timetableData).length === 0) {
@@ -126,10 +126,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const classClashes = new Map<string, TimetableSession[]>();
 
             for (const session of slot) {
-                // For option groups, a teacher might be booked, but it's not a clash within the group itself
-                // Teacher clashes are checked across different groups or single sessions in the same slot.
                 if (teacherClashes.has(session.teacher)) {
-                    // Check if it's the same option group ID. If so, it's not a clash.
                     const existingSessions = teacherClashes.get(session.teacher)!;
                     const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
                     if (!isSameOptionBlock) {
@@ -376,77 +373,57 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             singleSessions.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher.name, className: req.className, classes: [req.className], isDouble: false, isCore: req.isCore, teacherId: req.teacher.id });
         }
     });
-
+    
     const optionalAssignments = allRequiredAssignments.filter(a => a.optionGroup);
     const groupedOptions = optionalAssignments.reduce((acc, assignment) => {
-        const gradeKey = assignment.grades[0] || 'nograde';
-        const key = `${assignment.schoolId}-${assignment.optionGroup}-${gradeKey}`;
+        const key = `${assignment.schoolId}-${assignment.optionGroup}-${assignment.grades[0]}`;
         if (!acc[key]) acc[key] = [];
         acc[key].push(assignment);
         return acc;
     }, {} as Record<string, typeof optionalAssignments>);
     
-    for (const groupKey in groupedOptions) {
-        const assignmentsInGroup = groupedOptions[groupKey];
-        if (assignmentsInGroup.length === 0) continue;
-        
+    Object.values(groupedOptions).forEach(assignmentsInGroup => {
+        if (assignmentsInGroup.length === 0) return;
+
         const groupDetails = assignmentsInGroup[0];
         const optionGroupName = groupDetails.optionGroup!;
-
-        const maxPeriods = Math.max(0, ...assignmentsInGroup.map(a => a.periods));
         
-        for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
-            const blockId = `option-block-${groupKey}-${periodIndex}-${crypto.randomUUID()}`;
+        // Calculate the max periods for THIS grade-specific option group
+        const maxPeriods = Math.max(0, ...assignmentsInGroup.map(a => a.periods));
+
+        for (let i = 0; i < maxPeriods; i++) {
+            const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
-            const teachersInThisBlock = new Set<string>();
-            const classesInThisBlock = new Set<string>();
+            const teachersInBlock = new Set<string>();
 
             for (const assignment of assignmentsInGroup) {
-                if (teachersInThisBlock.has(assignment.teacher.id)) {
+                 if (teachersInBlock.has(assignment.teacher.id)) {
                     newConflicts.push({ id: assignment.id || blockId, type: 'teacher', message: `Pre-solver conflict: Teacher ${assignment.teacher.name} is double-booked within Option Group ${optionGroupName} for ${assignment.className}.` });
                     continue;
                 }
-                
-                const participatingClasses = assignment.arms.length > 0
-                    ? assignment.arms.map(arm => `${assignment.grades[0]} ${arm}`.trim())
-                    : [`${assignment.grades[0]}`.trim()];
+                teachersInBlock.add(assignment.teacher.id);
 
-                for (const pClass of participatingClasses) {
-                   if (classesInThisBlock.has(pClass)) {
-                        newConflicts.push({ id: assignment.id || blockId, type: 'class', message: `Pre-solver conflict: Class ${pClass} has multiple subjects in Option Group ${optionGroupName}.` });
-                        continue; 
-                    }
-                    classesInThisBlock.add(pClass);
-
-                    blockSessions.push({
-                        id: blockId,
-                        subject: `Option ${optionGroupName}`,
-                        actualSubject: assignment.subject,
-                        teacher: assignment.teacher.name,
-                        teacherId: assignment.teacher.id,
-                        className: pClass,
-                        classes: [pClass],
-                        isDouble: false,
-                        optionGroup: optionGroupName,
-                    });
-                }
-                 teachersInThisBlock.add(assignment.teacher.id);
-            }
-            
-            if (blockSessions.length > 0) {
-                 optionBlocks.push({
+                blockSessions.push({
                     id: blockId,
-                    sessions: blockSessions,
+                    subject: `Option ${optionGroupName}`,
+                    actualSubject: assignment.subject,
+                    teacher: assignment.teacher.name,
+                    teacherId: assignment.teacher.id,
+                    className: assignment.className,
+                    classes: [assignment.className],
+                    isDouble: false,
                     optionGroup: optionGroupName,
-                 });
+                });
+            }
+            if (blockSessions.length > 0) {
+                optionBlocks.push({ id: blockId, sessions: blockSessions, optionGroup: optionGroupName });
             }
         }
-    }
-    
+    });
+
     // --- 4. Prepare for Solver ---
     const sessionsToPlace: PlacementUnit[] = [...doubleSessions, ...singleSessions, ...optionBlocks];
     
-    // SMART SORTING: Place most constrained items first
     sessionsToPlace.sort((a, b) => {
         const score = (unit: PlacementUnit) => {
             if ('sessions' in unit) return 3; // Option block
@@ -691,3 +668,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

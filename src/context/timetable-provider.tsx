@@ -234,14 +234,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
   
   const generateTimetable = useCallback(() => {
-    console.log("--- TIMETABLE GENERATION STARTED ---");
-    if (!activeTimetable) {
-      console.error("DEBUG: No active timetable. Aborting.");
-      return;
-    }
+    if (!activeTimetable) return;
 
     const activeTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
-    console.log(`DEBUG: Found ${activeTeachers.length} active teachers for school ${activeTimetable.name}`);
     const { timeSlots, days, name: schoolName, id: schoolId } = activeTimetable;
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
     let newConflicts: Conflict[] = [];
@@ -271,8 +266,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    console.log(`DEBUG: Total required assignments (flattened for each class/arm): ${allRequiredAssignments.length}`, allRequiredAssignments);
-
     const singleSessions: SingleSessionUnit[] = [];
     const doubleSessions: DoubleSessionUnit[] = [];
     const nonOptionalAssignments = allRequiredAssignments.filter(a => !a.optionGroup);
@@ -294,21 +287,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    console.log(`DEBUG: Created ${singleSessions.length} single sessions and ${doubleSessions.length} double sessions for non-optional subjects.`);
-
     // --- 3. Create Option Blocks ---
     const optionBlocks: OptionBlockUnit[] = [];
     const optionalAssignments = allRequiredAssignments.filter(a => a.optionGroup);
 
     const groupedOptions = optionalAssignments.reduce((acc, assignment) => {
-        // Group by school, option group name
         const key = `${assignment.schoolId}-${assignment.optionGroup}`;
         if (!acc[key]) acc[key] = [];
         acc[key].push(assignment);
         return acc;
     }, {} as Record<string, typeof optionalAssignments>);
 
-    console.log(`DEBUG: Grouped optional assignments by school and group name:`, groupedOptions);
 
     for (const groupKey in groupedOptions) {
         const assignmentsInGroup = groupedOptions[groupKey];
@@ -317,41 +306,34 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const groupDetails = assignmentsInGroup[0];
         const optionGroupName = groupDetails.optionGroup!;
 
-        // Determine max periods for this group
         const maxPeriods = Math.max(0, ...assignmentsInGroup.map(a => a.periods));
-        console.log(`DEBUG: Processing Option Group '${optionGroupName}' for a total of ${maxPeriods} periods.`);
 
         for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = `option-block-${optionGroupName}-${periodIndex}-${crypto.randomUUID()}`;
-            console.log(`DEBUG: Creating Block ${periodIndex + 1}/${maxPeriods} for group '${optionGroupName}' with ID ${blockId}`);
             
             const blockSessions: TimetableSession[] = [];
             const teachersInThisBlock = new Set<string>();
             const classesInThisBlock = new Set<string>();
 
             for (const assignment of assignmentsInGroup) {
-                // Only add a session for this teacher if they are supposed to teach in this period instance
                 if (assignment.periods > periodIndex) {
                     
-                    // PRE-SOLVER CONFLICT CHECK
                     if (teachersInThisBlock.has(assignment.teacher)) {
                         const conflictMsg = `Pre-solver conflict: Teacher ${assignment.teacher} is double-booked within Option Group ${optionGroupName} for this period.`;
-                        console.warn("DEBUG: " + conflictMsg);
                         newConflicts.push({ id: assignment.id || blockId, type: 'teacher', message: conflictMsg });
-                        continue; // Skip adding this conflicting session
+                        continue;
                     }
                     if (classesInThisBlock.has(assignment.className)) {
                         const conflictMsg = `Pre-solver conflict: Class ${assignment.className} has multiple subjects in Option Group ${optionGroupName} for this period.`;
-                        console.warn("DEBUG: " + conflictMsg);
                         newConflicts.push({ id: assignment.id || blockId, type: 'class', message: conflictMsg });
-                        continue; // Skip adding this conflicting session
+                        continue; 
                     }
                     
                     teachersInThisBlock.add(assignment.teacher);
                     classesInThisBlock.add(assignment.className);
 
                     blockSessions.push({
-                        id: blockId, // All sessions in a block share an ID
+                        id: blockId,
                         subject: `Option ${optionGroupName}`,
                         actualSubject: assignment.subject,
                         teacher: assignment.teacher,
@@ -364,22 +346,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
             
             if (blockSessions.length > 0) {
-                 console.log(`DEBUG: Block ${periodIndex + 1} has ${blockSessions.length} sessions. Adding to optionBlocks array.`, blockSessions);
                  optionBlocks.push({
                     id: blockId,
                     sessions: blockSessions,
                     optionGroup: optionGroupName,
                  });
-            } else {
-                 console.warn(`DEBUG: Created an empty option block for group ${optionGroupName}, period ${periodIndex}. This may indicate differing period counts.`);
             }
         }
     }
-    console.log(`DEBUG: Finished creating ${optionBlocks.length} option blocks.`, optionBlocks);
     
     // --- 4. Prepare for Solver ---
     const sessionsToPlace: PlacementUnit[] = [...doubleSessions, ...singleSessions, ...optionBlocks];
-    console.log(`DEBUG: Total units to place in solver: ${sessionsToPlace.length}`, sessionsToPlace);
     const sortedClasses = Array.from(classSet).sort();
     
     const newTimetable: TimetableData = {};
@@ -392,7 +369,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const checkSession = (session: TimetableSession, p: number) => {
             const slot = board[day]?.[p];
             if (!slot) {
-                console.warn(`DEBUG: [isValidPlacement] Invalid slot [${day}, ${p}].`);
                 return false;
             }
 
@@ -403,7 +379,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 return false; // Class clash
             }
             
-            // Check if the same class has the same subject already on this day
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession =>
                   existingSession.className === session.className &&
@@ -435,11 +410,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (depth > maxDepth) maxDepth = depth;
 
         if (solveCounter > 500000) { 
-             console.error("DEBUG: SOLVER TIMEOUT. Exceeded max iterations. Aborting.");
              return [false, board, depth];
         }
         if (units.length === 0) {
-            console.log("DEBUG: SOLVER SUCCESS! All units placed.");
             return [true, board, depth];
         }
 
@@ -480,14 +453,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return [false, board, depth];
     }
     
-    console.log("--- CALLING SOLVER ---");
     let boardCopy = JSON.parse(JSON.stringify(newTimetable));
     const [isSolved, solvedBoard, finalDepth] = solve(boardCopy, sessionsToPlace, 0);
-    console.log(`--- SOLVER FINISHED --- Success: ${isSolved}`);
-    console.log(`Solver reached depth ${finalDepth}/${sessionsToPlace.length}. Placed ${finalDepth} out of ${sessionsToPlace.length} units.`);
     
     if (!isSolved) {
-        console.error("DEBUG: Solver failed to find a solution. The constraints may be too high or there's a logic error in placement rules.");
         newConflicts.push({ id: 'solver-fail', type: 'class', message: `Could not generate a valid timetable. Only ${finalDepth}/${sessionsToPlace.length} session blocks could be placed. Check for too many constraints or conflicting assignments.` });
         updateTimetable(activeTimetable.id, { timetable: {}, conflicts: newConflicts, classes: [] });
         return;
@@ -525,7 +494,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    console.log("--- TIMETABLE GENERATION COMPLETE --- Updating state.");
     updateTimetable(activeTimetable.id, { 
         timetable: finalTimetable || {},
         classes: sortedClasses,
@@ -647,5 +615,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

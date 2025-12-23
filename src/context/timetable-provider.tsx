@@ -44,8 +44,6 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 8, time: '13:40-14:20' },
     { period: 9, time: '14:20-15:00' },
 ];
-const JUNIOR_SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9"];
-const SENIOR_SECONDARY_GRADES = ["Grade 10", "Grade 11", "Grade 12"];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
@@ -89,10 +87,10 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
 type PlacementUnit = TimetableSession | TimetableSession[] | { session: TimetableSession; partner: TimetableSession };
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v12", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v12", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v12", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v12', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v13", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v13", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v13", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v13', 'class');
   
   useEffect(() => {
     setTimetables(prev => 
@@ -166,84 +164,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const processTeacherData = (teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
-    const processedAssignments: SubjectAssignment[] = [];
-    const assignmentsToProcess = teacherData.assignments || [];
-
-    assignmentsToProcess.forEach(formAssignment => {
-        const { grades = [], subjectType, isCore, optionGroup, arms, ...restOfAssignment } = formAssignment;
-
-        const hasSenior = grades.some(g => SENIOR_SECONDARY_GRADES.includes(g));
-        const hasJunior = grades.some(g => JUNIOR_SECONDARY_GRADES.includes(g));
-        const nonSecondaryGrades = grades.filter(g => !SENIOR_SECONDARY_GRADES.includes(g) && !JUNIOR_SECONDARY_GRADES.includes(g));
-
-        // Handle Senior Secondary Grades
-        if (hasSenior) {
-            const seniorGrades = grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
-            processedAssignments.push({
-                ...restOfAssignment,
-                id: restOfAssignment.id || crypto.randomUUID(),
-                grades: seniorGrades,
-                arms: arms || [],
-                isCore: subjectType === 'core',
-                optionGroup: subjectType === 'optional' ? optionGroup : null,
-            });
-        }
-        
-        // Handle Junior Secondary Grades
-        if (hasJunior) {
-             const juniorGrades = grades.filter(g => JUNIOR_SECONDARY_GRADES.includes(g));
-            processedAssignments.push({
-                ...restOfAssignment,
-                id: crypto.randomUUID(),
-                grades: juniorGrades,
-                arms: arms || [],
-                isCore: false, 
-                optionGroup: null, 
-            });
-        }
-        
-        // Handle other grades (Primary, etc.)
-        if (nonSecondaryGrades.length > 0) {
-            processedAssignments.push({
-                ...restOfAssignment,
-                id: crypto.randomUUID(),
-                grades: nonSecondaryGrades,
-                arms: [],
-                isCore: false,
-                optionGroup: null,
-            });
-        }
-    });
-
-    // Merge assignments that are identical after processing
-    const mergedAssignments: SubjectAssignment[] = [];
-    processedAssignments.forEach(assignment => {
-        const existing = mergedAssignments.find(merged => 
-            merged.subject === assignment.subject &&
-            merged.periods === assignment.periods &&
-            merged.schoolId === assignment.schoolId &&
-            merged.isCore === assignment.isCore &&
-            merged.optionGroup === assignment.optionGroup &&
-            JSON.stringify(merged.arms.sort()) === JSON.stringify(assignment.arms.sort())
-        );
-        if (existing) {
-            existing.grades = [...new Set([...existing.grades, ...assignment.grades])].sort();
-        } else {
-            mergedAssignments.push({ ...assignment });
-        }
-    });
-
-    return {
-        ...teacherData,
-        assignments: mergedAssignments,
-    };
-  };
-
-  const addTeacher = useCallback((teacherData: Omit<Teacher, 'id' | 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
+  const addTeacher = useCallback((teacherData: Omit<Teacher, 'id'>) => {
     const newTeacher: Teacher = {
         id: crypto.randomUUID(),
-        ...processTeacherData(teacherData),
+        ...teacherData,
     };
     setAllTeachers(prev => [...prev, newTeacher]);
     const schoolIds = new Set(newTeacher.assignments.map(a => a.schoolId));
@@ -252,15 +176,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
   }, [setAllTeachers, resetTimetableForSchool]);
 
-  const updateTeacher = useCallback((teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
+  const updateTeacher = useCallback((teacherData: Teacher) => {
     const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
-    const updatedTeacher = processTeacherData(teacherData);
     
     const schoolIdsToReset = new Set<string>();
-    updatedTeacher.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
+    teacherData.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
     oldTeacher?.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
 
-    setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? updatedTeacher as Teacher : t));
+    setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
 
     schoolIdsToReset.forEach(schoolId => {
        resetTimetableForSchool(schoolId);
@@ -325,33 +248,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const sessionsToPlace: PlacementUnit[] = [];
     const classSet = new Set<string>();
 
-    // Process core and non-optional subjects first
+    // Process non-optional subjects first
     const coreAssignments = allRequiredSessions.filter(req => !req.optionGroup);
     coreAssignments.forEach(req => {
-        req.grades.forEach(grade => {
-            const gradeArms = req.arms && req.arms.length > 0 ? req.arms : [''];
-            gradeArms.forEach(arm => {
-                const className = `${grade} ${arm}`.trim();
-                classSet.add(className);
-                let remainingPeriods = req.periods;
-                while (remainingPeriods >= 2) {
-                    const doubleId = crypto.randomUUID();
-                    const sessionPart1: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 1, isCore: req.isCore, optionGroup: req.optionGroup };
-                    const sessionPart2: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 2, isCore: req.isCore, optionGroup: req.optionGroup };
-                    sessionsToPlace.push({ session: sessionPart1, partner: sessionPart2 });
-                    remainingPeriods -= 2;
-                }
-                for (let i = 0; i < remainingPeriods; i++) {
-                    sessionsToPlace.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: false, isCore: req.isCore, optionGroup: req.optionGroup });
-                }
-            });
-        });
+        const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
+        classSet.add(className);
+        let remainingPeriods = req.periods;
+        while (remainingPeriods >= 2) {
+            const doubleId = crypto.randomUUID();
+            const sessionPart1: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 1, isCore: req.isCore, optionGroup: req.optionGroup };
+            const sessionPart2: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 2, isCore: req.isCore, optionGroup: req.optionGroup };
+            sessionsToPlace.push({ session: sessionPart1, partner: sessionPart2 });
+            remainingPeriods -= 2;
+        }
+        for (let i = 0; i < remainingPeriods; i++) {
+            sessionsToPlace.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: false, isCore: req.isCore, optionGroup: req.optionGroup });
+        }
     });
 
     // Process optional subjects
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
     const optionGroups = new Map<string, { maxPeriods: number; assignments: (SubjectAssignment & { teacher: string })[] }>();
-
+    
     optionalAssignments.forEach(assign => {
       const group = assign.optionGroup!;
       if (!optionGroups.has(group)) {
@@ -367,32 +285,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     optionGroups.forEach((groupData, groupName) => {
       for (let i = 0; i < groupData.maxPeriods; i++) {
         const block: TimetableSession[] = [];
-        const classesInBlock = new Set<string>();
-
+        
         groupData.assignments.forEach(assign => {
           if (i < assign.periods) {
-            assign.grades.forEach(grade => {
-              const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-              gradeArms.forEach(arm => {
-                const className = `${grade} ${arm}`.trim();
-                classSet.add(className);
-                
-                // Ensure each class is only added once per block
-                if (!classesInBlock.has(className)) {
-                  block.push({
-                    id: crypto.randomUUID(),
-                    subject: `Option ${groupName}`,
-                    actualSubject: assign.subject,
-                    teacher: assign.teacher,
-                    className: className,
-                    classes: [className],
-                    isDouble: false,
-                    isCore: assign.isCore,
-                    optionGroup: assign.optionGroup,
-                  });
-                  classesInBlock.add(className);
-                }
-              });
+            const className = `${assign.grades[0]} ${assign.arms[0] || ''}`.trim();
+            classSet.add(className);
+            
+            block.push({
+              id: crypto.randomUUID(),
+              subject: `Option ${groupName}`,
+              actualSubject: assign.subject,
+              teacher: assign.teacher,
+              className: className,
+              classes: [className],
+              isDouble: false,
+              isCore: assign.isCore,
+              optionGroup: assign.optionGroup,
             });
           }
         });

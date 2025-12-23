@@ -569,6 +569,57 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   );
 };
 
+const processTeacherData = (teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
+    const processedAssignments: SubjectAssignment[] = [];
+    
+    teacherData.assignments.forEach(formAssignment => {
+        const { grades = [], arms = [], ...restOfAssignment } = formAssignment;
+
+        if (grades.length === 0) {
+             processedAssignments.push({
+                ...restOfAssignment,
+                id: restOfAssignment.id || crypto.randomUUID(),
+                grades: [],
+                arms: [],
+             } as SubjectAssignment);
+             return;
+        }
+
+        grades.forEach(grade => {
+            const isSecondary = [...JUNIOR_SECONDARY_GRADES, ...SENIOR_SECONDARY_GRADES].includes(grade);
+            
+            if (isSecondary && arms.length > 0) {
+                arms.forEach(arm => {
+                    const newAssignment: SubjectAssignment = {
+                        ...restOfAssignment,
+                        id: crypto.randomUUID(),
+                        grades: [grade],
+                        arms: [arm],
+                        isCore: restOfAssignment.subjectType === 'core',
+                        optionGroup: restOfAssignment.subjectType === 'optional' ? restOfAssignment.optionGroup : null,
+                    };
+                    processedAssignments.push(newAssignment);
+                });
+            } else {
+                const newAssignment: SubjectAssignment = {
+                    ...restOfAssignment,
+                    id: crypto.randomUUID(),
+                    grades: [grade],
+                    arms: [],
+                    isCore: restOfAssignment.subjectType === 'core',
+                    optionGroup: restOfAssignment.subjectType === 'optional' ? restOfAssignment.optionGroup : null,
+                };
+                processedAssignments.push(newAssignment);
+            }
+        });
+    });
+
+    return {
+        ...teacherData,
+        assignments: processedAssignments,
+    };
+};
+
 
 export default function TeacherEditor() {
   const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers } = useTimetable();
@@ -601,14 +652,17 @@ export default function TeacherEditor() {
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
     if (teacher) {
+        // When editing, we need to reconstruct the form state from processed assignments.
+        // This can be complex. For now, we'll present assignments as they are stored.
+        // A better UX would be to group them back, but that's a larger change.
         const teacherFormData: TeacherFormValues = {
             id: teacher.id,
             name: teacher.name,
-            assignments: teacher.assignments.length > 0 ? teacher.assignments.map(a => ({
+            assignments: teacher.assignments.map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
-            })) : [getNewTeacherForm().assignments[0]],
+            })),
         };
         form.reset({ teachers: [teacherFormData] });
     } else {
@@ -621,8 +675,9 @@ export default function TeacherEditor() {
     if (!activeTimetable) return;
 
     data.teachers.forEach(teacherData => {
+        const processedData = processTeacherData(teacherData);
         const teacherWithId = {
-            ...teacherData,
+            ...processedData,
             id: teacherData.id || crypto.randomUUID(),
         };
 
@@ -811,5 +866,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

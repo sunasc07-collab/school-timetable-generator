@@ -27,28 +27,20 @@ export default function TimetableItem({
 
   const allSessionsInSlot = useMemo(() => {
     if (!activeTimetable?.timetable) return [];
-    const slot = activeTimetable.timetable[from.day]?.[from.period] || [];
-    if (session.optionGroup) {
-      // Find all sessions that are part of the same option block instance
-      return slot.filter(s => s.id === session.id);
-    }
-    return [session];
-  }, [activeTimetable, from.day, from.period, session]);
-
+    return activeTimetable.timetable[from.day]?.[from.period] || [];
+  }, [activeTimetable, from.day, from.period]);
 
   const isOptionGroup = !!session.optionGroup;
   
-  // For option groups, we only want to render ONE card that represents the entire block.
-  // We can ensure this by only rendering if the current session is the first one in the block for that specific option group id.
-  if (isOptionGroup && allSessionsInSlot.findIndex(s => s.id === session.id) > 0) {
-    // If it is not the first session of this id, don't render it.
-     if (allSessionsInSlot.find(s => s.id === session.id) !== session) {
-        return null;
-     }
-  }
-
   if (isOptionGroup) {
+    // For option groups, we only want to render ONE card that represents the entire block.
+    // We achieve this by finding all sessions in the slot with the same option block ID
+    // and only rendering if the current session is the VERY FIRST one in that found group.
     const relevantSessions = allSessionsInSlot.filter(s => s.id === session.id);
+    if (relevantSessions.length === 0 || relevantSessions[0] !== session) {
+        return null;
+    }
+    
     const teachersAndSubjects = relevantSessions.map(s => `${s.teacher} (${s.actualSubject})`).join(', ');
     const classes = [...new Set(relevantSessions.flatMap(s => s.classes))].join(', ');
     const title = `Option Group: ${session.subject}\nDetails: ${teachersAndSubjects}\nClasses: ${classes}`;
@@ -64,7 +56,6 @@ export default function TimetableItem({
         s.classes.forEach(c => acc[key].classes.add(c));
         return acc;
     }, {} as Record<string, { teachers: string[], classes: Set<string> }>);
-
 
      return (
        <Card
@@ -144,5 +135,3 @@ export default function TimetableItem({
     </Card>
   );
 }
-
-    

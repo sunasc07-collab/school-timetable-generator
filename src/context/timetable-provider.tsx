@@ -126,14 +126,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const classClashes = new Map<string, TimetableSession[]>();
 
             for (const session of slot) {
-                if (teacherClashes.has(session.teacher)) {
-                    const existingSessions = teacherClashes.get(session.teacher)!;
-                    const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
-                    if (!isSameOptionBlock) {
-                        existingSessions.push(session);
+                // Ignore teacher clashes for sports
+                if (session.teacher && session.subject !== 'Sports') {
+                    if (teacherClashes.has(session.teacher)) {
+                        const existingSessions = teacherClashes.get(session.teacher)!;
+                        const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
+                        if (!isSameOptionBlock) {
+                            existingSessions.push(session);
+                        }
+                    } else {
+                        teacherClashes.set(session.teacher, [session]);
                     }
-                } else {
-                    teacherClashes.set(session.teacher, [session]);
                 }
                 
                 for (const className of session.classes) {
@@ -317,6 +320,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         const slot = tt.timetable[day][period] || [];
                         slot.forEach(session => {
                             if (session.teacher) {
+                                // Find teacher by name, as ID might not have been stored in old data
                                 const teacher = allTeachers.find(t => t.name === session.teacher);
                                 if (teacher) {
                                     teacherAvailability[day][period]?.add(teacher.id);
@@ -376,6 +380,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     const optionalAssignments = allRequiredAssignments.filter(a => a.optionGroup);
     const groupedOptions = optionalAssignments.reduce((acc, assignment) => {
+        // Group by School, Option Group, and Grade
         const key = `${assignment.schoolId}-${assignment.optionGroup}-${assignment.grades[0]}`;
         if (!acc[key]) acc[key] = [];
         acc[key].push(assignment);
@@ -395,13 +400,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
+            const classesInBlock = new Set<string>();
 
             for (const assignment of assignmentsInGroup) {
                  if (teachersInBlock.has(assignment.teacher.id)) {
                     newConflicts.push({ id: assignment.id || blockId, type: 'teacher', message: `Pre-solver conflict: Teacher ${assignment.teacher.name} is double-booked within Option Group ${optionGroupName} for ${assignment.className}.` });
-                    continue;
-                }
+                    continue; // Skip adding this teacher's session
+                 }
+                 if(classesInBlock.has(assignment.className)) {
+                    newConflicts.push({ id: assignment.id || blockId, type: 'class', message: `Pre-solver conflict: Class ${assignment.className} has multiple subjects in Option Group ${optionGroupName}.` });
+                    continue; // Skip adding this class's session
+                 }
                 teachersInBlock.add(assignment.teacher.id);
+                classesInBlock.add(assignment.className);
 
                 blockSessions.push({
                     id: blockId,
@@ -443,14 +454,21 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     // --- 5. Solver Logic ---
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, p: number) => {
-            if (teacherAvailability[day]?.[p]?.has(session.teacherId!)) return false;
+            if (!session.teacherId) return false; // Must have a teacher ID
+            if (teacherAvailability[day]?.[p]?.has(session.teacherId)) return false;
 
             const slot = board[day]?.[p];
             if (!slot) return false;
 
             if (slot.some(s => s.teacherId === session.teacherId)) return false;
-            if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
+            for (const className of session.classes) {
+                if (slot.some(s => s.classes.includes(className))) {
+                    return false;
+                }
+            }
+            
+            // Check if the same subject is already taught to this class on the same day
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession =>
                   existingSession.className === session.className &&
@@ -559,7 +577,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         conflicts: newConflicts,
     });
     findConflicts(finalTimetable, activeTimetable.id);
-  }, [updateTimetable, activeTimetable, allTeachers, findConflicts, timetables]);
+  }, [updateTimetable, activeTimetable, allTeachers, timetables]);
 
 
   const clearTimetable = () => {
@@ -668,5 +686,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

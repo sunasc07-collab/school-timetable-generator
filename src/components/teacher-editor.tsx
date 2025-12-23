@@ -598,21 +598,21 @@ export default function TeacherEditor() {
     assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   }), [activeTimetable?.id]);
 
-  const groupAssignments = (assignments: SubjectAssignment[]): TeacherFormValues['assignments'] => {
+  const groupAssignmentsForEditing = (assignments: SubjectAssignment[]): TeacherFormValues['assignments'] => {
       const grouped = new Map<string, SubjectAssignment>();
 
       assignments.forEach(assignment => {
           const key = `${assignment.schoolId}-${assignment.subject}-${assignment.periods}-${assignment.optionGroup || ''}-${assignment.subjectType || ''}`;
+          
           if (grouped.has(key)) {
               const existing = grouped.get(key)!;
-              const newGrades = [...new Set([...existing.grades, ...assignment.grades])];
-              const newArms = [...new Set([...existing.arms, ...assignment.arms])];
+              const newGrades = [...new Set([...existing.grades, ...assignment.grades])].sort();
+              const newArms = [...new Set([...existing.arms, ...assignment.arms])].sort();
               grouped.set(key, { ...existing, grades: newGrades, arms: newArms });
           } else {
               grouped.set(key, { ...assignment });
           }
       });
-
       return Array.from(grouped.values());
   };
   
@@ -622,7 +622,7 @@ export default function TeacherEditor() {
         const teacherFormData: TeacherFormValues = {
             id: teacher.id,
             name: teacher.name,
-            assignments: groupAssignments(teacher.assignments.map(a => ({
+            assignments: groupAssignmentsForEditing(teacher.assignments.filter(a => a.schoolId === activeTimetable?.id).map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
@@ -639,16 +639,56 @@ export default function TeacherEditor() {
     if (!activeTimetable) return;
 
     data.teachers.forEach(teacherData => {
-        const teacherWithId = {
-            ...teacherData,
-            id: teacherData.id || crypto.randomUUID(),
-        };
+      let finalAssignments: SubjectAssignment[] = [];
 
-        if (editingTeacher && teacherWithId.id === editingTeacher.id) {
-            updateTeacher(teacherWithId as Teacher);
+      teacherData.assignments.forEach(formAssignment => {
+        const isCore = formAssignment.subjectType === 'core';
+        if (formAssignment.subjectType === 'optional' && formAssignment.optionGroup) {
+          finalAssignments.push({
+            ...formAssignment,
+            id: crypto.randomUUID(),
+            isCore: false,
+          });
         } else {
-            addTeacher(teacherWithId as Teacher);
+          formAssignment.grades.forEach(grade => {
+            if (formAssignment.arms.length > 0) {
+              formAssignment.arms.forEach(arm => {
+                finalAssignments.push({
+                  ...formAssignment,
+                  id: crypto.randomUUID(),
+                  grades: [grade],
+                  arms: [arm],
+                  isCore: isCore,
+                  optionGroup: null, // Core subjects don't have option groups
+                });
+              });
+            } else {
+              finalAssignments.push({
+                ...formAssignment,
+                id: crypto.randomUUID(),
+                grades: [grade],
+                arms: [],
+                isCore: isCore,
+                optionGroup: null,
+              });
+            }
+          });
         }
+      });
+
+      const teacherWithId: Teacher = {
+          ...teacherData,
+          id: teacherData.id || crypto.randomUUID(),
+          assignments: finalAssignments,
+      };
+
+      if (editingTeacher) {
+          const otherSchoolAssignments = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId !== activeTimetable?.id) || [];
+          teacherWithId.assignments.push(...otherSchoolAssignments);
+          updateTeacher(teacherWithId);
+      } else {
+          addTeacher(teacherWithId);
+      }
     });
     
     form.reset({ teachers: [] });
@@ -829,6 +869,8 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     
 

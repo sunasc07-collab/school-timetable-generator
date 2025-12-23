@@ -169,53 +169,30 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
- const processTeacherData = (teacherData: Teacher): Teacher => {
-    const processedAssignments: SubjectAssignment[] = [];
-    teacherData.assignments.forEach(assignment => {
-      const grades = assignment.grades && assignment.grades.length > 0 ? assignment.grades : [null];
-      grades.forEach(grade => {
-        const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [null];
-        arms.forEach(arm => {
-          processedAssignments.push({
-            ...assignment,
-            id: crypto.randomUUID(),
-            grades: grade ? [grade] : [],
-            arms: arm ? [arm] : [],
-          });
-        });
-      });
-    });
-
-    return {
-        ...teacherData,
-        id: teacherData.id || crypto.randomUUID(),
-        assignments: processedAssignments,
-    };
-  }
-
- const addTeacher = useCallback((teacherData: Teacher) => {
-    const newTeacher = processTeacherData(teacherData);
+  const addTeacher = useCallback((teacherData: Teacher) => {
+    const newTeacher = { ...teacherData, id: teacherData.id || crypto.randomUUID() };
     setAllTeachers(prev => [...prev, newTeacher]);
     const schoolIds = new Set(newTeacher.assignments.map(a => a.schoolId));
     schoolIds.forEach(schoolId => {
-        resetTimetableForSchool(schoolId);
+      resetTimetableForSchool(schoolId);
     });
-}, [setAllTeachers, resetTimetableForSchool]);
-
-const updateTeacher = useCallback((teacherData: Teacher) => {
-    const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
-    const schoolIdsToReset = new Set<string>();
-
-    const updatedTeacher = processTeacherData(teacherData);
-
-    oldTeacher?.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
-    updatedTeacher.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
-    
-    setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? updatedTeacher : t));
-    schoolIdsToReset.forEach(schoolId => {
-        resetTimetableForSchool(schoolId);
-    });
-}, [allTeachers, setAllTeachers, resetTimetableForSchool]);
+  }, [setAllTeachers, resetTimetableForSchool]);
+  
+  const updateTeacher = useCallback((teacherData: Teacher) => {
+      const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
+      const schoolIdsToReset = new Set<string>();
+  
+      if (oldTeacher) {
+          oldTeacher.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
+      }
+      teacherData.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
+      
+      setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
+      
+      schoolIdsToReset.forEach(schoolId => {
+          resetTimetableForSchool(schoolId);
+      });
+  }, [allTeachers, setAllTeachers, resetTimetableForSchool]);
 
   const removeTeacher = useCallback((teacherId: string) => {
     const teacher = allTeachers.find(t => t.id === teacherId);
@@ -268,22 +245,38 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     const classSet = new Set<string>();
 
     activeTeachers.forEach(teacher => {
-        teacher.assignments.forEach(assignment => {
-            if (assignment.schoolId !== schoolId || assignment.subject.toLowerCase() === 'assembly') return;
+        teacher.assignments.forEach(origAssignment => {
+            if (origAssignment.schoolId !== schoolId || origAssignment.subject.toLowerCase() === 'assembly') return;
 
-            const className = `${assignment.grades[0] || ''} ${assignment.arms[0] || ''}`.trim();
-            if(className) classSet.add(className);
-            allRequiredAssignments.push({ ...assignment, teacher: teacher.name });
+            const grades = origAssignment.grades.length > 0 ? origAssignment.grades : [""];
+            grades.forEach(grade => {
+                const arms = origAssignment.arms.length > 0 ? origAssignment.arms : [""];
+                arms.forEach(arm => {
+                    const className = `${grade} ${arm}`.trim();
+                    if(className) classSet.add(className);
+
+                    const newAssignment = {
+                        ...origAssignment,
+                        id: crypto.randomUUID(), // unique id for each split assignment
+                        teacher: teacher.name,
+                        grades: grade ? [grade] : [],
+                        arms: arm ? [arm] : [],
+                        className: className
+                    };
+                    allRequiredAssignments.push(newAssignment as any);
+                });
+            });
         });
     });
 
     const singleSessions: SingleSessionUnit[] = [];
     const doubleSessions: DoubleSessionUnit[] = [];
-    const optionAssignments = allRequiredAssignments.filter(a => a.optionGroup);
-
-    allRequiredAssignments.filter(a => !a.optionGroup).forEach(req => {
+    
+    const nonOptionalAssignments = allRequiredAssignments.filter(a => !a.optionGroup);
+    
+    nonOptionalAssignments.forEach(req => {
         let remainingPeriods = req.periods;
-        const className = `${req.grades[0] || ''} ${req.arms[0] || ''}`.trim();
+        const className = (req as any).className;
         if (!className) return;
 
         while (remainingPeriods >= 2) {
@@ -299,52 +292,52 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     });
 
     const optionBlocks: OptionBlockUnit[] = [];
-    const groupedOptions = optionAssignments.reduce((acc, assignment) => {
-        const gradeKey = assignment.grades[0];
-        const key = `${assignment.schoolId}-${assignment.optionGroup}-${gradeKey}`;
+    const optionalAssignments = allRequiredAssignments.filter(a => a.optionGroup);
+
+    const groupedOptions = optionalAssignments.reduce((acc, assignment) => {
+        const grade = assignment.grades[0] || 'all_grades';
+        const key = `${assignment.schoolId}-${assignment.optionGroup}-${grade}`;
         if (!acc[key]) {
             acc[key] = [];
         }
         acc[key].push(assignment);
         return acc;
-    }, {} as Record<string, (SubjectAssignment & { teacher: string })[]>);
+    }, {} as Record<string, (SubjectAssignment & { teacher: string; className: string })[]>);
 
     Object.values(groupedOptions).forEach(assignments => {
         if (assignments.length === 0) return;
         const maxPeriods = Math.max(0, ...assignments.map(a => a.periods));
+        const groupDetails = assignments[0];
         
         for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = crypto.randomUUID();
-            const assignmentsThisPeriod = assignments.filter(a => a.periods > periodIndex);
-            if (assignmentsThisPeriod.length === 0) continue;
-            
-            const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
             const classesInBlock = new Set<string>();
-            const allClassNamesInBlock: string[] = [];
-
-            assignmentsThisPeriod.forEach(assignment => {
-                const className = `${assignment.grades[0]} ${assignment.arms[0] || ''}`.trim();
-                allClassNamesInBlock.push(className);
+            let blockSessions: TimetableSession[] = [];
+            
+            assignments.forEach(assignment => {
+                if(assignment.periods <= periodIndex) return;
 
                 if (teachersInBlock.has(assignment.teacher)) {
                     const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} is double-booked.`;
-                    const existingConflict = newConflicts.find(c => c.message === conflictMessage);
-                    if (!existingConflict && assignment.id) {
+                    if (assignment.id) {
+                      const existingConflict = newConflicts.find(c => c.id === assignment.id);
+                      if (!existingConflict) {
                         newConflicts.push({ id: assignment.id, type: 'teacher', message: conflictMessage });
+                      }
                     }
-                    return;
+                    return; // Skip this assignment for this block
                 }
-                
                 teachersInBlock.add(assignment.teacher);
+                classesInBlock.add(assignment.className);
 
                 blockSessions.push({
                     id: blockId,
                     subject: `Option ${assignment.optionGroup}`,
                     actualSubject: assignment.subject,
                     teacher: assignment.teacher,
-                    className: className, 
-                    classes: [className],
+                    className: assignment.className, 
+                    classes: [assignment.className],
                     isDouble: false,
                     optionGroup: assignment.optionGroup,
                 });
@@ -354,11 +347,12 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                  optionBlocks.push({
                     id: blockId,
                     sessions: blockSessions,
-                    optionGroup: assignments[0].optionGroup!
+                    optionGroup: groupDetails.optionGroup!,
                  });
             }
         }
     });
+
 
     const sessionsToPlace: PlacementUnit[] = [...doubleSessions, ...singleSessions, ...optionBlocks];
     const sortedClasses = Array.from(classSet).sort();
@@ -552,7 +546,9 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
         });
         
         if (wasChanged) {
-            clearTimetable();
+            if (activeTimetable) {
+              updateTimetable(activeTimetable.id, { timetable: {}, classes: [], conflicts: [] });
+            }
         }
         return newTeachers;
     });
@@ -612,5 +608,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

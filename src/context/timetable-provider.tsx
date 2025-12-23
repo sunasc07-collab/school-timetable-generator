@@ -298,47 +298,50 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     
     const optionBlocks: OptionBlockUnit[] = [];
     const conflicts: Conflict[] = [];
+    
     const optionGroups = [...new Set(optionalAssignments.map(a => a.optionGroup))].filter(Boolean);
 
     optionGroups.forEach(group => {
-        const assignmentsForGroup = optionalAssignments.filter(a => a.optionGroup === group);
-        const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods), 0);
-        
-        for (let i = 0; i < maxPeriods; i++) {
-            const block: OptionBlockUnit = [];
-            const teachersInBlock = new Set<string>();
-            const classesInBlock = new Set<string>();
+      const assignmentsForGroup = optionalAssignments.filter(a => a.optionGroup === group);
+      const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods), 0);
 
-            assignmentsForGroup.forEach(req => {
-                if (i < req.periods) {
-                    const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
-                    if (teachersInBlock.has(req.teacher)) {
-                        conflicts.push({ id: req.id, type: 'teacher', message: `Teacher ${req.teacher} is double-booked in Option Group ${group}.`});
-                    }
-                    if (classesInBlock.has(className)) {
-                        conflicts.push({ id: req.id, type: 'class', message: `Class ${className} has multiple subjects in Option Group ${group}.`});
-                    }
-                    
-                    teachersInBlock.add(req.teacher);
-                    classesInBlock.add(className);
+      for (let i = 0; i < maxPeriods; i++) {
+        const block: OptionBlockUnit = [];
+        const teachersInBlock = new Set<string>();
+        const classesInBlock = new Set<string>();
+        const sessionsForThisPeriod = assignmentsForGroup.filter(a => i < a.periods);
 
-                    block.push({
-                        id: req.id + `_period_${i}`,
-                        subject: `Option ${group}`,
-                        actualSubject: req.subject,
-                        teacher: req.teacher,
-                        className: className,
-                        classes: [className],
-                        isDouble: false,
-                        optionGroup: group,
-                    });
-                }
-            });
-            
-            if (block.length > 0) {
-              optionBlocks.push(block);
+        sessionsForThisPeriod.forEach(session => {
+            if (!session) return; // Safeguard
+
+            const className = `${session.grades[0]} ${session.arms[0] || ''}`.trim();
+
+            if (teachersInBlock.has(session.teacher)) {
+                conflicts.push({ id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double-booked in Option Group ${group}.`});
             }
+            if (classesInBlock.has(className)) {
+                conflicts.push({ id: session.id, type: 'class', message: `Class ${className} has multiple subjects in Option Group ${group}.`});
+            }
+            
+            teachersInBlock.add(session.teacher);
+            classesInBlock.add(className);
+
+            block.push({
+                id: session.id + `_period_${i}`,
+                subject: `Option ${group}`,
+                actualSubject: session.subject,
+                teacher: session.teacher,
+                className: className,
+                classes: [className],
+                isDouble: false,
+                optionGroup: group,
+            });
+        });
+        
+        if (block.length > 0) {
+            optionBlocks.push(block);
         }
+      }
     });
 
     if (conflicts.length > 0) {
@@ -359,34 +362,25 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             const slot = board[day]?.[p];
             if (!slot) return false;
 
-            // Check for teacher or class clash in the same slot
             if (slot.some(s => s.teacher === session.teacher)) return false;
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
-            // Check for same subject/option group in the same day for the same class
             const subjectToCheck = session.optionGroup ? `Option ${session.optionGroup}` : session.subject;
             for (const existingPeriod of board[day]) {
-                if (existingPeriod.some(s => {
-                    const existingSubject = s.optionGroup ? `Option ${s.optionGroup}` : s.subject;
-                    return s.className === session.className && existingSubject === subjectToCheck;
-                })) {
-                    return false;
-                }
+              if (existingPeriod.some(s => {
+                  const existingSubject = s.optionGroup ? `Option ${s.optionGroup}` : s.subject;
+                  return s.className === session.className && existingSubject === subjectToCheck;
+              })) {
+                  return false;
+              }
             }
             return true;
         };
 
         if (Array.isArray(unit)) { // OptionBlock
-             // Check for internal conflicts within the block
-            const teachers = unit.map(s => s.teacher);
-            const classes = unit.map(s => s.className);
-            if (new Set(teachers).size !== teachers.length) return false;
-            if (new Set(classes).size !== classes.length) return false;
-
             return unit.every(session => {
                 const slot = board[day]?.[period];
                 if (!slot) return false;
-                // Check external conflicts for each session in the block
                 if (slot.some(s => s.teacher === session.teacher)) return false;
                 if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
 

@@ -350,54 +350,58 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     // Process optional subjects
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
-    
-    // 1. Determine max periods for each option group
-    const optionGroupMaxPeriods = new Map<string, number>();
+    const optionGroups = new Map<string, { maxPeriods: number; assignments: (SubjectAssignment & { teacher: string })[] }>();
+
     optionalAssignments.forEach(assign => {
-        const key = assign.optionGroup!;
-        const currentMax = optionGroupMaxPeriods.get(key) || 0;
-        if (assign.periods > currentMax) {
-            optionGroupMaxPeriods.set(key, assign.periods);
-        }
+      const group = assign.optionGroup!;
+      if (!optionGroups.has(group)) {
+        optionGroups.set(group, { maxPeriods: 0, assignments: [] });
+      }
+      const groupData = optionGroups.get(group)!;
+      groupData.assignments.push(assign);
+      if (assign.periods > groupData.maxPeriods) {
+        groupData.maxPeriods = assign.periods;
+      }
     });
 
-    // 2. Create individual sessions for each class in each optional assignment
-    const individualOptionalSessions: (TimetableSession & { periodIndex: number })[] = [];
-    optionalAssignments.forEach(assign => {
-        assign.grades.forEach(grade => {
-            const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-            gradeArms.forEach(arm => {
+    optionGroups.forEach((groupData, groupName) => {
+      for (let i = 0; i < groupData.maxPeriods; i++) {
+        const block: TimetableSession[] = [];
+        const classesInBlock = new Set<string>();
+
+        groupData.assignments.forEach(assign => {
+          if (i < assign.periods) {
+            assign.grades.forEach(grade => {
+              const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+              gradeArms.forEach(arm => {
                 const className = `${grade} ${arm}`.trim();
                 classSet.add(className);
-                for (let i = 0; i < assign.periods; i++) {
-                    individualOptionalSessions.push({
-                        id: crypto.randomUUID(),
-                        subject: `Option ${assign.optionGroup}`,
-                        actualSubject: assign.subject,
-                        teacher: assign.teacher,
-                        className: className,
-                        classes: [className],
-                        isDouble: false,
-                        isCore: assign.isCore,
-                        optionGroup: assign.optionGroup,
-                        periodIndex: i,
-                    });
+                
+                // Ensure each class is only added once per block
+                if (!classesInBlock.has(className)) {
+                  block.push({
+                    id: crypto.randomUUID(),
+                    subject: `Option ${groupName}`,
+                    actualSubject: assign.subject,
+                    teacher: assign.teacher,
+                    className: className,
+                    classes: [className],
+                    isDouble: false,
+                    isCore: assign.isCore,
+                    optionGroup: assign.optionGroup,
+                  });
+                  classesInBlock.add(className);
                 }
+              });
             });
+          }
         });
-    });
-    
-    // 3. Group these individual sessions into blocks for the solver
-    optionGroupMaxPeriods.forEach((maxPeriods, groupName) => {
-        for (let i = 0; i < maxPeriods; i++) {
-            const block: TimetableSession[] = individualOptionalSessions.filter(
-                session => session.optionGroup === groupName && session.periodIndex === i
-            );
-            if (block.length > 0) {
-                sessionsToPlace.push(block);
-            }
+        if (block.length > 0) {
+            sessionsToPlace.push(block);
         }
+      }
     });
+
 
     sessionsToPlace.sort((a, b) => {
         const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);

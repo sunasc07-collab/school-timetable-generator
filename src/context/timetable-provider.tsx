@@ -90,10 +90,10 @@ type OptionBlockUnit = TimetableSession[];
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v18", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v18", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v18", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v18', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v20", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v20", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v20", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v20', 'class');
   
   useEffect(() => {
     setTimetables(prev => 
@@ -167,11 +167,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
- const addTeacher = useCallback((teacherData: Teacher) => {
+  const processTeacherData = (teacherData: Teacher): Teacher => {
     const processedAssignments: SubjectAssignment[] = [];
     teacherData.assignments.forEach(assignment => {
-        assignment.grades.forEach(grade => {
-            const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [null];
+        const grades = assignment.grades || [];
+        const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [null];
+        
+        grades.forEach(grade => {
             arms.forEach(arm => {
                 processedAssignments.push({
                     ...assignment,
@@ -183,12 +185,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    const newTeacher: Teacher = {
+    return {
         ...teacherData,
         id: teacherData.id || crypto.randomUUID(),
         assignments: processedAssignments,
     };
+  }
 
+ const addTeacher = useCallback((teacherData: Teacher) => {
+    const newTeacher = processTeacherData(teacherData);
     setAllTeachers(prev => [...prev, newTeacher]);
     const schoolIds = new Set(newTeacher.assignments.map(a => a.schoolId));
     schoolIds.forEach(schoolId => {
@@ -200,26 +205,11 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     const oldTeacher = allTeachers.find(t => t.id === teacherData.id);
     const schoolIdsToReset = new Set<string>();
 
-    const processedAssignments: SubjectAssignment[] = [];
-    teacherData.assignments.forEach(assignment => {
-        schoolIdsToReset.add(assignment.schoolId);
-        assignment.grades.forEach(grade => {
-            const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [null];
-            arms.forEach(arm => {
-                processedAssignments.push({
-                    ...assignment,
-                    id: crypto.randomUUID(),
-                    grades: [grade],
-                    arms: arm ? [arm] : [],
-                });
-            });
-        });
-    });
-    
-    const updatedTeacher = { ...teacherData, assignments: processedAssignments };
+    const updatedTeacher = processTeacherData(teacherData);
 
     oldTeacher?.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
-
+    updatedTeacher.assignments.forEach(a => schoolIdsToReset.add(a.schoolId));
+    
     setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? updatedTeacher : t));
     schoolIdsToReset.forEach(schoolId => {
         resetTimetableForSchool(schoolId);
@@ -294,14 +284,12 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
         let remainingPeriods = req.periods;
         const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
         
-        if (!req.optionGroup) { // Doubles only for core subjects
-            while (remainingPeriods >= 2) {
-                const doubleId = crypto.randomUUID();
-                const sessionPart1: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 1, isCore: req.isCore };
-                const sessionPart2: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 2, isCore: req.isCore };
-                doubleSessions.push({ session: sessionPart1, partner: sessionPart2 });
-                remainingPeriods -= 2;
-            }
+        while (remainingPeriods >= 2) {
+            const doubleId = crypto.randomUUID();
+            const sessionPart1: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 1, isCore: req.isCore };
+            const sessionPart2: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 2, isCore: req.isCore };
+            doubleSessions.push({ session: sessionPart1, partner: sessionPart2 });
+            remainingPeriods -= 2;
         }
         for (let i = 0; i < remainingPeriods; i++) {
             singleSessions.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: false, isCore: req.isCore });
@@ -315,28 +303,27 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     optionGroups.forEach(group => {
         const assignmentsForGroup = optionalAssignments.filter(a => a.optionGroup === group);
         const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods), 0);
-
+        
         for (let i = 0; i < maxPeriods; i++) {
             const block: OptionBlockUnit = [];
             const teachersInBlock = new Set<string>();
             const classesInBlock = new Set<string>();
 
             assignmentsForGroup.forEach(req => {
-                if (req.periods > i) {
+                if (i < req.periods) {
                     const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
-
-                    if(teachersInBlock.has(req.teacher)) {
+                    if (teachersInBlock.has(req.teacher)) {
                         conflicts.push({ id: req.id, type: 'teacher', message: `Teacher ${req.teacher} is double-booked in Option Group ${group}.`});
                     }
-                    if(classesInBlock.has(className)) {
+                    if (classesInBlock.has(className)) {
                         conflicts.push({ id: req.id, type: 'class', message: `Class ${className} has multiple subjects in Option Group ${group}.`});
                     }
                     
                     teachersInBlock.add(req.teacher);
                     classesInBlock.add(className);
-                    
+
                     block.push({
-                        id: crypto.randomUUID(),
+                        id: req.id + `_period_${i}`,
                         subject: `Option ${group}`,
                         actualSubject: req.subject,
                         teacher: req.teacher,
@@ -347,7 +334,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                     });
                 }
             });
-
+            
             if (block.length > 0) {
               optionBlocks.push(block);
             }
@@ -372,12 +359,17 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             const slot = board[day]?.[p];
             if (!slot) return false;
 
+            // Check for teacher or class clash in the same slot
             if (slot.some(s => s.teacher === session.teacher)) return false;
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
+            // Check for same subject/option group in the same day for the same class
             const subjectToCheck = session.optionGroup ? `Option ${session.optionGroup}` : session.subject;
             for (const existingPeriod of board[day]) {
-                if (existingPeriod.some(s => s.className === session.className && (s.optionGroup ? `Option ${s.optionGroup}` : s.subject) === subjectToCheck)) {
+                if (existingPeriod.some(s => {
+                    const existingSubject = s.optionGroup ? `Option ${s.optionGroup}` : s.subject;
+                    return s.className === session.className && existingSubject === subjectToCheck;
+                })) {
                     return false;
                 }
             }
@@ -385,7 +377,27 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
         };
 
         if (Array.isArray(unit)) { // OptionBlock
-            return unit.every(session => checkSession(session, period));
+             // Check for internal conflicts within the block
+            const teachers = unit.map(s => s.teacher);
+            const classes = unit.map(s => s.className);
+            if (new Set(teachers).size !== teachers.length) return false;
+            if (new Set(classes).size !== classes.length) return false;
+
+            return unit.every(session => {
+                const slot = board[day]?.[period];
+                if (!slot) return false;
+                // Check external conflicts for each session in the block
+                if (slot.some(s => s.teacher === session.teacher)) return false;
+                if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
+
+                const subjectToCheck = `Option ${session.optionGroup}`;
+                for (const existingPeriod of board[day]) {
+                  if (existingPeriod.some(s => s.className === session.className && (s.optionGroup ? `Option ${s.optionGroup}` : s.subject) === subjectToCheck)) {
+                      return false;
+                  }
+                }
+                return true;
+            });
         } else if ('session' in unit) { // Double Period
             const { session, partner } = unit;
             const partnerPeriod = CONSECUTIVE_PERIODS.find(p => p[0] === period)?.[1];
@@ -600,5 +612,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

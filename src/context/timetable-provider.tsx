@@ -164,10 +164,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const addTeacher = useCallback((teacherData: Omit<Teacher, 'id'>) => {
+  const addTeacher = useCallback((teacherData: Omit<Teacher, 'id' | 'assignments'> & { assignments: Omit<SubjectAssignment, 'id'>[] }) => {
     const newTeacher: Teacher = {
         id: crypto.randomUUID(),
-        ...teacherData,
+        name: teacherData.name,
+        assignments: teacherData.assignments.map(a => ({...a, id: crypto.randomUUID()})),
     };
     setAllTeachers(prev => [...prev, newTeacher]);
     const schoolIds = new Set(newTeacher.assignments.map(a => a.schoolId));
@@ -248,7 +249,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const sessionsToPlace: PlacementUnit[] = [];
     const classSet = new Set<string>();
 
-    // Process non-optional subjects first
     const coreAssignments = allRequiredSessions.filter(req => !req.optionGroup);
     coreAssignments.forEach(req => {
         const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
@@ -266,50 +266,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    // Process optional subjects
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
-    const optionGroups = new Map<string, { maxPeriods: number; assignments: (SubjectAssignment & { teacher: string })[] }>();
-    
+    const optionGroupsByPeriod = new Map<string, Map<number, TimetableSession[]>>();
+
     optionalAssignments.forEach(assign => {
-      const group = assign.optionGroup!;
-      if (!optionGroups.has(group)) {
-        optionGroups.set(group, { maxPeriods: 0, assignments: [] });
-      }
-      const groupData = optionGroups.get(group)!;
-      groupData.assignments.push(assign);
-      if (assign.periods > groupData.maxPeriods) {
-        groupData.maxPeriods = assign.periods;
-      }
-    });
-
-    optionGroups.forEach((groupData, groupName) => {
-      for (let i = 0; i < groupData.maxPeriods; i++) {
-        const block: TimetableSession[] = [];
-        
-        groupData.assignments.forEach(assign => {
-          if (i < assign.periods) {
-            const className = `${assign.grades[0]} ${assign.arms[0] || ''}`.trim();
-            classSet.add(className);
-            
-            block.push({
-              id: crypto.randomUUID(),
-              subject: `Option ${groupName}`,
-              actualSubject: assign.subject,
-              teacher: assign.teacher,
-              className: className,
-              classes: [className],
-              isDouble: false,
-              isCore: assign.isCore,
-              optionGroup: assign.optionGroup,
-            });
-          }
-        });
-        if (block.length > 0) {
-            sessionsToPlace.push(block);
+      const groupKey = assign.optionGroup!;
+      const className = `${assign.grades[0]} ${assign.arms[0] || ''}`.trim();
+      classSet.add(className);
+      for (let i = 0; i < assign.periods; i++) {
+        if (!optionGroupsByPeriod.has(groupKey)) {
+          optionGroupsByPeriod.set(groupKey, new Map());
         }
+        const groupPeriodMap = optionGroupsByPeriod.get(groupKey)!;
+        if (!groupPeriodMap.has(i)) {
+          groupPeriodMap.set(i, []);
+        }
+        const periodBlock = groupPeriodMap.get(i)!;
+        periodBlock.push({
+          id: crypto.randomUUID(),
+          subject: `Option ${groupKey}`,
+          actualSubject: assign.subject,
+          teacher: assign.teacher,
+          className: className,
+          classes: [className],
+          isDouble: false,
+          isCore: false,
+          optionGroup: assign.optionGroup,
+        });
       }
     });
 
+    optionGroupsByPeriod.forEach((periodMap) => {
+        periodMap.forEach((block) => {
+            if (block.length > 0) {
+                sessionsToPlace.push(block);
+            }
+        });
+    });
 
     sessionsToPlace.sort((a, b) => {
         const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);
@@ -338,22 +331,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (!slot) return false;
     
         if (slot.some(s => s.teacher === session.teacher)) {
-            return false;
+            return false; // Teacher clash
         }
     
         for (const c of session.classes) {
             if (slot.some(s => s.classes.includes(c))) {
-                return false;
+                return false; // Class clash
             }
         }
     
         const subjectToCheck = session.optionGroup ? session.subject : session.actualSubject || session.subject;
         for (const classToCheck of session.classes) {
-            for (const p of board[day]) {
-                 for (const existingSession of p) {
-                    if (existingSession.classes.includes(classToCheck) && (existingSession.actualSubject || existingSession.subject) === subjectToCheck) {
-                        if (existingSession.id !== session.id) {
-                            return false;
+            for (const existingPeriod of board[day]) {
+                for (const existingSession of existingPeriod) {
+                    if (existingSession.classes.includes(classToCheck)) {
+                        const existingSubject = existingSession.optionGroup ? existingSession.subject : existingSession.actualSubject || existingSession.subject;
+                        if (existingSubject === subjectToCheck) {
+                            if (!session.isDouble && !existingSession.isDouble) {
+                                return false; // Same single subject on same day for same class
+                            }
+                            if (session.id !== existingSession.id) {
+                                return false; // Different sessions of the same subject
+                            }
                         }
                     }
                 }
@@ -375,9 +374,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
             for (const day of shuffledDays) {
-                 if (board[day].flat().some(s => s.subject === session.subject && s.id !== session.id && session.classes.some(c => s.classes.includes(c)))) {
-                    continue;
-                 }
+                if (!isValidPlacement(board, session, day, 0) && !isValidPlacement(board, partner, day, 0)) continue;
 
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
@@ -390,15 +387,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         } else if (Array.isArray(unit)) { // Option group block
-             const sessionGroup = unit as TimetableSession[];
+            const sessionGroup = unit as TimetableSession[];
             if (sessionGroup.length === 0) return solve(board, remainingUnits);
             
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
-                const subjectAlreadyOnDayForAnyClass = sessionGroup.some(sess => {
-                     return board[day].flat().some(ds => ds.optionGroup === sess.optionGroup && ds.classes.some(c => sess.classes.includes(c)));
-                });
-                if(subjectAlreadyOnDayForAnyClass) continue;
+                if (sessionGroup.some(s => !isValidPlacement(board, s, day, 0))) continue;
 
                 for (const period of shuffledPeriods) {
                     const canPlaceGroup = sessionGroup.every(session => isValidPlacement(board, session, day, period));
@@ -415,9 +409,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const session = unit as TimetableSession;
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
-                if (board[day].flat().some(s => s.subject === session.subject && s.id !== session.id && session.classes.some(c => s.classes.includes(c)))) {
-                    continue;
-                }
+                if (!isValidPlacement(board, session, day, 0)) continue;
+                
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
@@ -584,3 +577,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

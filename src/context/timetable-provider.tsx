@@ -394,10 +394,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             });
             if (block.length > 0) {
-                const uniqueBlock = block.filter((session, index, self) => 
-                    index === self.findIndex(s => s.className === session.className && s.actualSubject === session.actualSubject)
-                );
-                sessionsToPlace.push(uniqueBlock);
+                sessionsToPlace.push(block);
             }
         }
     });
@@ -675,3 +672,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

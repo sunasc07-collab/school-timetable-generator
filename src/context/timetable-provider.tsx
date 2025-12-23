@@ -363,7 +363,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    // Group optional assignments by school, option group, AND grade
     const optionalGroupsByGrade = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
     optionalAssignments.forEach(a => {
         a.grades.forEach(grade => {
@@ -371,16 +370,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!optionalGroupsByGrade.has(groupKey)) {
                 optionalGroupsByGrade.set(groupKey, []);
             }
-            // Add the assignment, but specifically for this grade
             optionalGroupsByGrade.get(groupKey)!.push({ ...a, grades: [grade] });
         });
     });
     
-    optionalGroupsByGrade.forEach((assignmentsInGroup, groupKey) => {
+    optionalGroupsByGrade.forEach((assignmentsInGroup) => {
         const firstAssignment = assignmentsInGroup[0];
         const optionGroupName = firstAssignment.optionGroup!;
+        const grade = firstAssignment.grades[0];
 
-        // Find the maximum periods for this specific grade's option group
         const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
 
         for (let i = 0; i < maxPeriods; i++) {
@@ -390,32 +388,30 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
             assignmentsInGroup.forEach(assignment => {
                  if (i < assignment.periods) {
-                    assignment.grades.forEach(grade => {
-                        const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
-                        arms.forEach(arm => {
-                            const className = `${grade} ${arm}`.trim();
-                            classSet.add(className);
+                    const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
+                    arms.forEach(arm => {
+                        const className = `${grade} ${arm}`.trim();
+                        classSet.add(className);
 
-                            if (teachersInBlock.has(assignment.teacherId!)) {
-                                const conflictId = `${blockId}-${assignment.teacherId}`;
-                                if (!newConflicts.some(c => c.id === conflictId)) {
-                                    newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for grade ${grade}.` });
-                                }
-                                return;
+                        if (teachersInBlock.has(assignment.teacherId!)) {
+                            const conflictId = `${blockId}-${assignment.teacherId}`;
+                            if (!newConflicts.some(c => c.id === conflictId)) {
+                                newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for grade ${grade}.` });
                             }
-                            teachersInBlock.add(assignment.teacherId!);
+                            return;
+                        }
+                        teachersInBlock.add(assignment.teacherId!);
 
-                            blockSessions.push({
-                                id: blockId,
-                                subject: `Option ${optionGroupName}`,
-                                actualSubject: assignment.subject,
-                                teacher: assignment.teacherName,
-                                teacherId: assignment.teacherId,
-                                className: className,
-                                classes: [className],
-                                isDouble: false,
-                                optionGroup: optionGroupName,
-                            });
+                        blockSessions.push({
+                            id: blockId,
+                            subject: `Option ${optionGroupName}`,
+                            actualSubject: assignment.subject,
+                            teacher: assignment.teacherName,
+                            teacherId: assignment.teacherId,
+                            className: className,
+                            classes: [className],
+                            isDouble: false,
+                            optionGroup: optionGroupName,
                         });
                     });
                 }
@@ -460,17 +456,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (slot.some(s => s.classes.includes(className))) {
                     return false;
                 }
+                // Check if this subject has already been taught to this class on this day
+                 for (const existingPeriod of board[day]) {
+                     if (existingPeriod.some(existingSession => 
+                         existingSession.classes.includes(className) &&
+                         (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject) &&
+                         existingSession.id !== session.id
+                     )) {
+                         return false;
+                     }
+                 }
             }
             
-            for (const existingPeriod of board[day]) {
-              if (existingPeriod.some(existingSession =>
-                  existingSession.className === session.className &&
-                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject) &&
-                  existingSession.id !== session.id
-              )) {
-                  return false;
-              }
-            }
             return true;
         };
 

@@ -136,10 +136,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         showArms = true;
       } else if (hasSeniorSecondary && !hasJuniorSecondary) {
         armOptions = SENIOR_SECONDARY_ARMS;
-        showArms = true; 
+        showArms = false; // Hide separate arms for senior secondary, as it's in the options box
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
-        showArms = true; 
-        armOptions = [...new Set([...JUNIOR_SECONDARY_ARMS, ...SENIOR_SECONDARY_ARMS])];
+        showArms = true; // Show for junior
+        armOptions = JUNIOR_SECONDARY_ARMS;
       } else {
         showArms = false;
       }
@@ -183,9 +183,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     useEffect(() => {
         if (!showArms) {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+            // Only clear arms if they are not part of an optional senior secondary assignment
+            const isOptionalSenior = hasSeniorSecondary && getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional';
+            if (!isOptionalSenior) {
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+            }
         }
-    }, [showArms, setValue, teacherIndex, assignmentIndex]);
+    }, [showArms, hasSeniorSecondary, setValue, getValues, teacherIndex, assignmentIndex]);
 
 
     const handleSchoolChange = (newSchoolId: string) => {
@@ -200,6 +204,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`, type);
         if (type !== 'optional') {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+        } else {
+             const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
+             const hasJunior = currentGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
+             if (!hasJunior) {
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+             }
         }
         trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
     }
@@ -381,6 +392,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                               {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
+                         {subjectType === 'optional' && (
                          <FormField
                             control={control}
                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -417,6 +429,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             </FormItem>
                             )}
                         />
+                        )}
                         </div>
                     )}
                      <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || hasSeniorSecondary) && "hidden")}>
@@ -444,22 +457,22 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                         ? [...currentValue, arm]
                                                                         : currentValue.filter(value => value !== arm);
                                                                     checkboxField.onChange(newValue);
-                                                                }}
-                                                            />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{arm}</FormLabel>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        ))}
-                                    </div>
-                                    <FormMessage />
-                                    {hasJuniorSecondary && hasSeniorSecondary && (
-                                        <p className="text-xs text-muted-foreground pt-1">Mixed junior/senior selection. Arms must be configured separately.</p>
-                                    )}
-                                </FormItem>
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm">{arm}</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                                {hasJuniorSecondary && hasSeniorSecondary && (
+                                    <p className="text-xs text-muted-foreground pt-1">Mixed junior/senior selection. Arms must be configured separately.</p>
                                 )}
-                            />
+                            </FormItem>
+                            )}
+                        />
                         )}
                     </div>
                 
@@ -872,3 +885,6 @@ export default function TeacherEditor() {
 }
 
     
+
+    
+

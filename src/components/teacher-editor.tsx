@@ -457,12 +457,12 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                     checkboxField.onChange(newValue);
                                                             }}
                                                         />
-                                                    </FormControl>
-                                                    <FormLabel className="font-normal text-sm">{arm}</FormLabel>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    ))}
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal text-sm">{arm}</FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
                                 </div>
                                 <FormMessage />
                                 {hasJuniorSecondary && hasSeniorSecondary && (
@@ -724,7 +724,7 @@ export default function TeacherEditor() {
     Object.values(activeTimetable.timetable).forEach(day => {
         day.forEach(period => {
             period.forEach(session => {
-                if (session.teacher === teacher.name && session.subject !== 'Assembly') {
+                if (session.teacher === teacher.name && session.subject !== 'Assembly' && session.subject !== 'Sports') {
                     count++;
                 }
             });

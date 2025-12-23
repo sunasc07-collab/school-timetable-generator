@@ -325,6 +325,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const sessionsToPlace: PlacementUnit[] = [];
     const classSet = new Set<string>();
 
+    // Process core and non-optional subjects first
     const coreAssignments = allRequiredSessions.filter(req => !req.optionGroup);
     coreAssignments.forEach(req => {
         req.grades.forEach(grade => {
@@ -347,52 +348,51 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
+    // Process optional subjects
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
-    const optionGroups = new Map<string, {
-        assignments: (SubjectAssignment & { teacher: string })[],
-        maxPeriods: number
-    }>();
-
+    
+    // 1. Determine max periods for each option group
+    const optionGroupMaxPeriods = new Map<string, number>();
     optionalAssignments.forEach(assign => {
         const key = assign.optionGroup!;
-        if (!optionGroups.has(key)) {
-            optionGroups.set(key, { assignments: [], maxPeriods: 0 });
+        const currentMax = optionGroupMaxPeriods.get(key) || 0;
+        if (assign.periods > currentMax) {
+            optionGroupMaxPeriods.set(key, assign.periods);
         }
-        const group = optionGroups.get(key)!;
-        group.assignments.push(assign);
-        if (assign.periods > group.maxPeriods) {
-            group.maxPeriods = assign.periods;
-        }
-        assign.grades.forEach(grade => {
-            const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-            gradeArms.forEach(arm => classSet.add(`${grade} ${arm}`.trim()));
-        });
     });
 
-    optionGroups.forEach((group, groupName) => {
-        for (let i = 0; i < group.maxPeriods; i++) {
-            const block: TimetableSession[] = [];
-            group.assignments.forEach(assign => {
-                if (i < assign.periods) {
-                    assign.grades.forEach(grade => {
-                        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-                        gradeArms.forEach(arm => {
-                            const className = `${grade} ${arm}`.trim();
-                            block.push({
-                                id: crypto.randomUUID(),
-                                subject: `Option ${groupName}`,
-                                actualSubject: assign.subject,
-                                teacher: assign.teacher,
-                                className: className,
-                                classes: [className],
-                                isDouble: false,
-                                isCore: assign.isCore,
-                                optionGroup: assign.optionGroup,
-                            });
-                        });
+    // 2. Create individual sessions for each class in each optional assignment
+    const individualOptionalSessions: (TimetableSession & { periodIndex: number })[] = [];
+    optionalAssignments.forEach(assign => {
+        assign.grades.forEach(grade => {
+            const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+            gradeArms.forEach(arm => {
+                const className = `${grade} ${arm}`.trim();
+                classSet.add(className);
+                for (let i = 0; i < assign.periods; i++) {
+                    individualOptionalSessions.push({
+                        id: crypto.randomUUID(),
+                        subject: `Option ${assign.optionGroup}`,
+                        actualSubject: assign.subject,
+                        teacher: assign.teacher,
+                        className: className,
+                        classes: [className],
+                        isDouble: false,
+                        isCore: assign.isCore,
+                        optionGroup: assign.optionGroup,
+                        periodIndex: i,
                     });
                 }
             });
+        });
+    });
+    
+    // 3. Group these individual sessions into blocks for the solver
+    optionGroupMaxPeriods.forEach((maxPeriods, groupName) => {
+        for (let i = 0; i < maxPeriods; i++) {
+            const block: TimetableSession[] = individualOptionalSessions.filter(
+                session => session.optionGroup === groupName && session.periodIndex === i
+            );
             if (block.length > 0) {
                 sessionsToPlace.push(block);
             }
@@ -672,5 +672,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

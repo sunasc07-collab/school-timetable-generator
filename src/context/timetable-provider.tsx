@@ -246,24 +246,23 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const classSet = new Set<string>();
 
     activeTeachers.forEach(teacher => {
-        teacher.assignments.forEach(origAssignment => {
-            if (origAssignment.schoolId !== schoolId || origAssignment.subject.toLowerCase() === 'assembly') return;
-            
-            origAssignment.grades.forEach(grade => {
-                const arms = origAssignment.arms && origAssignment.arms.length > 0 ? origAssignment.arms : [""];
-                arms.forEach(arm => {
-                    const className = `${grade} ${arm}`.trim();
-                    if(className) classSet.add(className);
-                    // This creates a separate entry for each class-arm combination
-                    allRequiredAssignments.push({
-                        ...origAssignment,
-                        id: origAssignment.id || crypto.randomUUID(),
-                        teacher: teacher.name,
-                        className: className
-                    });
-                });
+      teacher.assignments.forEach(origAssignment => {
+        if (origAssignment.schoolId !== schoolId || origAssignment.subject.toLowerCase() === 'assembly') return;
+
+        origAssignment.grades.forEach(grade => {
+          const arms = origAssignment.arms && origAssignment.arms.length > 0 ? origAssignment.arms : [""];
+          arms.forEach(arm => {
+            const className = `${grade} ${arm}`.trim();
+            if (className) classSet.add(className);
+            allRequiredAssignments.push({
+              ...origAssignment,
+              id: origAssignment.id || crypto.randomUUID(),
+              teacher: teacher.name,
+              className: className
             });
+          });
         });
+      });
     });
 
     const singleSessions: SingleSessionUnit[] = [];
@@ -563,17 +562,73 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     updateTimetable(activeTimetable.id, { conflicts: [] });
   };
 
-  useEffect(() => {
+  const findConflicts = useCallback(() => {
     if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
-        if(activeTimetable?.conflicts.length > 0 && !activeTimetable.conflicts.some(c => c.id === 'solver-fail')) {
-             if (activeTimetable) {
-                updateTimetable(activeTimetable.id, { conflicts: [] });
-             }
-        }
         return;
     }
+
+    const { timetable, days } = activeTimetable;
+    const periodCount = activeTimetable.timeSlots.filter(ts => !ts.isBreak).length;
+    const newConflicts: Conflict[] = [];
+
+    for (const day of days) {
+        for (let period = 0; period < periodCount; period++) {
+            const slot = timetable[day]?.[period];
+            if (!slot || slot.length <= 1) continue;
+
+            const teacherClashes = new Map<string, TimetableSession[]>();
+            const classClashes = new Map<string, TimetableSession[]>();
+
+            for (const session of slot) {
+                // Check for teacher clashes
+                if (teacherClashes.has(session.teacher)) {
+                    teacherClashes.get(session.teacher)!.push(session);
+                } else {
+                    teacherClashes.set(session.teacher, [session]);
+                }
+                
+                // Check for class clashes
+                for (const className of session.classes) {
+                     if (classClashes.has(className)) {
+                        classClashes.get(className)!.push(session);
+                    } else {
+                        classClashes.set(className, [session]);
+                    }
+                }
+            }
+
+            teacherClashes.forEach((sessions, teacher) => {
+                if (sessions.length > 1) {
+                    sessions.forEach(session => {
+                        newConflicts.push({
+                            id: session.id,
+                            type: 'teacher',
+                            message: `Teacher ${teacher} is double-booked on ${day} at period ${period + 1}.`,
+                        });
+                    });
+                }
+            });
+            
+            classClashes.forEach((sessions, className) => {
+                 if (sessions.length > 1) {
+                    sessions.forEach(session => {
+                        newConflicts.push({
+                            id: session.id,
+                            type: 'class',
+                            message: `Class ${className} is double-booked on ${day} at period ${period + 1}.`,
+                        });
+                    });
+                }
+            });
+        }
+    }
+    updateTimetable(activeTimetable.id, { conflicts: newConflicts });
   }, [activeTimetable, updateTimetable]);
 
+
+  useEffect(() => {
+    findConflicts();
+  }, [activeTimetable?.timetable, findConflicts]);
 
   const isConflict = (sessionId: string) => {
     if (!activeTimetable || !activeTimetable.conflicts) return false;
@@ -615,3 +670,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -355,22 +355,24 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    const optionalGroupsByGrade = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
+    // Group optional assignments by school, grade, and option group
+    const optionalGroups = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
     optionalAssignments.forEach(a => {
         a.grades.forEach(grade => {
-            const groupKey = `${a.schoolId}-${a.optionGroup}-${grade}`;
-            if (!optionalGroupsByGrade.has(groupKey)) {
-                optionalGroupsByGrade.set(groupKey, []);
+            const groupKey = `${a.schoolId}-${grade}-${a.optionGroup}`;
+            if (!optionalGroups.has(groupKey)) {
+                optionalGroups.set(groupKey, []);
             }
-            optionalGroupsByGrade.get(groupKey)!.push({ ...a, grades: [grade] });
+            optionalGroups.get(groupKey)!.push({ ...a });
         });
     });
     
-    optionalGroupsByGrade.forEach((assignmentsInGroup) => {
+    optionalGroups.forEach((assignmentsInGroup) => {
         const firstAssignment = assignmentsInGroup[0];
         const optionGroupName = firstAssignment.optionGroup!;
         const grade = firstAssignment.grades[0];
 
+        // The number of periods for the option block is the max periods of any assignment within that group.
         const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
 
         for (let i = 0; i < maxPeriods; i++) {
@@ -385,12 +387,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         const className = `${grade} ${arm}`.trim();
                         classSet.add(className);
 
+                        // A teacher cannot teach two different subjects in the same option block.
                         if (teachersInBlock.has(assignment.teacherId!)) {
                             const conflictId = `${blockId}-${assignment.teacherId}`;
                             if (!newConflicts.some(c => c.id === conflictId)) {
-                                newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for grade ${grade}.` });
+                                newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for ${grade}.` });
                             }
-                            return;
+                            return; // Skip adding this session
                         }
                         teachersInBlock.add(assignment.teacherId!);
 
@@ -408,7 +411,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     });
                 }
             });
-
+            
+            // If we found a conflict for this block, don't add it to the units to be placed.
             if (newConflicts.some(c => c.id.startsWith(blockId))) return;
 
             if (blockSessions.length > 0) {
@@ -438,17 +442,23 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, p: number) => {
             if (!session.teacherId) return false;
+            // Check global teacher availability (other schools)
             if (teacherAvailability[day]?.[p]?.has(session.teacherId)) return false;
 
             const slot = board[day]?.[p];
             if (!slot) return false;
+            
+            // Teacher is already booked in this slot
             if (slot.some(s => s.teacherId === session.teacherId)) return false;
             
             for (const className of session.classes) {
-                if (slot.some(s => s.classes.includes(className))) {
+                // Class is already booked in this slot
+                 if (slot.some(s => s.classes.includes(className))) {
                     return false;
                 }
-                for (let i = 0; i < p; i++) {
+                
+                // Same subject taught twice a day to the same class
+                for (let i = 0; i < periodCount; i++) {
                     const existingPeriod = board[day][i];
                     if (existingPeriod.some(existingSession => 
                         existingSession.classes.includes(className) &&
@@ -463,14 +473,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             return true;
         };
 
-        if ('partner' in unit) {
+        if ('partner' in unit) { // Double period
             const { session, partner } = unit;
             const partnerPeriod = CONSECUTIVE_PERIODS.find(p => p[0] === period)?.[1];
             if (partnerPeriod === undefined) return false;
             return checkSession(session, period) && checkSession(partner, partnerPeriod);
-        } else if ('sessions' in unit) { 
+        } else if ('sessions' in unit) { // Option block
             return unit.sessions.every(session => checkSession(session, period));
-        } else {
+        } else { // Single session
             return checkSession(unit, period);
         }
     }
@@ -484,7 +494,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const remainingUnits = units.slice(1);
         
         for (const day of days) {
-            if ('partner' in unit) {
+            if ('partner' in unit) { // Handle doubles
                 for (const [p1, p2] of CONSECUTIVE_PERIODS) {
                     if (isValidPlacement(board, unit, day, p1)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
@@ -494,7 +504,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         if (solved) return [true, finalBoard];
                     }
                 }
-            } else {
+            } else { // Handle singles and option blocks
                  for (let period = 0; period < periodCount; period++) {
                     if (isValidPlacement(board, unit, day, period)) {
                        const newBoard = JSON.parse(JSON.stringify(board));
@@ -668,6 +678,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-
-    

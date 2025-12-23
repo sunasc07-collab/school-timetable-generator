@@ -267,42 +267,50 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
 
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
-    const optionGroupsByPeriod = new Map<string, Map<number, TimetableSession[]>>();
+    const optionGroups = new Map<string, { maxPeriods: number, assignments: (SubjectAssignment & { teacher: string })[]}>();
 
     optionalAssignments.forEach(assign => {
       const groupKey = assign.optionGroup!;
-      const className = `${assign.grades[0]} ${assign.arms[0] || ''}`.trim();
-      classSet.add(className);
-      for (let i = 0; i < assign.periods; i++) {
-        if (!optionGroupsByPeriod.has(groupKey)) {
-          optionGroupsByPeriod.set(groupKey, new Map());
-        }
-        const groupPeriodMap = optionGroupsByPeriod.get(groupKey)!;
-        if (!groupPeriodMap.has(i)) {
-          groupPeriodMap.set(i, []);
-        }
-        const periodBlock = groupPeriodMap.get(i)!;
-        periodBlock.push({
-          id: crypto.randomUUID(),
-          subject: `Option ${groupKey}`,
-          actualSubject: assign.subject,
-          teacher: assign.teacher,
-          className: className,
-          classes: [className],
-          isDouble: false,
-          isCore: false,
-          optionGroup: assign.optionGroup,
-        });
+      if (!optionGroups.has(groupKey)) {
+        optionGroups.set(groupKey, { maxPeriods: 0, assignments: [] });
+      }
+      const group = optionGroups.get(groupKey)!;
+      group.assignments.push(assign);
+      if (assign.periods > group.maxPeriods) {
+        group.maxPeriods = assign.periods;
       }
     });
 
-    optionGroupsByPeriod.forEach((periodMap) => {
-        periodMap.forEach((block) => {
+    optionGroups.forEach((group, groupKey) => {
+        for (let i = 0; i < group.maxPeriods; i++) {
+            const block: TimetableSession[] = [];
+            const classesInBlock = new Set<string>();
+            group.assignments.forEach(assign => {
+                if (i < assign.periods) {
+                    const className = `${assign.grades[0]} ${assign.arms[0] || ''}`.trim();
+                    classSet.add(className);
+                    if (!classesInBlock.has(className)) {
+                        block.push({
+                            id: crypto.randomUUID(),
+                            subject: `Option ${groupKey}`,
+                            actualSubject: assign.subject,
+                            teacher: assign.teacher,
+                            className: className,
+                            classes: [className],
+                            isDouble: false,
+                            isCore: false,
+                            optionGroup: assign.optionGroup,
+                        });
+                        classesInBlock.add(className);
+                    }
+                }
+            });
             if (block.length > 0) {
                 sessionsToPlace.push(block);
             }
-        });
+        }
     });
+
 
     sessionsToPlace.sort((a, b) => {
         const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);
@@ -330,30 +338,29 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const slot = board[day]?.[period];
         if (!slot) return false;
     
+        // 1. Teacher clash in the same slot
         if (slot.some(s => s.teacher === session.teacher)) {
-            return false; // Teacher clash
+            return false;
         }
     
+        // 2. Class clash in the same slot
         for (const c of session.classes) {
             if (slot.some(s => s.classes.includes(c))) {
-                return false; // Class clash
+                return false;
             }
         }
-    
+
+        // 3. Subject clash on the same day for the same class
         const subjectToCheck = session.optionGroup ? session.subject : session.actualSubject || session.subject;
-        for (const classToCheck of session.classes) {
-            for (const existingPeriod of board[day]) {
-                for (const existingSession of existingPeriod) {
-                    if (existingSession.classes.includes(classToCheck)) {
-                        const existingSubject = existingSession.optionGroup ? existingSession.subject : existingSession.actualSubject || existingSession.subject;
-                        if (existingSubject === subjectToCheck) {
-                            if (!session.isDouble && !existingSession.isDouble) {
-                                return false; // Same single subject on same day for same class
-                            }
-                            if (session.id !== existingSession.id) {
-                                return false; // Different sessions of the same subject
-                            }
-                        }
+        const classToCheck = session.className;
+        
+        for (const existingPeriod of board[day]) {
+            for (const existingSession of existingPeriod) {
+                if (existingSession.className === classToCheck) {
+                    const existingSubject = existingSession.optionGroup ? existingSession.subject : existingSession.actualSubject || existingSession.subject;
+                    if (existingSubject === subjectToCheck) {
+                         // This check prevents ANY two sessions of the same subject on the same day for the same class
+                        return false;
                     }
                 }
             }
@@ -374,8 +381,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
 
             for (const day of shuffledDays) {
-                if (!isValidPlacement(board, session, day, 0) && !isValidPlacement(board, partner, day, 0)) continue;
-
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, session, day, p1) && isValidPlacement(board, partner, day, p2)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
@@ -392,8 +397,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
-                if (sessionGroup.some(s => !isValidPlacement(board, s, day, 0))) continue;
-
                 for (const period of shuffledPeriods) {
                     const canPlaceGroup = sessionGroup.every(session => isValidPlacement(board, session, day, period));
                     if (canPlaceGroup) {
@@ -409,8 +412,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const session = unit as TimetableSession;
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
-                if (!isValidPlacement(board, session, day, 0)) continue;
-                
                 for (const period of shuffledPeriods) {
                     if (isValidPlacement(board, session, day, period)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
@@ -578,4 +579,5 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
 
+    
     

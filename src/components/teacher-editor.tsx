@@ -486,26 +486,37 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     name: `teachers.${index}.assignments`
   });
 
-  const { activeTimetable } = useTimetable();
-  
-  const teacherName = useWatch({ control, name: `teachers.${index}.name` });
+  const { activeTimetable, allTeachers } = useTimetable();
+  const teacherId = useWatch({ control, name: `teachers.${index}.id`});
 
   const totalGeneratedPeriods = useMemo(() => {
-    if (!activeTimetable || !activeTimetable.timetable || !teacherName) {
+    if (!activeTimetable || !activeTimetable.timetable || !teacherId) {
       return 0;
     }
     let count = 0;
-    for (const day in activeTimetable.timetable) {
-      for (const period of activeTimetable.timetable[day]) {
-        for (const session of period) {
-          if (session.teacher === teacherName) {
-            count++;
-          }
-        }
-      }
-    }
+    const teacher = allTeachers.find(t => t.id === teacherId);
+    if (!teacher) return 0;
+
+    Object.values(activeTimetable.timetable).forEach(day => {
+        day.forEach(period => {
+            period.forEach(session => {
+                if (session.teacherId === teacher.id && session.subject !== 'Assembly' && session.subject !== 'Sports') {
+                    if (session.optionGroup) {
+                        const allSessionsInSlot = activeTimetable.timetable[session.day!]?.[session.period!] || [];
+                        const blockSessions = allSessionsInSlot.filter(s => s.id === session.id);
+                        const teacherSessionInBlock = blockSessions.find(s => s.teacherId === teacher.id);
+                        if (teacherSessionInBlock && blockSessions.indexOf(teacherSessionInBlock) === 0) {
+                           count++;
+                        }
+                    } else {
+                       count++;
+                    }
+                }
+            });
+        });
+    });
     return count;
-  }, [activeTimetable, teacherName]);
+  }, [activeTimetable, teacherId, allTeachers]);
 
 
   return (
@@ -721,11 +732,21 @@ export default function TeacherEditor() {
     if (!teacher) return 0;
     
     let count = 0;
+    const countedOptionBlocks = new Set<string>();
+
     Object.values(activeTimetable.timetable).forEach(day => {
         day.forEach(period => {
             period.forEach(session => {
                 if (session.teacherId === teacher.id && session.subject !== 'Assembly' && session.subject !== 'Sports') {
-                    count++;
+                    if (session.optionGroup) {
+                        const blockIdentifier = `${session.id}-${session.day}-${session.period}`;
+                        if (!countedOptionBlocks.has(blockIdentifier)) {
+                            count++;
+                            countedOptionBlocks.add(blockIdentifier);
+                        }
+                    } else {
+                        count++;
+                    }
                 }
             });
         });
@@ -882,4 +903,5 @@ export default function TeacherEditor() {
     
 
     
+
 

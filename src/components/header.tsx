@@ -153,8 +153,8 @@ export default function Header() {
     };
 
     const getClassInitials = (className: string) => {
-      if (!className) return '';
-      return className.replace("Grade ", "G").replace("A-Level Year", "Y");
+        if (!className) return '';
+        return className.replace("Grade ", "G").replace("A-Level Year", "Y");
     };
 
     listToIterate.forEach((item, index) => {
@@ -228,9 +228,11 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                        const optionText = `${session.subject}`; // "Option A"
+                        const optionText = `${session.subject}`;
                         const actualSubjectText = getSubjectInitials(session.actualSubject || '');
-                        const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
+                        const teacherInitials = getTeacherInitials(session.teacher);
+                        const classInitials = getClassInitials(session.className);
+                        const details = type === 'class' ? teacherInitials : classInitials;
 
                         doc.setFontSize(10);
                         doc.setFont(undefined, 'bold');
@@ -239,7 +241,6 @@ export default function Header() {
                         doc.setFontSize(7);
                         doc.setFont(undefined, 'normal');
                         doc.text(`${actualSubjectText} (${details})`, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
-
                     } else {
                         const subjectText = getSubjectInitials(session.subject);
                         const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);

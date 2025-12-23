@@ -173,14 +173,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const { subjectType, grades, ...restOfAssignment } = formAssignment;
         
         if (!grades || grades.length === 0) {
-            // Handle assignments with no grades if necessary, or just skip
             return;
         }
 
         const seniorGrades = grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
         const otherGrades = grades.filter(g => !SENIOR_SECONDARY_GRADES.includes(g));
 
-        // Process Senior Secondary part
         if (seniorGrades.length > 0) {
             finalAssignments.push({
                 ...restOfAssignment,
@@ -191,13 +189,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         }
         
-        // Process other grades (Junior Secondary, Primary, etc.)
         if (otherGrades.length > 0) {
             finalAssignments.push({
                 ...restOfAssignment,
-                id: crypto.randomUUID(), // Create a new ID for the split part
+                id: crypto.randomUUID(),
                 grades: otherGrades,
-                isCore: false,       // Non-senior grades are not core/optional
+                isCore: false,      
                 optionGroup: null,
             });
         }
@@ -325,51 +322,61 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    const combinedOptionalBlocks = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
+    const optionalGroups = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
     optionalAssignments.forEach(assign => {
-        assign.grades.forEach(grade => {
-            const key = `${grade}-${assign.optionGroup}`;
-            if (!combinedOptionalBlocks.has(key)) {
-                combinedOptionalBlocks.set(key, []);
-            }
-            combinedOptionalBlocks.get(key)!.push(assign);
-        });
+      // An optional assignment can be for multiple grades, we need to treat them as separate groups
+      assign.grades.forEach(grade => {
+          const key = `${grade}-${assign.optionGroup}`;
+          if (!optionalGroups.has(key)) {
+              optionalGroups.set(key, []);
+          }
+          optionalGroups.get(key)!.push(assign);
+      });
     });
 
-    combinedOptionalBlocks.forEach((assignments) => {
+    const periodBlocksByGroup = new Map<string, TimetableSession[][]>(); // Key: optionGroup, Value: Array of period blocks
+
+    // This map will group all assignments by their option group, regardless of grade.
+    const assignmentsByOptionGroup = new Map<string, (SubjectAssignment & { teacher: string })[]>();
+    optionalAssignments.forEach(assign => {
+        const key = assign.optionGroup!;
+        if (!assignmentsByOptionGroup.has(key)) {
+            assignmentsByOptionGroup.set(key, []);
+        }
+        assignmentsByOptionGroup.get(key)!.push(assign);
+    });
+
+    assignmentsByOptionGroup.forEach((assignments, optionGroup) => {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
+        const periodBlocks: TimetableSession[][] = [];
+
         for (let i = 0; i < maxPeriods; i++) {
-            const periodBlock: TimetableSession[] = [];
-            const allClassNamesInBlock = new Set<string>();
-
-            assignments.forEach(assign => {
-                assign.grades.forEach(grade => {
-                    const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-                    gradeArms.forEach(arm => {
-                        allClassNamesInBlock.add(`${grade} ${arm}`.trim());
-                    });
-                });
-            });
-            const sessionClasses = Array.from(allClassNamesInBlock);
-
+            const currentPeriodBlock: TimetableSession[] = [];
+            
             assignments.forEach(assign => {
                 if (i < assign.periods) {
-                    periodBlock.push({
-                        id: crypto.randomUUID(),
-                        subject: assign.subject,
-                        teacher: assign.teacher,
-                        className: sessionClasses.join(', '),
-                        classes: sessionClasses,
-                        isDouble: false,
-                        isCore: false,
-                        optionGroup: assign.optionGroup
+                    // Create a session for each specific class (Grade + Arm)
+                    assign.grades.forEach(grade => {
+                        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+                        gradeArms.forEach(arm => {
+                            const className = `${grade} ${arm}`.trim();
+                            currentPeriodBlock.push({
+                                id: crypto.randomUUID(),
+                                subject: assign.subject,
+                                teacher: assign.teacher,
+                                className: className,
+                                classes: [className],
+                                isDouble: false,
+                                isCore: false,
+                                optionGroup: assign.optionGroup
+                            });
+                        });
                     });
                 }
             });
-            if (periodBlock.length > 0) {
-              sessionsToPlace.push(periodBlock);
-            }
+            periodBlocks.push(currentPeriodBlock);
         }
+        sessionsToPlace.push(...periodBlocks);
     });
 
     sessionsToPlace.sort((a, b) => {
@@ -656,6 +663,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
 
     

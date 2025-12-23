@@ -4,7 +4,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
-import { BookOpen, GraduationCap, User, AlertCircle } from "lucide-react";
+import { BookOpen, GraduationCap, User, AlertCircle, Users } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
 import { useMemo } from "react";
 import { Badge } from "./ui/badge";
@@ -20,7 +20,7 @@ export default function TimetableItem({
   isConflict,
   from,
 }: TimetableItemProps) {
-  const { viewMode } = useTimetable();
+  const { viewMode, activeTimetable } = useTimetable();
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.dataTransfer.effectAllowed = "move";
@@ -28,12 +28,55 @@ export default function TimetableItem({
     e.dataTransfer.setData("application/json", JSON.stringify(dragData));
   };
 
-  const title = `Subject: ${session.actualSubject || session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
+  const allSessionsInSlot = useMemo(() => {
+    if (!activeTimetable?.timetable) return [];
+    const slot = activeTimetable.timetable[from.day]?.[from.period] || [];
+    return slot.filter(s => s.optionGroup && s.optionGroup === session.optionGroup);
+  }, [activeTimetable, from.day, from.period, session.optionGroup]);
 
-  const teacherInitials = useMemo(() => {
-    if (!session.teacher) return '';
-    return session.teacher.split(' ').map(name => name[0]).join('').toUpperCase();
-  }, [session.teacher]);
+  const isOptionGroup = !!session.optionGroup;
+  
+  // If it's an option group, we only want to render one card for the whole group.
+  // We identify the "primary" session for the group as the first one in the slot.
+  if (isOptionGroup && allSessionsInSlot[0]?.id !== session.id) {
+    return null;
+  }
+
+  const title = isOptionGroup 
+    ? `Option Group: ${session.subject}` 
+    : `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
+
+  if (isOptionGroup) {
+    const teachers = [...new Set(allSessionsInSlot.map(s => s.teacher))].join(', ');
+    const classes = [...new Set(allSessionsInSlot.map(s => s.className))].join(', ');
+
+     return (
+       <Card
+        draggable
+        onDragStart={handleDragStart}
+        className={cn(
+            "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
+            isConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
+        )}
+        title={`Option Group: ${session.subject}\nTeachers: ${teachers}\nClasses: ${classes}`}
+       >
+        <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
+            <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", isConflict ? "text-destructive-foreground" : "text-foreground")}>
+               {isConflict && <AlertCircle className="h-4 w-4" />}
+               <span className="truncate">{session.subject}</span>
+             </div>
+             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+               <Users className="h-3 w-3 shrink-0"/>
+               <span className="truncate">{teachers}</span>
+             </div>
+             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+               <GraduationCap className="h-3 w-3 shrink-0"/>
+               <span className="break-words">{classes}</span>
+             </div>
+        </CardContent>
+       </Card>
+     )
+  }
 
   return (
     <Card
@@ -50,27 +93,6 @@ export default function TimetableItem({
        {session.isDouble && <div className="absolute top-0 right-1 text-xs text-muted-foreground opacity-70">D</div>}
        {isConflict && <div className="absolute top-0 left-1 text-xs text-destructive-foreground bg-destructive rounded-full h-4 w-4 flex items-center justify-center font-bold ring-2 ring-white">!</div>}
       <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
-        {session.optionGroup ? (
-           <>
-             <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", isConflict ? "text-destructive-foreground" : "text-foreground")}>
-               {isConflict && <AlertCircle className="h-4 w-4" />}
-               <span className="truncate">{session.subject}</span>
-             </div>
-             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-               <BookOpen className="h-3 w-3 shrink-0"/>
-               <span className="truncate">{session.actualSubject}</span>
-             </div>
-             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-               <User className="h-3 w-3 shrink-0"/>
-               <span className="truncate">{session.teacher}</span>
-             </div>
-              <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-               <GraduationCap className="h-3 w-3 shrink-0"/>
-               <span className="break-words">{session.className}</span>
-             </div>
-           </>
-        ) : (
-          <>
             <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
               {isConflict && <AlertCircle className="h-4 w-4" />}
               <BookOpen className="h-4 w-4 text-primary shrink-0"/>
@@ -84,12 +106,7 @@ export default function TimetableItem({
               <GraduationCap className="h-3 w-3 shrink-0"/>
               <span className="break-words">{session.className}</span>
             </div>
-          </>
-        )}
       </CardContent>
     </Card>
   );
 }
-
-
-    

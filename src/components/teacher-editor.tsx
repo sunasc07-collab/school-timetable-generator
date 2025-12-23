@@ -488,6 +488,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
   const { activeTimetable, allTeachers } = useTimetable();
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
+  const teacherName = useWatch({ control, name: `teachers.${index}.name`});
 
   const totalGeneratedPeriods = useMemo(() => {
     if (!activeTimetable || !activeTimetable.timetable || !teacherId) {
@@ -498,25 +499,16 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     if (!teacher) return 0;
 
     Object.values(activeTimetable.timetable).forEach(day => {
-        day.forEach(period => {
+        Object.values(day).forEach(period => {
             period.forEach(session => {
-                if (session.teacherId === teacher.id && session.subject !== 'Assembly' && session.subject !== 'Sports') {
-                    if (session.optionGroup) {
-                        const allSessionsInSlot = activeTimetable.timetable[session.day!]?.[session.period!] || [];
-                        const blockSessions = allSessionsInSlot.filter(s => s.id === session.id);
-                        const teacherSessionInBlock = blockSessions.find(s => s.teacherId === teacher.id);
-                        if (teacherSessionInBlock && blockSessions.indexOf(teacherSessionInBlock) === 0) {
-                           count++;
-                        }
-                    } else {
-                       count++;
-                    }
+                if (session.teacherId === teacher.id) {
+                   count++;
                 }
             });
         });
     });
     return count;
-  }, [activeTimetable, teacherId, allTeachers]);
+  }, [activeTimetable, teacherId, teacherName, allTeachers]);
 
 
   return (
@@ -732,27 +724,17 @@ export default function TeacherEditor() {
     if (!teacher) return 0;
     
     let count = 0;
-    const countedOptionBlocks = new Set<string>();
-
     Object.values(activeTimetable.timetable).forEach(day => {
-        day.forEach(period => {
+        Object.values(day).forEach(period => {
             period.forEach(session => {
-                if (session.teacherId === teacher.id && session.subject !== 'Assembly' && session.subject !== 'Sports') {
-                    if (session.optionGroup) {
-                        const blockIdentifier = `${session.id}-${session.day}-${session.period}`;
-                        if (!countedOptionBlocks.has(blockIdentifier)) {
-                            count++;
-                            countedOptionBlocks.add(blockIdentifier);
-                        }
-                    } else {
-                        count++;
-                    }
+                if (session.teacherId === teacher.id) {
+                    count++;
                 }
             });
         });
     });
     return count;
-  }
+  };
 
   return (
     <div className="p-2 space-y-4">
@@ -899,9 +881,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
-
-    
-
-

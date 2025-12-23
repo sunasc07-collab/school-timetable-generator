@@ -31,24 +31,24 @@ export default function TimetableItem({
   const allSessionsInSlot = useMemo(() => {
     if (!activeTimetable?.timetable) return [];
     const slot = activeTimetable.timetable[from.day]?.[from.period] || [];
-    return slot.filter(s => s.optionGroup && s.optionGroup === session.optionGroup);
-  }, [activeTimetable, from.day, from.period, session.optionGroup]);
+    if (session.optionGroup) {
+      return slot.filter(s => s.optionGroup && s.optionGroup === session.optionGroup);
+    }
+    return [session];
+  }, [activeTimetable, from.day, from.period, session]);
 
   const isOptionGroup = !!session.optionGroup;
   
-  // If it's an option group, we only want to render one card for the whole group.
-  // We identify the "primary" session for the group as the first one in the slot.
   if (isOptionGroup && allSessionsInSlot[0]?.id !== session.id) {
     return null;
   }
 
-  const title = isOptionGroup 
-    ? `Option Group: ${session.subject}` 
-    : `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
-
   if (isOptionGroup) {
     const teachers = [...new Set(allSessionsInSlot.map(s => s.teacher))].join(', ');
+    const subjects = [...new Set(allSessionsInSlot.map(s => s.actualSubject))].join(', ');
     const classes = [...new Set(allSessionsInSlot.map(s => s.className))].join(', ');
+    const title = `Option Group: ${session.subject}\nTeachers: ${teachers}\nSubjects: ${subjects}\nClasses: ${classes}`;
+
 
      return (
        <Card
@@ -58,7 +58,7 @@ export default function TimetableItem({
             "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
             isConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
         )}
-        title={`Option Group: ${session.subject}\nTeachers: ${teachers}\nClasses: ${classes}`}
+        title={title}
        >
         <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
             <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", isConflict ? "text-destructive-foreground" : "text-foreground")}>
@@ -77,6 +77,8 @@ export default function TimetableItem({
        </Card>
      )
   }
+  
+  const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
 
   return (
     <Card
@@ -110,3 +112,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+    

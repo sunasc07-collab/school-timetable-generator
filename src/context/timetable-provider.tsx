@@ -308,26 +308,28 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
 
     uniqueOptionGroups.forEach(group => {
         if (!group) return;
+
         const assignmentsForGroup = optionAssignments.filter(a => a.optionGroup === group);
         const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods));
 
-        for (let i = 0; i < maxPeriods; i++) {
+        for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
             const classesInBlock = new Set<string>();
 
-            const assignmentsThisPeriod = assignmentsForGroup.filter(a => a.periods > i);
+            const assignmentsThisPeriod = assignmentsForGroup.filter(a => a.periods > periodIndex);
             
-            for (const assignment of assignmentsThisPeriod) {
+            assignmentsThisPeriod.forEach(assignment => {
                 const className = `${assignment.grades[0]} ${assignment.arms[0] || ''}`.trim();
-                 if (teachersInBlock.has(assignment.teacher) || classesInBlock.has(className)) {
+                
+                if (teachersInBlock.has(assignment.teacher) || classesInBlock.has(className)) {
                     const conflictMessage = `Pre-solver conflict in Option ${group}: Teacher ${assignment.teacher} or Class ${className} is double-booked.`;
                     const existingConflict = newConflicts.find(c => c.message === conflictMessage);
-                    if (!existingConflict) {
+                    if (!existingConflict && assignment.id) {
                         newConflicts.push({ id: assignment.id, type: 'class', message: conflictMessage });
                     }
-                    continue; // Skip adding this session to block
+                    return; // Skip adding this session to block
                 }
                 teachersInBlock.add(assignment.teacher);
                 classesInBlock.add(className);
@@ -342,7 +344,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                     isDouble: false,
                     optionGroup: group,
                 });
-            }
+            });
 
             if (blockSessions.length > 0) {
                  optionBlocks.push({
@@ -355,8 +357,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     
     if (newConflicts.length > 0) {
         console.error("Pre-solver conflicts detected", newConflicts);
-        updateTimetable(activeTimetable.id, { conflicts: newConflicts });
-        // Don't stop generation, just report conflicts
+        // Do not stop generation, just report conflicts. The conflicting sessions have been excluded.
     }
 
 
@@ -376,11 +377,11 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             if (slot.some(s => s.teacher === session.teacher)) return false;
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
+            // Prevent same subject for the same class on the same day
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession => 
                   existingSession.className === session.className &&
-                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject) &&
-                  existingSession.id !== session.id
+                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject)
               )) {
                   return false;
               }
@@ -397,16 +398,17 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             const slot = board[day]?.[period];
             if (!slot) return false;
             
-            const teachersInBlock = unit.sessions.map(s => s.teacher);
-            const classesInBlock = unit.sessions.flatMap(s => s.classes);
+            const teachersInBlock = new Set(unit.sessions.map(s => s.teacher));
+            const classesInBlock = new Set(unit.sessions.flatMap(s => s.classes));
 
-            if (slot.some(s => teachersInBlock.includes(s.teacher))) return false;
-            if (slot.some(s => s.classes.some(c => classesInBlock.includes(c)))) return false;
+            if (slot.some(s => teachersInBlock.has(s.teacher))) return false;
+            if (slot.some(s => s.classes.some(c => classesInBlock.has(c)))) return false;
 
+            // Prevent same option group for the same class on the same day
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession => 
-                  classesInBlock.includes(existingSession.className) && 
-                  existingSession.optionGroup === unit.optionGroup
+                  existingSession.optionGroup === unit.optionGroup &&
+                  existingSession.classes.some(c => classesInBlock.has(c))
               )) {
                  return false;
               }
@@ -564,11 +566,13 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
   useEffect(() => {
     if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
         if(activeTimetable?.conflicts.length > 0 && !activeTimetable.conflicts.some(c => c.id === 'solver-fail')) {
-            // updateTimetable(activeTimetable.id, { conflicts: [] });
+             if (activeTimetable) {
+                updateTimetable(activeTimetable.id, { conflicts: [] });
+             }
         }
         return;
     }
-  }, [activeTimetable]);
+  }, [activeTimetable, updateTimetable]);
 
 
   const isConflict = (sessionId: string) => {
@@ -611,3 +615,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

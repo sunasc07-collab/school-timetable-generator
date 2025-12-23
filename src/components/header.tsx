@@ -152,7 +152,7 @@ export default function Header() {
 
     const getClassInitials = (className: string) => {
       if (!className) return '';
-      return className.substring(0, 2).toUpperCase();
+      return className.replace("Grade ", "").substring(0, 4);
     };
 
     listToIterate.forEach((item, index) => {
@@ -435,5 +435,3 @@ export default function Header() {
     </>
   );
 }
-
-    

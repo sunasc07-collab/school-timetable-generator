@@ -164,60 +164,52 @@ export default function Header() {
         const cellContentMap = new Map<string, CellContent[]>(); // key: `${dayIndex}-${periodIndex}`
         
         days.forEach((day, dayIndex) => {
-            for (let p = 0; p < periodCount; p++) {
-                const sessionsInSlot = timetable[day]?.[p] || [];
-                const key = `${dayIndex}-${p}`;
-                const cellContents: CellContent[] = [];
-
-                const relevantSessions = sessionsInSlot.filter(session => {
-                    if (type === 'class') {
+            const periods = timetable[day] || [];
+            periods.forEach((periodSessions, periodIndex) => {
+                const key = `${dayIndex}-${periodIndex}`;
+                
+                const relevantSessions = periodSessions.filter(session => {
+                     if (type === 'class') {
                         return session.classes.includes(itemName);
                     }
                     return session.teacher === itemName;
                 });
+                
+                if (relevantSessions.length > 0) {
+                    const cellContents: CellContent[] = [];
 
-                relevantSessions.forEach(session => {
-                    if (session.optionGroup) {
-                        const initials = getTeacherInitials(session.teacher);
-                        
-                        let relevantClassName = session.className;
-                        if (type === 'teacher') {
-                            const teacherClasses = session.classes.filter(c => {
-                                const teacherAssignments = (item as Teacher).assignments;
-                                return teacherAssignments.some(a => a.subject === session.subject && a.grades.some(g => c.startsWith(g)));
-                            });
-                            if(teacherClasses.length > 0) relevantClassName = teacherClasses.join(', ');
+                    relevantSessions.forEach(session => {
+                        if (session.optionGroup) {
+                            const initials = getTeacherInitials(session.teacher);
+                            const classNameWithArm = session.className;
+                            
+                            const text = `${session.optionGroup}\n${initials}\n${classNameWithArm}`;
+
+                            const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
+                            if (!existing) { 
+                                cellContents.push({
+                                    text: text,
+                                    isOptionGroup: true,
+                                    color: getSubjectColor(session.subject),
+                                });
+                            }
                         } else {
-                            relevantClassName = itemName;
-                        }
-                        
-                        const text = `${session.optionGroup}\n${initials}\n${relevantClassName}`;
-                        const existing = cellContents.find(c => c.isOptionGroup && c.text.startsWith(session.optionGroup!));
-                        if (!existing) { 
+                            const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
+                            const text = `${session.subject}\n${details}`;
                             cellContents.push({
                                 text: text,
-                                isOptionGroup: true,
+                                isOptionGroup: false,
                                 color: getSubjectColor(session.subject),
                             });
                         }
-                    } else {
-                        const details = type === 'class' ? getTeacherInitials(session.teacher) : session.className;
-                        const text = `${session.subject}\n${details}`;
-                        cellContents.push({
-                            text: text,
-                            isOptionGroup: false,
-                            color: getSubjectColor(session.subject),
-                        });
-                    }
-                });
+                    });
 
-                if(cellContents.length > 0) {
-                    const uniqueCellContents = Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values());
-                    if (uniqueCellContents.length > 0) {
+                    if(cellContents.length > 0) {
+                        const uniqueCellContents = Array.from(new Map(cellContents.map(c => [c.text.split('\n')[0], c])).values());
                         cellContentMap.set(key, uniqueCellContents);
                     }
                 }
-            }
+            });
         });
 
 
@@ -238,9 +230,9 @@ export default function Header() {
             } else {
                 days.forEach((day, dayIndex) => {
                     const key = `${dayIndex}-${periodIdxCounter}`;
-                    const cellContents = cellContentMap.get(key) || [];
+                    const cellContents = cellContentMap.get(key);
                     
-                    if (cellContents.length > 0) {
+                    if (cellContents && cellContents.length > 0) {
                         rowData.push({
                             raw: cellContents,
                             content: '', // Custom drawn

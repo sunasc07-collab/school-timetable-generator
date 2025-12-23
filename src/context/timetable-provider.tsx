@@ -105,7 +105,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const updateTimetable = useCallback((timetableId: string, updates: Partial<Timetable>) => {
       setTimetables(prev => prev.map(t => t.id === timetableId ? { ...t, ...updates } : t));
   }, [setTimetables]);
-  
+
   const findConflicts = useCallback((timetableData: TimetableData, timetableId: string) => {
     const currentTT = timetables.find(t => t.id === timetableId);
     if (!currentTT || !timetableData || Object.keys(timetableData).length === 0) {
@@ -126,15 +126,26 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const classClashes = new Map<string, TimetableSession[]>();
 
             for (const session of slot) {
+                // For option groups, a teacher might be booked, but it's not a clash within the group itself
+                // Teacher clashes are checked across different groups or single sessions in the same slot.
                 if (teacherClashes.has(session.teacher)) {
-                    teacherClashes.get(session.teacher)!.push(session);
+                    // Check if it's the same option group ID. If so, it's not a clash.
+                    const existingSessions = teacherClashes.get(session.teacher)!;
+                    const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
+                    if (!isSameOptionBlock) {
+                        existingSessions.push(session);
+                    }
                 } else {
                     teacherClashes.set(session.teacher, [session]);
                 }
                 
                 for (const className of session.classes) {
                     if (classClashes.has(className)) {
-                        classClashes.get(className)!.push(session);
+                        const existingSessions = classClashes.get(className)!;
+                        const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
+                        if (!isSameOptionBlock) {
+                           existingSessions.push(session);
+                        }
                     } else {
                         classClashes.set(className, [session]);
                     }
@@ -303,11 +314,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (tt.id !== schoolId && tt.timetable) {
             days.forEach(day => {
                 if (tt.timetable[day]) {
-                    for (let period = 0; period < periodCount; period++) {
+                    for (let period = 0; period < tt.timetable[day].length; period++) {
                         const slot = tt.timetable[day][period] || [];
                         slot.forEach(session => {
                             if (session.teacher) {
-                                teacherAvailability[day][period].add(session.teacher);
+                                teacherAvailability[day][period]?.add(session.teacher);
                             }
                         });
                     }
@@ -323,22 +334,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     activeTeachers.forEach(teacher => {
         teacher.assignments.forEach(origAssignment => {
             if (origAssignment.schoolId !== schoolId || origAssignment.subject.toLowerCase() === 'assembly') return;
-
-            const expandedAssignments = origAssignment.grades.flatMap(grade => {
+            
+            origAssignment.grades.forEach(grade => {
                 const arms = origAssignment.arms && origAssignment.arms.length > 0 ? origAssignment.arms : [""];
-                return arms.map(arm => ({
-                    ...origAssignment,
-                    id: origAssignment.id || crypto.randomUUID(),
-                    teacher: teacher.name,
-                    className: `${grade} ${arm}`.trim(),
-                    grades: [grade], 
-                    arms: arm ? [arm] : [],
-                }));
-            });
-
-            expandedAssignments.forEach(req => {
-                if (req.className) classSet.add(req.className);
-                allRequiredAssignments.push(req);
+                arms.forEach(arm => {
+                    const className = `${grade} ${arm}`.trim();
+                    allRequiredAssignments.push({
+                        ...origAssignment,
+                        teacher: teacher.name,
+                        className: className,
+                        grades: [grade],
+                        arms: arm ? [arm] : [],
+                    });
+                    classSet.add(className);
+                });
             });
         });
     });
@@ -351,8 +360,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     nonOptionalAssignments.forEach(req => {
         let remainingPeriods = req.periods;
-        if (!req.className) return;
-
         while (remainingPeriods >= 2) {
             const doubleId = crypto.randomUUID();
             const sessionPart1: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className: req.className, classes: [req.className], isDouble: true, part: 1, isCore: req.isCore };
@@ -390,8 +397,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const classesInThisBlock = new Set<string>();
 
             for (const assignment of assignmentsInGroup) {
-                // The check `assignment.periods > periodIndex` was incorrect. We use maxPeriods now.
-                // We create a session for every assignment in the group for each block instance.
                 if (teachersInThisBlock.has(assignment.teacher)) {
                     newConflicts.push({ id: assignment.id || blockId, type: 'teacher', message: `Pre-solver conflict: Teacher ${assignment.teacher} is double-booked within Option Group ${optionGroupName} for ${assignment.className}.` });
                     continue;
@@ -444,14 +449,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!slot) return false;
 
             if (slot.some(s => s.teacher === session.teacher)) return false;
-            
-            const sessionClasses = session.optionGroup ? session.classes : [session.className];
-            if (slot.some(s => s.classes.some(c => sessionClasses.includes(c)))) return false;
+            if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession =>
                   existingSession.className === session.className &&
-                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject)
+                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject) &&
+                  existingSession.id !== session.id // Allow same subject if it's a different session (e.g. doubles)
               )) {
                   return false;
               }
@@ -465,7 +469,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (partnerPeriod === undefined) return false;
             return checkSession(session, period) && checkSession(partner, partnerPeriod);
         } else if ('sessions' in unit) { // Option Block
-            if (!unit.sessions || unit.sessions.length === 0) return false;
             return unit.sessions.every(session => checkSession(session, period));
         } else { // Single Session
             return checkSession(unit, period);

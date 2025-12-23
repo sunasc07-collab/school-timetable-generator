@@ -37,7 +37,7 @@ export default function TimetableItem({
     // We achieve this by finding all sessions in the slot with the same option block ID
     // and only rendering if the current session is the VERY FIRST one in that found group.
     const relevantSessions = allSessionsInSlot.filter(s => s.id === session.id);
-    if (relevantSessions.length === 0 || relevantSessions[0] !== session) {
+    if (relevantSessions.length === 0 || relevantSessions[0]?.actualSubject !== session.actualSubject || relevantSessions[0]?.teacherId !== session.teacherId) {
         return null;
     }
     
@@ -135,3 +135,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+    

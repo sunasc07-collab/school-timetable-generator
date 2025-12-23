@@ -125,33 +125,24 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const classClashes = new Map<string, TimetableSession[]>();
 
             for (const session of slot) {
-                if (session.teacher && session.subject !== 'Sports' && session.teacherId) {
-                    if (teacherClashes.has(session.teacherId)) {
-                        const existingSessions = teacherClashes.get(session.teacherId)!;
-                        const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
-                        if (!isSameOptionBlock) {
-                            existingSessions.push(session);
-                        }
-                    } else {
-                        teacherClashes.set(session.teacherId, [session]);
+                if (session.teacherId) {
+                    if (!teacherClashes.has(session.teacherId)) {
+                        teacherClashes.set(session.teacherId, []);
                     }
+                    teacherClashes.get(session.teacherId)!.push(session);
                 }
                 
                 for (const className of session.classes) {
-                    if (classClashes.has(className)) {
-                        const existingSessions = classClashes.get(className)!;
-                        const isSameOptionBlock = existingSessions.every(s => s.optionGroup && s.id === session.id);
-                        if (!isSameOptionBlock) {
-                           existingSessions.push(session);
-                        }
-                    } else {
-                        classClashes.set(className, [session]);
+                     if (!classClashes.has(className)) {
+                        classClashes.set(className, []);
                     }
+                    classClashes.get(className)!.push(session);
                 }
             }
 
             teacherClashes.forEach((sessions, teacherId) => {
-                if (sessions.length > 1) {
+                const uniqueOptionGroups = new Set(sessions.map(s => s.optionGroup ? s.id : s.id));
+                if (uniqueOptionGroups.size > 1) {
                     sessions.forEach(session => {
                         newConflicts.push({
                             id: session.id,
@@ -163,7 +154,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
             
             classClashes.forEach((sessions, className) => {
-                if (sessions.length > 1) {
+                const uniqueOptionGroups = new Set(sessions.map(s => s.optionGroup ? s.id : s.id));
+                 if (uniqueOptionGroups.size > 1) {
                     sessions.forEach(session => {
                         newConflicts.push({
                             id: session.id,
@@ -456,16 +448,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 if (slot.some(s => s.classes.includes(className))) {
                     return false;
                 }
-                // Check if this subject has already been taught to this class on this day
-                 for (const existingPeriod of board[day]) {
-                     if (existingPeriod.some(existingSession => 
-                         existingSession.classes.includes(className) &&
-                         (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject) &&
-                         existingSession.id !== session.id
-                     )) {
-                         return false;
-                     }
-                 }
+                for (let i = 0; i < p; i++) {
+                    const existingPeriod = board[day][i];
+                    if (existingPeriod.some(existingSession => 
+                        existingSession.classes.includes(className) &&
+                        (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject) &&
+                        existingSession.id !== session.id
+                    )) {
+                        return false;
+                    }
+                }
             }
             
             return true;
@@ -676,5 +668,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
 
     

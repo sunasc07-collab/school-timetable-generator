@@ -234,23 +234,16 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                        const optionText = getSubjectInitials(session.subject);
-                        const actualSubjectText = getSubjectInitials(session.actualSubject || '');
-                        
-                        let details = '';
-                        if (type === 'class') {
-                           details = `${actualSubjectText}`;
-                        } else {
-                           details = `${actualSubjectText} (${getClassInitials(session.className)})`;
-                        }
+                        const optionLetter = session.optionGroup;
+                        const gradeText = getClassInitials(session.className);
 
-                        doc.setFontSize(10);
+                        doc.setFontSize(12);
                         doc.setFont(undefined, 'bold');
-                        doc.text(optionText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
+                        doc.text(optionLetter, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 1, { halign: 'center' });
                         
                         doc.setFontSize(7);
                         doc.setFont(undefined, 'normal');
-                        doc.text(details, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
+                        doc.text(gradeText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 4, { halign: 'center' });
 
                     } else {
                         const subjectText = getSubjectInitials(session.subject);
@@ -438,3 +431,5 @@ export default function Header() {
     </>
   );
 }
+
+    

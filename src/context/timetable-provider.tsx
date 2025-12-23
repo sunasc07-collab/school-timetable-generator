@@ -170,7 +170,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const finalAssignments: SubjectAssignment[] = [];
     
     teacherData.assignments.forEach(formAssignment => {
-        const { subjectType, grades, ...restOfAssignment } = formAssignment;
+        const { grades, isCore, optionGroup, ...restOfAssignment } = formAssignment;
         
         if (!grades || grades.length === 0) {
             return;
@@ -184,19 +184,32 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 ...restOfAssignment,
                 id: restOfAssignment.id || crypto.randomUUID(),
                 grades: seniorGrades,
-                isCore: subjectType === 'core',
-                optionGroup: subjectType === 'optional' ? restOfAssignment.optionGroup : null,
+                isCore: isCore,
+                optionGroup: optionGroup,
             });
         }
         
         if (otherGrades.length > 0) {
-            finalAssignments.push({
-                ...restOfAssignment,
-                id: crypto.randomUUID(),
-                grades: otherGrades,
-                isCore: false,      
-                optionGroup: null,
-            });
+             const existingAssignmentIndex = finalAssignments.findIndex(fa => 
+                fa.subject === restOfAssignment.subject &&
+                fa.schoolId === restOfAssignment.schoolId &&
+                fa.periods === restOfAssignment.periods &&
+                !fa.isCore && !fa.optionGroup
+            );
+
+            if (existingAssignmentIndex !== -1) {
+                const existingAssignment = finalAssignments[existingAssignmentIndex];
+                const combinedGrades = [...new Set([...existingAssignment.grades, ...otherGrades])];
+                finalAssignments[existingAssignmentIndex] = { ...existingAssignment, grades: combinedGrades };
+            } else {
+                 finalAssignments.push({
+                    ...restOfAssignment,
+                    id: crypto.randomUUID(),
+                    grades: otherGrades,
+                    isCore: false,
+                    optionGroup: null,
+                });
+            }
         }
     });
 
@@ -322,21 +335,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    const optionalGroups = new Map<string, (SubjectAssignment & { teacher: string })[]>(); // Key: grade-optionGroup
-    optionalAssignments.forEach(assign => {
-      // An optional assignment can be for multiple grades, we need to treat them as separate groups
-      assign.grades.forEach(grade => {
-          const key = `${grade}-${assign.optionGroup}`;
-          if (!optionalGroups.has(key)) {
-              optionalGroups.set(key, []);
-          }
-          optionalGroups.get(key)!.push(assign);
-      });
-    });
-
-    const periodBlocksByGroup = new Map<string, TimetableSession[][]>(); // Key: optionGroup, Value: Array of period blocks
-
-    // This map will group all assignments by their option group, regardless of grade.
+    // Group optional assignments by their option group (e.g., 'A', 'B')
     const assignmentsByOptionGroup = new Map<string, (SubjectAssignment & { teacher: string })[]>();
     optionalAssignments.forEach(assign => {
         const key = assign.optionGroup!;
@@ -346,16 +345,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         assignmentsByOptionGroup.get(key)!.push(assign);
     });
 
+    // Create session blocks for each option group
     assignmentsByOptionGroup.forEach((assignments, optionGroup) => {
         const maxPeriods = Math.max(...assignments.map(a => a.periods));
-        const periodBlocks: TimetableSession[][] = [];
-
+        
         for (let i = 0; i < maxPeriods; i++) {
             const currentPeriodBlock: TimetableSession[] = [];
             
             assignments.forEach(assign => {
                 if (i < assign.periods) {
-                    // Create a session for each specific class (Grade + Arm)
                     assign.grades.forEach(grade => {
                         const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
                         gradeArms.forEach(arm => {
@@ -374,9 +372,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     });
                 }
             });
-            periodBlocks.push(currentPeriodBlock);
+            if(currentPeriodBlock.length > 0) {
+              sessionsToPlace.push(currentPeriodBlock);
+            }
         }
-        sessionsToPlace.push(...periodBlocks);
     });
 
     sessionsToPlace.sort((a, b) => {
@@ -663,5 +662,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

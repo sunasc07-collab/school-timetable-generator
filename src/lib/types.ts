@@ -9,6 +9,8 @@ export type SubjectAssignment = {
   isCore?: boolean;
   optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   subjectType?: 'core' | 'optional';
+  teacherId?: string; // For internal processing
+  teacherName?: string; // For internal processing
 };
 
 export type Teacher = {

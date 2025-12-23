@@ -257,10 +257,17 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
   
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
+    
+    console.log("--- STARTING TIMETABLE GENERATION ---");
+    console.log("School:", activeTimetable.name);
 
     const activeTeachers = allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
     const { timeSlots, days, name: schoolName, id: schoolId } = activeTimetable;
     const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
+
+    console.log("Active teachers:", activeTeachers.length);
+    console.log("Days:", days);
+    console.log("Periods per day:", periodCount);
 
     const allRequiredSessions: (SubjectAssignment & { teacher: string })[] = [];
     const classSet = new Set<string>();
@@ -274,11 +281,17 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             allRequiredSessions.push({ ...assignment, teacher: teacher.name });
         });
     });
+    
+    console.log("Total required assignments:", allRequiredSessions.length);
+    console.log("Classes discovered:", Array.from(classSet));
 
     const singleSessions: SingleSessionUnit[] = [];
     const doubleSessions: DoubleSessionUnit[] = [];
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
     const coreAssignments = allRequiredSessions.filter(req => !req.optionGroup);
+
+    console.log("Core assignments:", coreAssignments.length);
+    console.log("Optional assignments:", optionalAssignments.length);
 
     coreAssignments.forEach(req => {
         let remainingPeriods = req.periods;
@@ -298,55 +311,89 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     
     const optionBlocks: OptionBlockUnit[] = [];
     const conflicts: Conflict[] = [];
-    const optionGroups = [...new Set(optionalAssignments.map(a => a.optionGroup))].filter(Boolean);
+    const groupedOptions = new Map<string, SubjectAssignment[]>();
 
-    optionGroups.forEach(group => {
-        const assignmentsForGroup = optionalAssignments.filter(a => a.optionGroup === group);
-        const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods), 0);
+    optionalAssignments.forEach(assign => {
+        const key = assign.optionGroup!;
+        if (!groupedOptions.has(key)) {
+            groupedOptions.set(key, []);
+        }
+        groupedOptions.get(key)!.push(assign);
+    });
 
+    groupedOptions.forEach((assignments, group) => {
+        const maxPeriods = Math.max(...assignments.map(a => a.periods), 0);
+        
         for (let i = 0; i < maxPeriods; i++) {
             const block: OptionBlockUnit = [];
             const teachersInBlock = new Set<string>();
             const classesInBlock = new Set<string>();
-            const sessionsForThisPeriod = assignmentsForGroup.filter(a => i < a.periods);
 
-            sessionsForThisPeriod.forEach(session => {
-                const className = `${session.grades[0]} ${session.arms[0] || ''}`.trim();
-                
-                if (teachersInBlock.has(session.teacher)) {
-                    conflicts.push({ id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double-booked in Option Group ${group}.`});
+            const sessionsForThisPeriod = assignments.filter(a => i < a.periods);
+
+            sessionsForThisPeriod.forEach(sessionAssignment => {
+                if (!sessionAssignment) return; // Safeguard
+
+                const className = `${sessionAssignment.grades[0]} ${sessionAssignment.arms[0] || ''}`.trim();
+
+                // Pre-solver conflict check
+                if (teachersInBlock.has(sessionAssignment.teacher)) {
+                    const conflict: Conflict = {
+                        id: sessionAssignment.id || `conflict-${group}-${i}`,
+                        type: 'teacher',
+                        message: `Teacher ${sessionAssignment.teacher} is double-booked in Option Group ${group}.`
+                    };
+                    if (!conflicts.some(c => c.message === conflict.message)) {
+                      conflicts.push(conflict);
+                    }
                 }
                 if (classesInBlock.has(className)) {
-                    conflicts.push({ id: session.id, type: 'class', message: `Class ${className} has multiple subjects in Option Group ${group}.`});
+                   const conflict: Conflict = {
+                        id: sessionAssignment.id || `conflict-${group}-${i}`,
+                        type: 'class',
+                        message: `Class ${className} has multiple subjects in Option Group ${group}.`
+                    };
+                     if (!conflicts.some(c => c.message === conflict.message)) {
+                      conflicts.push(conflict);
+                    }
                 }
-                
-                teachersInBlock.add(session.teacher);
+
+                teachersInBlock.add(sessionAssignment.teacher);
                 classesInBlock.add(className);
 
                 block.push({
-                    id: session.id + `_period_${i}`,
+                    id: `${sessionAssignment.id}_period_${i}`,
                     subject: `Option ${group}`,
-                    actualSubject: session.subject,
-                    teacher: session.teacher,
+                    actualSubject: sessionAssignment.subject,
+                    teacher: sessionAssignment.teacher,
                     className: className,
                     classes: [className],
                     isDouble: false,
                     optionGroup: group,
                 });
             });
-            
+
             if (block.length > 0) {
                 optionBlocks.push(block);
             }
         }
     });
 
+
     if (conflicts.length > 0) {
+        console.error("--- PRE-SOLVER CONFLICTS DETECTED ---", conflicts);
         updateTimetable(activeTimetable.id, { conflicts });
         return;
     }
 
     const sessionsToPlace: PlacementUnit[] = [...doubleSessions, ...optionBlocks, ...singleSessions];
+    console.log("--- SESSIONS TO PLACE ---");
+    console.log("Total units:", sessionsToPlace.length);
+    console.log("Single sessions:", singleSessions.length);
+    console.log("Double sessions:", doubleSessions.length);
+    console.log("Option blocks:", optionBlocks.length);
+    console.log("Full list:", sessionsToPlace);
+    
     const sortedClasses = Array.from(classSet).sort();
     
     const newTimetable: TimetableData = {};
@@ -357,17 +404,29 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, p: number) => {
             const slot = board[day]?.[p];
-            if (!slot) return false;
+            if (!slot) {
+                // console.log(`DEBUG: Invalid placement for ${session.subject} - Slot [${day}, ${p}] does not exist.`);
+                return false;
+            }
 
-            if (slot.some(s => s.teacher === session.teacher)) return false;
-            if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
+            // Teacher conflict in the same slot
+            if (slot.some(s => s.teacher === session.teacher)) {
+                // console.log(`DEBUG: Invalid placement for ${session.subject} for teacher ${session.teacher} - Teacher conflict at [${day}, ${p}].`);
+                return false;
+            }
+            // Class conflict in the same slot
+            if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) {
+                 // console.log(`DEBUG: Invalid placement for ${session.subject} for class ${session.className} - Class conflict at [${day}, ${p}].`);
+                return false;
+            }
             
-            const subjectToCheck = session.optionGroup ? `Option ${session.optionGroup}` : session.subject;
+            // Subject conflict on the same day for the same class
             for (const existingPeriod of board[day]) {
-              if (existingPeriod.some(s => {
-                  const existingSubject = s.optionGroup ? `Option ${s.optionGroup}` : s.subject;
-                  return s.className === session.className && existingSubject === subjectToCheck;
-              })) {
+              if (existingPeriod.some(existingSession => 
+                  existingSession.className === session.className && 
+                  (existingSession.optionGroup || existingSession.subject) === (session.optionGroup || session.subject)
+              )) {
+                   // console.log(`DEBUG: Invalid placement for ${session.subject} for class ${session.className} - Same day subject conflict on ${day}.`);
                   return false;
               }
             }
@@ -381,30 +440,38 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                 if (slot.some(s => s.teacher === session.teacher)) return false;
                 if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
 
-                const subjectToCheck = `Option ${session.optionGroup}`;
                 for (const existingPeriod of board[day]) {
-                  if (existingPeriod.some(s => s.className === session.className && (s.optionGroup ? `Option ${s.optionGroup}` : s.subject) === subjectToCheck)) {
-                      return false;
-                  }
+                    if (existingPeriod.some(s => s.className === session.className && (s.optionGroup || s.subject) === (session.optionGroup || session.subject))) {
+                        return false;
+                    }
                 }
                 return true;
             });
         } else if ('session' in unit) { // Double Period
             const { session, partner } = unit;
             const partnerPeriod = CONSECUTIVE_PERIODS.find(p => p[0] === period)?.[1];
-            if (partnerPeriod === undefined) return false;
+            if (partnerPeriod === undefined) {
+                // console.log(`DEBUG: Invalid placement for double session ${session.subject} - No consecutive period found for period ${period}.`);
+                return false;
+            }
             return checkSession(session, period) && checkSession(partner, partnerPeriod);
         } else { // Single Session
             return checkSession(unit, period);
         }
     }
     
-    function solve(board: TimetableData, units: PlacementUnit[]): [boolean, TimetableData] {
-        if (units.length === 0) return [true, board];
+    function solve(board: TimetableData, units: PlacementUnit[], depth: number): [boolean, TimetableData] {
+        if (units.length === 0) {
+            console.log("SOLVER: Success! All units placed.");
+            return [true, board];
+        }
 
         const unit = units[0];
         const remainingUnits = units.slice(1);
         const shuffledDays = [...days].sort(() => Math.random() - 0.5);
+        
+        const unitName = Array.isArray(unit) ? `Option Block (${unit[0]?.subject})` : ('session' in unit ? `Double ${unit.session.subject}` : `Single ${unit.subject}`);
+        console.log(`SOLVER (Depth ${depth}): Attempting to place ${unitName}`);
 
         for (const day of shuffledDays) {
             if (Array.isArray(unit)) { // Option Block
@@ -413,7 +480,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                     if (isValidPlacement(board, unit, day, period)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
                         unit.forEach(session => newBoard[day][period].push(session));
-                        const [solved, finalBoard] = solve(newBoard, remainingUnits);
+                        const [solved, finalBoard] = solve(newBoard, remainingUnits, depth + 1);
                         if (solved) return [true, finalBoard];
                     }
                 }
@@ -421,10 +488,10 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                 const shuffledConsecutive = [...CONSECUTIVE_PERIODS].sort(() => Math.random() - 0.5);
                 for (const [p1, p2] of shuffledConsecutive) {
                     if (isValidPlacement(board, unit, day, p1)) {
-                         const newBoard = JSON.parse(JSON.stringify(board));
+                        const newBoard = JSON.parse(JSON.stringify(board));
                         newBoard[day][p1].push(unit.session);
                         newBoard[day][p2].push(unit.partner);
-                        const [solved, finalBoard] = solve(newBoard, remainingUnits);
+                        const [solved, finalBoard] = solve(newBoard, remainingUnits, depth + 1);
                         if (solved) return [true, finalBoard];
                     }
                 }
@@ -434,26 +501,29 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                      if (isValidPlacement(board, unit, day, period)) {
                         const newBoard = JSON.parse(JSON.stringify(board));
                         newBoard[day][period].push(unit);
-                        const [solved, finalBoard] = solve(newBoard, remainingUnits);
+                        const [solved, finalBoard] = solve(newBoard, remainingUnits, depth + 1);
                         if (solved) return [true, finalBoard];
                     }
                 }
             }
         }
-        
+        console.log(`SOLVER (Depth ${depth}): Failed to place ${unitName}. Backtracking...`);
         return [false, board];
     }
     
     let boardCopy = JSON.parse(JSON.stringify(newTimetable));
-    const [isSolved, solvedBoard] = solve(boardCopy, sessionsToPlace);
+    const [isSolved, solvedBoard] = solve(boardCopy, sessionsToPlace, 0);
     let finalTimetable = solvedBoard;
     
     if (!isSolved) {
-        console.error("Solver failed. Not all sessions could be placed.");
+        console.error("--- SOLVER FAILED ---");
+        console.error("Not all sessions could be placed. This usually means the constraints are too tight (e.g., a teacher is over-allocated, or there are not enough free slots for all subjects). Please review assignments.");
         conflicts.push({ id: 'solver-fail', type: 'class', message: 'Could not generate a valid timetable. Check for too many constraints.' });
         updateTimetable(activeTimetable.id, { timetable: {}, conflicts, classes: [] });
         return;
     }
+    
+    console.log("--- SOLVER SUCCEEDED ---");
 
     const isSecondary = schoolName.toLowerCase().includes('secondary');
     if (finalTimetable && isSecondary) {
@@ -483,6 +553,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
               }
           }
       });
+      console.log("Added Sports sessions for secondary school.");
     }
 
     updateTimetable(activeTimetable.id, { 
@@ -490,6 +561,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
         classes: sortedClasses,
         conflicts: [],
     });
+     console.log("--- TIMETABLE GENERATION COMPLETE ---");
   }, [updateTimetable, activeTimetable, allTeachers]);
 
 
@@ -603,5 +675,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

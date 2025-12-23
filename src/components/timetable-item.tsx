@@ -7,6 +7,7 @@ import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { BookOpen, GraduationCap, User } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
 import { useMemo } from "react";
+import { Badge } from "./ui/badge";
 
 type TimetableItemProps = {
   session: TimetableSession;
@@ -50,10 +51,21 @@ export default function TimetableItem({
        {isConflict && <div className="absolute top-0 left-1 text-xs text-destructive-foreground bg-destructive rounded-full h-4 w-4 flex items-center justify-center font-bold ring-2 ring-white">!</div>}
       <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
         {session.optionGroup ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <span className="text-xl font-bold text-primary">{session.optionGroup}</span>
-            <span className="text-xs font-medium text-muted-foreground">{teacherInitials}</span>
-          </div>
+           <>
+             <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
+               <BookOpen className="h-4 w-4 text-primary shrink-0"/>
+               <span className="truncate">{session.subject}</span>
+               <Badge variant="outline" className="text-xs px-1 py-0">{session.optionGroup}</Badge>
+             </div>
+             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+               <User className="h-3 w-3 shrink-0"/>
+               <span className="truncate">{session.teacher}</span>
+             </div>
+              <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+               <GraduationCap className="h-3 w-3 shrink-0"/>
+               <span className="break-words">{session.className}</span>
+             </div>
+           </>
         ) : (
           <>
             <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
@@ -74,4 +86,3 @@ export default function TimetableItem({
     </Card>
   );
 }
-

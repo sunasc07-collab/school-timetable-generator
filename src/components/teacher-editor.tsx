@@ -386,7 +386,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             render={() => (
                             <FormItem>
                                 <FormLabel>Arms</FormLabel>
-                                <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
                                     {SENIOR_SECONDARY_ARMS.map((arm) => (
                                         <FormField
                                             key={arm}
@@ -433,7 +433,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                 control={control}
                                                 name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                                                 render={({ field: checkboxField }) => (
-                                                    <FormItem key={arm} className="flex flex-row items-center space-x-2 spacey-0">
+                                                    <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
                                                         <FormControl>
                                                             <Checkbox
                                                                 checked={checkboxField.value?.includes(arm)}
@@ -829,5 +829,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

@@ -172,24 +172,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
  const processTeacherData = (teacherData: Teacher): Teacher => {
     const processedAssignments: SubjectAssignment[] = [];
     teacherData.assignments.forEach(assignment => {
-      if (assignment.grades.length > 1 || (assignment.arms && assignment.arms.length > 1)) {
-        assignment.grades.forEach(grade => {
-          const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [null];
-          arms.forEach(arm => {
-            processedAssignments.push({
-              ...assignment,
-              id: crypto.randomUUID(), 
-              grades: [grade],
-              arms: arm ? [arm] : [],
-            });
+      const grades = assignment.grades && assignment.grades.length > 0 ? assignment.grades : [null];
+      grades.forEach(grade => {
+        const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [null];
+        arms.forEach(arm => {
+          processedAssignments.push({
+            ...assignment,
+            id: crypto.randomUUID(),
+            grades: grade ? [grade] : [],
+            arms: arm ? [arm] : [],
           });
         });
-      } else {
-        processedAssignments.push({
-            ...assignment,
-            id: assignment.id || crypto.randomUUID(),
-        });
-      }
+      });
     });
 
     return {
@@ -277,8 +271,8 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== schoolId || assignment.subject.toLowerCase() === 'assembly') return;
 
-            const className = `${assignment.grades[0]} ${assignment.arms[0] || ''}`.trim();
-            classSet.add(className);
+            const className = `${assignment.grades[0] || ''} ${assignment.arms[0] || ''}`.trim();
+            if(className) classSet.add(className);
             allRequiredAssignments.push({ ...assignment, teacher: teacher.name });
         });
     });
@@ -289,7 +283,8 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
 
     allRequiredAssignments.filter(a => !a.optionGroup).forEach(req => {
         let remainingPeriods = req.periods;
-        const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
+        const className = `${req.grades[0] || ''} ${req.arms[0] || ''}`.trim();
+        if (!className) return;
 
         while (remainingPeriods >= 2) {
             const doubleId = crypto.randomUUID();
@@ -305,7 +300,8 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
 
     const optionBlocks: OptionBlockUnit[] = [];
     const groupedOptions = optionAssignments.reduce((acc, assignment) => {
-        const key = `${assignment.schoolId}-${assignment.optionGroup}-${assignment.grades[0]}`;
+        const gradeKey = assignment.grades[0];
+        const key = `${assignment.schoolId}-${assignment.optionGroup}-${gradeKey}`;
         if (!acc[key]) {
             acc[key] = [];
         }
@@ -314,46 +310,46 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     }, {} as Record<string, (SubjectAssignment & { teacher: string })[]>);
 
     Object.values(groupedOptions).forEach(assignments => {
-        const maxPeriods = Math.max(...assignments.map(a => a.periods));
+        if (assignments.length === 0) return;
+        const maxPeriods = Math.max(0, ...assignments.map(a => a.periods));
         
         for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = crypto.randomUUID();
+            const assignmentsThisPeriod = assignments.filter(a => a.periods > periodIndex);
+            if (assignmentsThisPeriod.length === 0) continue;
+            
             const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
-            const uniqueClassesInBlock = new Set<string>();
-            
-            const assignmentsThisPeriod = assignments.filter(a => a.periods > periodIndex);
-            
+            const classesInBlock = new Set<string>();
+            const allClassNamesInBlock: string[] = [];
+
             assignmentsThisPeriod.forEach(assignment => {
                 const className = `${assignment.grades[0]} ${assignment.arms[0] || ''}`.trim();
-                
-                if (teachersInBlock.has(assignment.teacher) || uniqueClassesInBlock.has(className)) {
-                    const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} or Class ${className} is double-booked.`;
+                allClassNamesInBlock.push(className);
+
+                if (teachersInBlock.has(assignment.teacher)) {
+                    const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} is double-booked.`;
                     const existingConflict = newConflicts.find(c => c.message === conflictMessage);
                     if (!existingConflict && assignment.id) {
-                        const conflictId = assignment.id || `${assignment.teacher}-${className}-${periodIndex}`;
-                         if (!newConflicts.some(c => c.id === conflictId)) {
-                            newConflicts.push({ id: conflictId, type: 'class', message: conflictMessage });
-                        }
+                        newConflicts.push({ id: assignment.id, type: 'teacher', message: conflictMessage });
                     }
-                    return; 
+                    return;
                 }
                 
                 teachersInBlock.add(assignment.teacher);
-                uniqueClassesInBlock.add(className);
 
                 blockSessions.push({
                     id: blockId,
                     subject: `Option ${assignment.optionGroup}`,
                     actualSubject: assignment.subject,
                     teacher: assignment.teacher,
-                    className: className,
+                    className: className, 
                     classes: [className],
                     isDouble: false,
                     optionGroup: assignment.optionGroup,
                 });
             });
-            
+
             if (blockSessions.length > 0) {
                  optionBlocks.push({
                     id: blockId,
@@ -381,7 +377,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
             for (const existingPeriod of board[day]) {
-              if (existingPeriod.some(existingSession => 
+              if (existingPeriod.some(existingSession =>
                   existingSession.className === session.className &&
                   (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject)
               )) {
@@ -616,3 +612,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

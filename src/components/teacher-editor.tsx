@@ -657,36 +657,39 @@ export default function TeacherEditor() {
 
       teacherData.assignments.forEach(formAssignment => {
         const isCore = formAssignment.subjectType === 'core';
+        
         if (formAssignment.subjectType === 'optional' && formAssignment.optionGroup) {
-          finalAssignments.push({
-            ...formAssignment,
-            id: formAssignment.id || crypto.randomUUID(),
-            isCore: false,
-          });
-        } else {
-          formAssignment.grades.forEach(grade => {
-            if (formAssignment.arms.length > 0) {
-              formAssignment.arms.forEach(arm => {
-                finalAssignments.push({
-                  ...formAssignment,
-                  id: formAssignment.id || crypto.randomUUID(),
-                  grades: [grade],
-                  arms: [arm],
-                  isCore: isCore,
-                  optionGroup: null, // Core subjects don't have option groups
-                });
-              });
-            } else {
-              finalAssignments.push({
+            // For optional subjects, keep grades and arms grouped in a single assignment
+            finalAssignments.push({
                 ...formAssignment,
                 id: formAssignment.id || crypto.randomUUID(),
-                grades: [grade],
-                arms: [],
-                isCore: isCore,
-                optionGroup: null,
-              });
-            }
-          });
+                isCore: false,
+            });
+        } else {
+            // For core subjects, expand into individual assignments per grade/arm
+            formAssignment.grades.forEach(grade => {
+                if (formAssignment.arms && formAssignment.arms.length > 0) {
+                    formAssignment.arms.forEach(arm => {
+                        finalAssignments.push({
+                            ...formAssignment,
+                            id: crypto.randomUUID(),
+                            grades: [grade],
+                            arms: [arm],
+                            isCore: isCore,
+                            optionGroup: null, 
+                        });
+                    });
+                } else {
+                    finalAssignments.push({
+                        ...formAssignment,
+                        id: crypto.randomUUID(),
+                        grades: [grade],
+                        arms: [],
+                        isCore: isCore,
+                        optionGroup: null,
+                    });
+                }
+            });
         }
       });
 
@@ -885,6 +888,3 @@ export default function TeacherEditor() {
 }
 
     
-
-    
-

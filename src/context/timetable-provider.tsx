@@ -86,7 +86,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
 
 type SingleSessionUnit = TimetableSession;
 type DoubleSessionUnit = { session: TimetableSession; partner: TimetableSession };
-type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string };
+type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: string };
 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
@@ -304,62 +304,65 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     });
 
     const optionBlocks: OptionBlockUnit[] = [];
-    const uniqueOptionGroups = [...new Set(optionAssignments.map(a => a.optionGroup))];
+    const groupedOptions = optionAssignments.reduce((acc, assignment) => {
+        const key = `${assignment.schoolId}-${assignment.optionGroup}-${assignment.grades[0]}`;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(assignment);
+        return acc;
+    }, {} as Record<string, (SubjectAssignment & { teacher: string })[]>);
 
-    uniqueOptionGroups.forEach(group => {
-        if (!group) return;
-
-        const assignmentsForGroup = optionAssignments.filter(a => a.optionGroup === group);
-        const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods));
-
+    Object.values(groupedOptions).forEach(assignments => {
+        const maxPeriods = Math.max(...assignments.map(a => a.periods));
+        
         for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
-            const classesInBlock = new Set<string>();
-
-            const assignmentsThisPeriod = assignmentsForGroup.filter(a => a.periods > periodIndex);
+            const uniqueClassesInBlock = new Set<string>();
+            
+            const assignmentsThisPeriod = assignments.filter(a => a.periods > periodIndex);
             
             assignmentsThisPeriod.forEach(assignment => {
                 const className = `${assignment.grades[0]} ${assignment.arms[0] || ''}`.trim();
                 
-                if (teachersInBlock.has(assignment.teacher) || classesInBlock.has(className)) {
-                    const conflictMessage = `Pre-solver conflict in Option ${group}: Teacher ${assignment.teacher} or Class ${className} is double-booked.`;
+                if (teachersInBlock.has(assignment.teacher) || uniqueClassesInBlock.has(className)) {
+                    const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} or Class ${className} is double-booked.`;
                     const existingConflict = newConflicts.find(c => c.message === conflictMessage);
                     if (!existingConflict && assignment.id) {
-                        newConflicts.push({ id: assignment.id, type: 'class', message: conflictMessage });
+                        const conflictId = assignment.id || `${assignment.teacher}-${className}-${periodIndex}`;
+                         if (!newConflicts.some(c => c.id === conflictId)) {
+                            newConflicts.push({ id: conflictId, type: 'class', message: conflictMessage });
+                        }
                     }
-                    return; // Skip adding this session to block
+                    return; 
                 }
+                
                 teachersInBlock.add(assignment.teacher);
-                classesInBlock.add(className);
+                uniqueClassesInBlock.add(className);
 
                 blockSessions.push({
                     id: blockId,
-                    subject: `Option ${group}`,
+                    subject: `Option ${assignment.optionGroup}`,
                     actualSubject: assignment.subject,
                     teacher: assignment.teacher,
                     className: className,
                     classes: [className],
                     isDouble: false,
-                    optionGroup: group,
+                    optionGroup: assignment.optionGroup,
                 });
             });
-
+            
             if (blockSessions.length > 0) {
                  optionBlocks.push({
+                    id: blockId,
                     sessions: blockSessions,
-                    optionGroup: group
+                    optionGroup: assignments[0].optionGroup!
                  });
             }
         }
     });
-    
-    if (newConflicts.length > 0) {
-        console.error("Pre-solver conflicts detected", newConflicts);
-        // Do not stop generation, just report conflicts. The conflicting sessions have been excluded.
-    }
-
 
     const sessionsToPlace: PlacementUnit[] = [...doubleSessions, ...singleSessions, ...optionBlocks];
     const sortedClasses = Array.from(classSet).sort();
@@ -377,7 +380,6 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
             if (slot.some(s => s.teacher === session.teacher)) return false;
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
-            // Prevent same subject for the same class on the same day
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession => 
                   existingSession.className === session.className &&
@@ -403,8 +405,7 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
 
             if (slot.some(s => teachersInBlock.has(s.teacher))) return false;
             if (slot.some(s => s.classes.some(c => classesInBlock.has(c)))) return false;
-
-            // Prevent same option group for the same class on the same day
+            
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession => 
                   existingSession.optionGroup === unit.optionGroup &&
@@ -413,7 +414,6 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
                  return false;
               }
             }
-
             return true;
         } else { // Single Session
             return checkSession(unit, period);
@@ -464,7 +464,8 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     const [isSolved, solvedBoard] = solve(boardCopy, sessionsToPlace);
     
     if (!isSolved) {
-        updateTimetable(activeTimetable.id, { timetable: {}, conflicts: [{ id: 'solver-fail', type: 'class', message: 'Could not generate a valid timetable. Check for too many constraints.' }], classes: [] });
+        newConflicts.push({ id: 'solver-fail', type: 'class', message: 'Could not generate a valid timetable. Check for too many constraints.' });
+        updateTimetable(activeTimetable.id, { timetable: {}, conflicts: newConflicts, classes: [] });
         return;
     }
     
@@ -615,5 +616,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

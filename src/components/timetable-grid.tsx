@@ -123,7 +123,7 @@ export default function TimetableGrid() {
             return s.classes.includes(filterValue);
         });
     } else if (viewMode === 'teacher') {
-        relevantSessions = allSessionsInSlot.filter(s => s.teacher === filterValue);
+        relevantSessions = allSessionsInSlot.filter(s => s.teacherId === filterValue);
     }
      
      if (relevantSessions.length > 0) {
@@ -302,7 +302,7 @@ export default function TimetableGrid() {
   if (viewMode === 'class') {
     itemsToRender = classes.map(className => ({ title: `${className}'s Timetable`, filterValue: className }));
   } else if (viewMode === 'teacher') {
-    itemsToRender = teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.name }));
+    itemsToRender = teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.id }));
   } else if (viewMode === 'arm') {
     itemsToRender = arms.map(armName => ({ title: `${armName}'s Timetable`, filterValue: armName }));
   }
@@ -357,5 +357,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

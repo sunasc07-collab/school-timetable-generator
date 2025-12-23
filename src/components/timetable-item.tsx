@@ -49,6 +49,7 @@ export default function TimetableItem({
     const classes = [...new Set(allSessionsInSlot.map(s => s.className))].join(', ');
     const title = `Option Group: ${session.subject}\nTeachers: ${teachers}\nSubjects: ${subjects}\nClasses: ${classes}`;
 
+     const hasConflict = isConflict || allSessionsInSlot.some(s => isConflict(s.id));
 
      return (
        <Card
@@ -56,20 +57,20 @@ export default function TimetableItem({
         onDragStart={handleDragStart}
         className={cn(
             "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
-            isConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
+            hasConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
         )}
         title={title}
        >
         <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
-            <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", isConflict ? "text-destructive-foreground" : "text-foreground")}>
-               {isConflict && <AlertCircle className="h-4 w-4" />}
+            <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
+               {hasConflict && <AlertCircle className="h-4 w-4" />}
                <span className="truncate">{session.subject}</span>
              </div>
-             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+             <div className={cn("flex items-center justify-center gap-1.5", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
                <Users className="h-3 w-3 shrink-0"/>
                <span className="truncate">{teachers}</span>
              </div>
-             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+             <div className={cn("flex items-center justify-center gap-1.5", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
                <GraduationCap className="h-3 w-3 shrink-0"/>
                <span className="break-words">{classes}</span>
              </div>

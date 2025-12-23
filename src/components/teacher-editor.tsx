@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useForm, useFieldArray, FormProvider, useFormContext, useWatch } from "react-hook-form";
@@ -646,7 +647,7 @@ export default function TeacherEditor() {
         if (formAssignment.subjectType === 'optional' && formAssignment.optionGroup) {
           finalAssignments.push({
             ...formAssignment,
-            id: crypto.randomUUID(),
+            id: formAssignment.id || crypto.randomUUID(),
             isCore: false,
           });
         } else {
@@ -655,7 +656,7 @@ export default function TeacherEditor() {
               formAssignment.arms.forEach(arm => {
                 finalAssignments.push({
                   ...formAssignment,
-                  id: crypto.randomUUID(),
+                  id: formAssignment.id || crypto.randomUUID(),
                   grades: [grade],
                   arms: [arm],
                   isCore: isCore,
@@ -665,7 +666,7 @@ export default function TeacherEditor() {
             } else {
               finalAssignments.push({
                 ...formAssignment,
-                id: crypto.randomUUID(),
+                id: formAssignment.id || crypto.randomUUID(),
                 grades: [grade],
                 arms: [],
                 isCore: isCore,
@@ -869,9 +870,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
-
-    
 
     

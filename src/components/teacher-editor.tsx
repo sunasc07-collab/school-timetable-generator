@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useForm, useFieldArray, FormProvider, useFormContext, useWatch } from "react-hook-form";
@@ -886,5 +884,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

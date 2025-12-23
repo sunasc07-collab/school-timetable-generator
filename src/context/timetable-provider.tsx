@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from "react";
@@ -678,5 +677,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

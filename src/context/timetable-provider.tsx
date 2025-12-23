@@ -387,29 +387,31 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         for (let i = 0; i < maxPeriods; i++) {
             const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
+            
             const teachersInBlock = new Set<string>();
             const classesInBlock = new Set<string>();
 
             assignmentsInGroup.forEach(assignment => {
                 if (i < assignment.periods) { 
-                    assignment.grades.forEach(grade => { // Should be only one grade
-                        const arms = assignment.arms.length > 0 ? assignment.arms : [""];
+                    assignment.grades.forEach(grade => { // Should be only one grade now
+                        const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
                         arms.forEach(arm => {
                             const className = `${grade} ${arm}`.trim();
                             classSet.add(className);
                             
-                            // Check for internal teacher conflict within the block for the same class/arm
                              if (teachersInBlock.has(assignment.teacherId!)) {
-                                if(!newConflicts.some(c => c.id === blockId)) {
-                                  newConflicts.push({ id: blockId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for grade ${grade}.`});
+                                const conflictId = `${blockId}-${assignment.teacherId}`;
+                                if(!newConflicts.some(c => c.id === conflictId)) {
+                                  newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for grade ${grade}.`});
                                 }
-                                return; // Skip adding this session
+                                return;
                             }
                             if(classesInBlock.has(className)) {
-                                if(!newConflicts.some(c => c.id === blockId)) {
-                                  newConflicts.push({ id: blockId, type: 'class', message: `Class ${className} has multiple assignments in Option Group ${optionGroupName}.`});
+                                const conflictId = `${blockId}-${className}`;
+                                if(!newConflicts.some(c => c.id === conflictId)) {
+                                  newConflicts.push({ id: conflictId, type: 'class', message: `Class ${className} has multiple assignments in Option Group ${optionGroupName}.`});
                                 }
-                                return; // Skip adding this session
+                                return;
                             }
 
                             teachersInBlock.add(assignment.teacherId!);
@@ -431,8 +433,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             });
             
-            if (newConflicts.some(c => c.id === blockId)) return;
-
+            if (newConflicts.some(c => blockSessions.some(s => c.id.startsWith(s.id)))) return;
+            
             if (blockSessions.length > 0) {
                 optionBlocks.push({ id: blockId, sessions: blockSessions, optionGroup: optionGroupName });
             }
@@ -442,6 +444,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     // --- 3. Prepare for Solver ---
     const sessionsToPlace: PlacementUnit[] = [...optionBlocks, ...doubleSessions, ...singleSessions];
     
+    sessionsToPlace.sort((a, b) => {
+        const score = (unit: PlacementUnit) => {
+            if ('sessions' in unit) return 3; // Option Block
+            if ('partner' in unit) return 2; // Double Period
+            return 1; // Single Period
+        };
+        return score(b) - score(a);
+    });
+
     const sortedClasses = Array.from(classSet).sort();
     
     const newTimetable: TimetableData = {};
@@ -688,4 +699,6 @@ export const useTimetable = (): TimetableContextType => {
 };
 
     
+    
+
     

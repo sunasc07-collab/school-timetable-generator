@@ -152,7 +152,10 @@ export default function Header() {
       if (subject.toLowerCase().startsWith("option")) {
         return subject.replace("Option", "Opt");
       }
-      return subject.substring(0, 3);
+      if (subject.length > 3) {
+        return subject.substring(0, 3);
+      }
+      return subject;
     };
 
     const getClassInitials = (className: string) => {
@@ -233,14 +236,12 @@ export default function Header() {
                     if (session.optionGroup) {
                         const optionText = getSubjectInitials(session.subject);
                         const actualSubjectText = getSubjectInitials(session.actualSubject || '');
-                        const teacherInitials = getTeacherInitials(session.teacher);
-                        const classInitials = getClassInitials(session.className);
                         
                         let details = '';
                         if (type === 'class') {
-                           details = `${actualSubjectText} (${teacherInitials})`;
+                           details = `${actualSubjectText}`;
                         } else {
-                           details = `${actualSubjectText} (${classInitials})`;
+                           details = `${actualSubjectText} (${getClassInitials(session.className)})`;
                         }
 
                         doc.setFontSize(10);
@@ -437,7 +438,3 @@ export default function Header() {
     </>
   );
 }
-
-    
-
-    

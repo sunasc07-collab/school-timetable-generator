@@ -135,7 +135,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         showArms = true;
       } else if (hasSeniorSecondary && !hasJuniorSecondary) {
         armOptions = SENIOR_SECONDARY_ARMS;
-        showArms = true; // Will be rendered inside Senior Secondary Options
+        showArms = true; 
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
         showArms = true; 
         armOptions = [...new Set([...JUNIOR_SECONDARY_ARMS, ...SENIOR_SECONDARY_ARMS])];
@@ -181,10 +181,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }, [setValue, getValues, teacherIndex, assignmentIndex, selectedSchool, gradeOptions]);
 
     useEffect(() => {
-        if (!showArms && !hasSeniorSecondary) {
+        if (!showArms) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [showArms, hasSeniorSecondary, setValue, teacherIndex, assignmentIndex]);
+    }, [showArms, setValue, teacherIndex, assignmentIndex]);
+
 
     const handleSchoolChange = (newSchoolId: string) => {
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
@@ -432,7 +433,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                 control={control}
                                                 name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                                                 render={({ field: checkboxField }) => (
-                                                    <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormItem key={arm} className="flex flex-row items-center space-x-2 spacey-0">
                                                         <FormControl>
                                                             <Checkbox
                                                                 checked={checkboxField.value?.includes(arm)}
@@ -569,58 +570,6 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   );
 };
 
-const processTeacherData = (teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
-    const processedAssignments: SubjectAssignment[] = [];
-    
-    teacherData.assignments.forEach(formAssignment => {
-        const { grades = [], arms = [], ...restOfAssignment } = formAssignment;
-
-        if (grades.length === 0) {
-             processedAssignments.push({
-                ...restOfAssignment,
-                id: restOfAssignment.id || crypto.randomUUID(),
-                grades: [],
-                arms: [],
-             } as SubjectAssignment);
-             return;
-        }
-
-        grades.forEach(grade => {
-            const isSecondary = [...JUNIOR_SECONDARY_GRADES, ...SENIOR_SECONDARY_GRADES].includes(grade);
-            
-            if (isSecondary && arms.length > 0) {
-                arms.forEach(arm => {
-                    const newAssignment: SubjectAssignment = {
-                        ...restOfAssignment,
-                        id: crypto.randomUUID(),
-                        grades: [grade],
-                        arms: [arm],
-                        isCore: restOfAssignment.subjectType === 'core',
-                        optionGroup: restOfAssignment.subjectType === 'optional' ? restOfAssignment.optionGroup : null,
-                    };
-                    processedAssignments.push(newAssignment);
-                });
-            } else {
-                const newAssignment: SubjectAssignment = {
-                    ...restOfAssignment,
-                    id: crypto.randomUUID(),
-                    grades: [grade],
-                    arms: [],
-                    isCore: restOfAssignment.subjectType === 'core',
-                    optionGroup: restOfAssignment.subjectType === 'optional' ? restOfAssignment.optionGroup : null,
-                };
-                processedAssignments.push(newAssignment);
-            }
-        });
-    });
-
-    return {
-        ...teacherData,
-        assignments: processedAssignments,
-    };
-};
-
-
 export default function TeacherEditor() {
   const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers } = useTimetable();
   
@@ -648,21 +597,36 @@ export default function TeacherEditor() {
     name: "",
     assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
   }), [activeTimetable?.id]);
+
+  const groupAssignments = (assignments: SubjectAssignment[]): TeacherFormValues['assignments'] => {
+      const grouped = new Map<string, SubjectAssignment>();
+
+      assignments.forEach(assignment => {
+          const key = `${assignment.schoolId}-${assignment.subject}-${assignment.periods}-${assignment.optionGroup || ''}-${assignment.subjectType || ''}`;
+          if (grouped.has(key)) {
+              const existing = grouped.get(key)!;
+              const newGrades = [...new Set([...existing.grades, ...assignment.grades])];
+              const newArms = [...new Set([...existing.arms, ...assignment.arms])];
+              grouped.set(key, { ...existing, grades: newGrades, arms: newArms });
+          } else {
+              grouped.set(key, { ...assignment });
+          }
+      });
+
+      return Array.from(grouped.values());
+  };
   
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
     if (teacher) {
-        // When editing, we need to reconstruct the form state from processed assignments.
-        // This can be complex. For now, we'll present assignments as they are stored.
-        // A better UX would be to group them back, but that's a larger change.
         const teacherFormData: TeacherFormValues = {
             id: teacher.id,
             name: teacher.name,
-            assignments: teacher.assignments.map(a => ({
+            assignments: groupAssignments(teacher.assignments.map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
-            })),
+            }))),
         };
         form.reset({ teachers: [teacherFormData] });
     } else {
@@ -675,16 +639,15 @@ export default function TeacherEditor() {
     if (!activeTimetable) return;
 
     data.teachers.forEach(teacherData => {
-        const processedData = processTeacherData(teacherData);
         const teacherWithId = {
-            ...processedData,
+            ...teacherData,
             id: teacherData.id || crypto.randomUUID(),
         };
 
         if (editingTeacher && teacherWithId.id === editingTeacher.id) {
-            updateTeacher(teacherWithId);
+            updateTeacher(teacherWithId as Teacher);
         } else {
-            addTeacher(teacherWithId);
+            addTeacher(teacherWithId as Teacher);
         }
     });
     
@@ -836,7 +799,7 @@ export default function TeacherEditor() {
                                     <GraduationCap className="mr-2 h-3 w-3 text-primary/80" />
                                     <span>
                                         Grades: {assignment.grades.join(', ')}
-                                        {assignment.arms.length > 0 && ` - Arms/Levels: ${assignment.arms.join(', ')}`}
+                                        {assignment.arms.length > 0 && ` - Arms: ${assignment.arms.join(', ')}`}
                                     </span>
                                 </div>
                                 <div className="flex items-center text-xs">
@@ -866,3 +829,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

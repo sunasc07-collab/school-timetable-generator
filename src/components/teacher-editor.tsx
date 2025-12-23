@@ -135,9 +135,9 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         showArms = true;
       } else if (hasSeniorSecondary && !hasJuniorSecondary) {
         armOptions = SENIOR_SECONDARY_ARMS;
-        showArms = true;
+        showArms = true; // Will be rendered inside Senior Secondary Options
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
-        showArms = true; // Show for mixed, but options might need adjustment based on context
+        showArms = true; 
         armOptions = [...new Set([...JUNIOR_SECONDARY_ARMS, ...SENIOR_SECONDARY_ARMS])];
       } else {
         showArms = false;
@@ -181,10 +181,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }, [setValue, getValues, teacherIndex, assignmentIndex, selectedSchool, gradeOptions]);
 
     useEffect(() => {
-        if (!showArms) {
+        if (!showArms && !hasSeniorSecondary) {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
-    }, [showArms, setValue, teacherIndex, assignmentIndex]);
+    }, [showArms, hasSeniorSecondary, setValue, teacherIndex, assignmentIndex]);
 
     const handleSchoolChange = (newSchoolId: string) => {
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, newSchoolId);
@@ -352,7 +352,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                      </FormItem>
                                  )}
                              />
-                             {subjectType === 'optional' && (
+                             {subjectType === 'optional' ? (
                                  <FormField
                                      control={control}
                                      name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`}
@@ -375,10 +375,46 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                          </FormItem>
                                      )}
                                  />
-                             )}
+                             ): null}
                               {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
+                         <FormField
+                            control={control}
+                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                            render={() => (
+                            <FormItem>
+                                <FormLabel>Arms</FormLabel>
+                                <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
+                                    {SENIOR_SECONDARY_ARMS.map((arm) => (
+                                        <FormField
+                                            key={arm}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                            render={({ field: checkboxField }) => (
+                                                <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkboxField.value?.includes(arm)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = checkboxField.value || [];
+                                                                const newValue = checked
+                                                                    ? [...currentValue, arm]
+                                                                    : currentValue.filter(value => value !== arm);
+                                                                checkboxField.onChange(newValue);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm">{arm}</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
                         </div>
                     )}
                      <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || hasSeniorSecondary) && "hidden")}>

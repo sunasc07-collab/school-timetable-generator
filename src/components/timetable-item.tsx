@@ -7,7 +7,6 @@ import type { TimetableDragData, TimetableSession } from "@/lib/types";
 import { BookOpen, GraduationCap, User, AlertCircle, Users } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
 import { useMemo } from "react";
-import { Badge } from "./ui/badge";
 
 type TimetableItemProps = {
   session: TimetableSession;
@@ -30,14 +29,18 @@ export default function TimetableItem({
     if (!activeTimetable?.timetable) return [];
     const slot = activeTimetable.timetable[from.day]?.[from.period] || [];
     if (session.optionGroup) {
-      return slot.filter(s => s.optionGroup && s.optionGroup === session.optionGroup);
+      // Find all sessions that are part of the same option block instance
+      return slot.filter(s => s.id === session.id);
     }
     return [session];
   }, [activeTimetable, from.day, from.period, session]);
 
+
   const isOptionGroup = !!session.optionGroup;
   
-  if (isOptionGroup && allSessionsInSlot[0]?.id !== session.id) {
+  // For option groups, we only want to render ONE card that represents the entire block.
+  // We can ensure this by only rendering if the current session is the first one in the block.
+  if (isOptionGroup && allSessionsInSlot[0]?.actualSubject !== session.actualSubject) {
     return null;
   }
 
@@ -47,7 +50,7 @@ export default function TimetableItem({
     const classes = [...new Set(allSessionsInSlot.map(s => s.className))].join(', ');
     const title = `Option Group: ${session.subject}\nTeachers: ${teachers}\nSubjects: ${subjects}\nClasses: ${classes}`;
 
-     const hasConflict = allSessionsInSlot.some(s => isConflict(s.id));
+     const hasConflict = isConflict(session.id);
 
      return (
        <Card
@@ -60,15 +63,19 @@ export default function TimetableItem({
         title={title}
        >
         <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
-            <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
+            <div className={cn("flex items-center justify-center gap-1.5 font-bold", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
                {hasConflict && <AlertCircle className="h-4 w-4" />}
                <span className="truncate">{session.subject}</span>
              </div>
-             <div className={cn("flex items-center justify-center gap-1.5", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+             <div className={cn("flex items-center justify-center gap-1.5 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
                <Users className="h-3 w-3 shrink-0"/>
                <span className="truncate">{teachers}</span>
              </div>
-             <div className={cn("flex items-center justify-center gap-1.5", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+             <div className={cn("flex items-center justify-center gap-1.5 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+               <BookOpen className="h-3 w-3 shrink-0"/>
+               <span className="truncate">{subjects}</span>
+             </div>
+             <div className={cn("flex items-center justify-center gap-1.5 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
                <GraduationCap className="h-3 w-3 shrink-0"/>
                <span className="break-words">{classes}</span>
              </div>
@@ -112,4 +119,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
     

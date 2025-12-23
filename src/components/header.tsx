@@ -154,7 +154,7 @@ export default function Header() {
 
     const getClassInitials = (className: string) => {
       if (!className) return '';
-      return className.replace("Grade ", "G").replace("A-Level Year", "Y").substring(0, 4);
+      return className.replace("Grade ", "G").replace("A-Level Year", "Y");
     };
 
     listToIterate.forEach((item, index) => {
@@ -426,3 +426,5 @@ export default function Header() {
     </>
   );
 }
+
+    

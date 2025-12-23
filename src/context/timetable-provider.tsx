@@ -253,20 +253,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.assignments.forEach(origAssignment => {
             if (origAssignment.schoolId !== schoolId || origAssignment.subject.toLowerCase() === 'assembly') return;
             
-            const grades = origAssignment.grades.length > 0 ? origAssignment.grades : [""];
-            grades.forEach(grade => {
+            origAssignment.grades.forEach(grade => {
                 const arms = origAssignment.arms.length > 0 ? origAssignment.arms : [""];
                 arms.forEach(arm => {
                     const className = `${grade} ${arm}`.trim();
                     if(className) classSet.add(className);
 
-                    const newAssignment = {
+                    allRequiredAssignments.push({
                         ...origAssignment,
                         id: origAssignment.id || crypto.randomUUID(),
                         teacher: teacher.name,
                         className: className
-                    };
-                    allRequiredAssignments.push(newAssignment);
+                    });
                 });
             });
         });
@@ -326,18 +324,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
             assignmentsInGroup.forEach(assignment => {
                 if (assignment.periods > periodIndex) {
-                    // Pre-solver conflict check
                     if (teachersInThisBlock.has(assignment.teacher)) {
                         const conflictMsg = `Pre-solver conflict: Teacher ${assignment.teacher} is double-booked in Option ${assignment.optionGroup} for this period.`;
                         console.warn("DEBUG: " + conflictMsg);
                         newConflicts.push({ id: assignment.id || blockId, type: 'teacher', message: conflictMsg });
-                        return; // Skip this conflicting assignment for this block
+                        return; 
                     }
                     if (classesInThisBlock.has(assignment.className)) {
                         const conflictMsg = `Pre-solver conflict: Class ${assignment.className} has multiple subjects in Option ${assignment.optionGroup} for this period.`;
                         console.warn("DEBUG: " + conflictMsg);
                         newConflicts.push({ id: assignment.id || blockId, type: 'class', message: conflictMsg });
-                        return; // Skip this conflicting assignment for this block
+                        return;
                     }
 
                     teachersInThisBlock.add(assignment.teacher);
@@ -388,20 +385,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
 
             if (slot.some(s => s.teacher === session.teacher)) {
-                // console.log(`DEBUG: [isValidPlacement] Teacher conflict: ${session.teacher} in [${day}, ${p}].`);
                 return false;
             }
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) {
-                // console.log(`DEBUG: [isValidPlacement] Class conflict: ${session.classes.join(',')} in [${day}, ${p}].`);
                 return false;
             }
             
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession =>
                   existingSession.className === session.className &&
-                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.session.subject)
+                  (existingSession.actualSubject || existingSession.subject) === (session.actualSubject || session.subject)
               )) {
-                  // console.log(`DEBUG: [isValidPlacement] Same day subject conflict: ${(session.actualSubject || session.subject)} for ${session.className} on ${day}.`);
                   return false;
               }
             }
@@ -418,7 +412,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 console.warn("DEBUG: [isValidPlacement] called with an empty option block. This should not happen.");
                 return false;
             }
-            // All sessions in an option block must be valid for this slot
             return unit.sessions.every(session => checkSession(session, period));
         } else { // Single Session
             return checkSession(unit, period);
@@ -471,7 +464,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
         }
-        // console.log(`DEBUG: [Depth ${depth}] Could not place unit, backtracking.`, unit);
         return [false, board];
     }
     

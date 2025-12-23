@@ -35,7 +35,6 @@ export default function TimetableGrid() {
     activeTimetable,
     allTeachers,
     moveSession, 
-    isConflict, 
     viewMode, 
     clearTimetable, 
     resolveConflicts 
@@ -134,7 +133,6 @@ export default function TimetableGrid() {
             <TimetableItem
               key={`${session.id}-${session.subject}-${session.teacher}-${session.className}`}
               session={session}
-              isConflict={isConflict(session.id)}
               from={{ day, period }}
             />
         ))}

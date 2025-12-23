@@ -14,9 +14,9 @@ type TimetableContextType = {
   renameTimetable: (timetableId: string, newName: string) => void;
   setActiveTimetableId: (id: string | null) => void;
 
-  addTeacher: (teacherData: Omit<Teacher, 'assignments'> & { assignments: Omit<SubjectAssignment, 'id'>[] }) => void;
+  addTeacher: (teacherData: Teacher) => void;
   removeTeacher: (teacherId: string) => void;
-  updateTeacher: (teacherData: Omit<Teacher, 'assignments'> & { assignments: Omit<SubjectAssignment, 'id'>[] }) => void;
+  updateTeacher: (teacherData: Teacher) => void;
   
   generateTimetable: () => void;
   clearTimetable: () => void;
@@ -84,7 +84,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
     };
 }
 
-type PlacementUnit = TimetableSession | TimetableSession[] | { session: TimetableSession; partner: TimetableSession };
+type PlacementUnit = TimetableSession | { session: TimetableSession; partner: TimetableSession };
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
   const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v13", []);
@@ -164,11 +164,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const addTeacher = useCallback((teacherData: Omit<Teacher, 'id' | 'assignments'> & { assignments: Omit<SubjectAssignment, 'id'>[] }) => {
+  const addTeacher = useCallback((teacherData: Teacher) => {
     const newTeacher: Teacher = {
-        id: crypto.randomUUID(),
-        name: teacherData.name,
-        assignments: teacherData.assignments.map(a => ({...a, id: crypto.randomUUID()})),
+        ...teacherData,
+        id: teacherData.id || crypto.randomUUID(),
+        assignments: teacherData.assignments.map(a => ({...a, id: a.id || crypto.randomUUID()})),
     };
     setAllTeachers(prev => [...prev, newTeacher]);
     const schoolIds = new Set(newTeacher.assignments.map(a => a.schoolId));
@@ -245,84 +245,40 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             allRequiredSessions.push({ ...assignment, teacher: teacher.name });
         });
     });
-
+    
     const sessionsToPlace: PlacementUnit[] = [];
     const classSet = new Set<string>();
 
-    const coreAssignments = allRequiredSessions.filter(req => !req.optionGroup);
-    coreAssignments.forEach(req => {
+    allRequiredSessions.forEach(req => {
         const className = `${req.grades[0]} ${req.arms[0] || ''}`.trim();
         classSet.add(className);
         let remainingPeriods = req.periods;
-        while (remainingPeriods >= 2) {
-            const doubleId = crypto.randomUUID();
-            const sessionPart1: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 1, isCore: req.isCore, optionGroup: req.optionGroup };
-            const sessionPart2: TimetableSession = { id: doubleId, subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 2, isCore: req.isCore, optionGroup: req.optionGroup };
-            sessionsToPlace.push({ session: sessionPart1, partner: sessionPart2 });
-            remainingPeriods -= 2;
-        }
-        for (let i = 0; i < remainingPeriods; i++) {
-            sessionsToPlace.push({ id: crypto.randomUUID(), subject: req.subject, teacher: req.teacher, className, classes: [className], isDouble: false, isCore: req.isCore, optionGroup: req.optionGroup });
-        }
-    });
+        
+        const isOptional = !!req.optionGroup;
+        const mainSubject = isOptional ? `Option ${req.optionGroup}` : req.subject;
+        const actualSubject = isOptional ? req.subject : undefined;
 
-    const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
-    const optionGroups = new Map<string, { maxPeriods: number, assignments: (SubjectAssignment & { teacher: string })[]}>();
-
-    optionalAssignments.forEach(assign => {
-      const groupKey = assign.optionGroup!;
-      if (!optionGroups.has(groupKey)) {
-        optionGroups.set(groupKey, { maxPeriods: 0, assignments: [] });
-      }
-      const group = optionGroups.get(groupKey)!;
-      group.assignments.push(assign);
-      if (assign.periods > group.maxPeriods) {
-        group.maxPeriods = assign.periods;
-      }
-    });
-
-    optionGroups.forEach((group, groupKey) => {
-        for (let i = 0; i < group.maxPeriods; i++) {
-            const block: TimetableSession[] = [];
-            const classesInBlock = new Set<string>();
-            group.assignments.forEach(assign => {
-                if (i < assign.periods) {
-                    const className = `${assign.grades[0]} ${assign.arms[0] || ''}`.trim();
-                    classSet.add(className);
-                    if (!classesInBlock.has(className)) {
-                        block.push({
-                            id: crypto.randomUUID(),
-                            subject: `Option ${groupKey}`,
-                            actualSubject: assign.subject,
-                            teacher: assign.teacher,
-                            className: className,
-                            classes: [className],
-                            isDouble: false,
-                            isCore: false,
-                            optionGroup: assign.optionGroup,
-                        });
-                        classesInBlock.add(className);
-                    }
-                }
-            });
-            if (block.length > 0) {
-                sessionsToPlace.push(block);
+        // Double periods are only for core subjects
+        if (!isOptional) {
+            while (remainingPeriods >= 2) {
+                const doubleId = crypto.randomUUID();
+                const sessionPart1: TimetableSession = { id: doubleId, subject: mainSubject, actualSubject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 1, isCore: req.isCore, optionGroup: req.optionGroup };
+                const sessionPart2: TimetableSession = { id: doubleId, subject: mainSubject, actualSubject, teacher: req.teacher, className, classes: [className], isDouble: true, part: 2, isCore: req.isCore, optionGroup: req.optionGroup };
+                sessionsToPlace.push({ session: sessionPart1, partner: sessionPart2 });
+                remainingPeriods -= 2;
             }
         }
+
+        for (let i = 0; i < remainingPeriods; i++) {
+            sessionsToPlace.push({ id: crypto.randomUUID(), subject: mainSubject, actualSubject, teacher: req.teacher, className, classes: [className], isDouble: false, isCore: req.isCore, optionGroup: req.optionGroup });
+        }
     });
 
-
     sessionsToPlace.sort((a, b) => {
-        const sizeA = Array.isArray(a) ? a.length : (('session' in a) ? 2 : 1);
-        const sizeB = Array.isArray(b) ? b.length : (('session' in b) ? 2 : 1);
-        if (sizeB !== sizeA) return sizeB - sizeA;
-
-        const isCoreA = (Array.isArray(a) ? (a[0]?.isCore) : ('session' in a ? a.session.isCore : a.isCore)) || false;
-        const isCoreB = (Array.isArray(b) ? (b[0]?.isCore) : ('session' in b ? b.session.isCore : b.isCore)) || false;
-
-        if (isCoreA && !isCoreB) return -1;
-        if (!isCoreA && isCoreB) return 1;
-
+        const isDoubleA = 'session' in a;
+        const isDoubleB = 'session' in b;
+        if (isDoubleA && !isDoubleB) return -1;
+        if (!isDoubleA && isDoubleB) return 1;
         return 0;
     });
 
@@ -349,17 +305,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 return false;
             }
         }
-
+        
         // 3. Subject clash on the same day for the same class
-        const subjectToCheck = session.optionGroup ? session.subject : session.actualSubject || session.subject;
+        const subjectToCheck = session.subject;
         const classToCheck = session.className;
         
         for (const existingPeriod of board[day]) {
             for (const existingSession of existingPeriod) {
                 if (existingSession.className === classToCheck) {
-                    const existingSubject = existingSession.optionGroup ? existingSession.subject : existingSession.actualSubject || existingSession.subject;
-                    if (existingSubject === subjectToCheck) {
-                         // This check prevents ANY two sessions of the same subject on the same day for the same class
+                    if (existingSession.subject === subjectToCheck) {
                         return false;
                     }
                 }
@@ -391,24 +345,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     }
                 }
             }
-        } else if (Array.isArray(unit)) { // Option group block
-            const sessionGroup = unit as TimetableSession[];
-            if (sessionGroup.length === 0) return solve(board, remainingUnits);
-            
-            const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
-            for (const day of shuffledDays) {
-                for (const period of shuffledPeriods) {
-                    const canPlaceGroup = sessionGroup.every(session => isValidPlacement(board, session, day, period));
-                    if (canPlaceGroup) {
-                        const newBoard = JSON.parse(JSON.stringify(board));
-                        sessionGroup.forEach(session => newBoard[day][period].push(session));
-                        const [solved, finalBoard] = solve(newBoard, remainingUnits);
-                        if (solved) return [true, finalBoard];
-                    }
-                }
-            }
-        }
-        else { // Single Session
+        } else { // Single Session
             const session = unit as TimetableSession;
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
@@ -578,6 +515,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-    

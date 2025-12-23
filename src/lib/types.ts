@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -29,6 +23,7 @@ export type TimetableSession = {
   actualSubject?: string;
   className: string;
   teacher: string;
+  teacherId?: string; // Add teacherId
   isDouble: boolean;
   part?: 1 | 2;
   classes: string[]; 
@@ -74,10 +69,3 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
 };
-
-    
-
-    
-
-
-

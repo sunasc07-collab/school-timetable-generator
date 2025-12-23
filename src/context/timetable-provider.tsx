@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from "react";
@@ -363,47 +364,56 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         });
     });
-
-    // --- 2b. Process Optional Assignments ---
-    const optionalGroups = new Map<string, SubjectAssignment[]>();
+    
+    // --- 2b. Process Optional Assignments by Grade ---
+    const optionalGroupsByGrade = new Map<string, SubjectAssignment[]>();
     optionalAssignments.forEach(a => {
-        const groupKey = `${a.schoolId}-${a.optionGroup}`;
-        if (!optionalGroups.has(groupKey)) {
-            optionalGroups.set(groupKey, []);
-        }
-        optionalGroups.get(groupKey)!.push(a);
+        a.grades.forEach(grade => {
+            const groupKey = `${a.schoolId}-${a.optionGroup}-${grade}`;
+            if (!optionalGroupsByGrade.has(groupKey)) {
+                optionalGroupsByGrade.set(groupKey, []);
+            }
+            // Create a grade-specific version of the assignment
+            optionalGroupsByGrade.get(groupKey)!.push({ ...a, grades: [grade] });
+        });
     });
 
-    optionalGroups.forEach((assignmentsInGroup) => {
+    optionalGroupsByGrade.forEach((assignmentsInGroup) => {
         const firstAssignment = assignmentsInGroup[0];
         const optionGroupName = firstAssignment.optionGroup!;
 
-        // Determine max periods for this option group
         const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
 
         for (let i = 0; i < maxPeriods; i++) {
             const blockId = crypto.randomUUID();
             const blockSessions: TimetableSession[] = [];
             const teachersInBlock = new Set<string>();
+            const classesInBlock = new Set<string>();
 
             assignmentsInGroup.forEach(assignment => {
-                if (i < assignment.periods) { // Only add session if this teacher teaches this period
-                    assignment.grades.forEach(grade => {
+                if (i < assignment.periods) { 
+                    assignment.grades.forEach(grade => { // Should be only one grade
                         const arms = assignment.arms.length > 0 ? assignment.arms : [""];
                         arms.forEach(arm => {
                             const className = `${grade} ${arm}`.trim();
                             classSet.add(className);
-
+                            
                             // Check for internal teacher conflict within the block for the same class/arm
-                            const teacherArmKey = `${assignment.teacherId}-${className}`;
-                            if(teachersInBlock.has(teacherArmKey)){
-                                console.error(`Teacher ${assignment.teacherName} is assigned to the same class/arm ${className} multiple times in option group ${optionGroupName}.`);
-                                if (!newConflicts.some(c => c.id === blockId)) {
-                                   newConflicts.push({ id: blockId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for ${className}.`});
+                             if (teachersInBlock.has(assignment.teacherId!)) {
+                                if(!newConflicts.some(c => c.id === blockId)) {
+                                  newConflicts.push({ id: blockId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for grade ${grade}.`});
                                 }
-                                return;
+                                return; // Skip adding this session
                             }
-                            teachersInBlock.add(teacherArmKey);
+                            if(classesInBlock.has(className)) {
+                                if(!newConflicts.some(c => c.id === blockId)) {
+                                  newConflicts.push({ id: blockId, type: 'class', message: `Class ${className} has multiple assignments in Option Group ${optionGroupName}.`});
+                                }
+                                return; // Skip adding this session
+                            }
+
+                            teachersInBlock.add(assignment.teacherId!);
+                            classesInBlock.add(className);
 
                             blockSessions.push({
                                 id: blockId,
@@ -411,7 +421,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                                 actualSubject: assignment.subject,
                                 teacher: assignment.teacherName,
                                 teacherId: assignment.teacherId,
-                         className: className,
+                                className: className,
                                 classes: [className],
                                 isDouble: false,
                                 optionGroup: optionGroupName,
@@ -428,7 +438,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     });
-
 
     // --- 3. Prepare for Solver ---
     const sessionsToPlace: PlacementUnit[] = [...optionBlocks, ...doubleSessions, ...singleSessions];
@@ -678,4 +687,5 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
 
+    
     

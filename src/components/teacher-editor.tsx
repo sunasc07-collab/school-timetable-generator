@@ -490,26 +490,28 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
   const teacherName = useWatch({ control, name: `teachers.${index}.name`});
 
-  const totalGeneratedPeriods = useMemo(() => {
-    if (!activeTimetable || !activeTimetable.timetable || !teacherId) {
+  const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
+    if (!activeTimetable || !activeTimetable.timetable) {
       return 0;
     }
+    
     let count = 0;
-    const teacher = allTeachers.find(t => t.id === teacherId);
-    if (!teacher) return 0;
-
     Object.values(activeTimetable.timetable).forEach(day => {
         Object.values(day).forEach(period => {
             period.forEach(session => {
-                if (session.teacherId === teacher.id) {
-                   count++;
+                if (session.teacherId === teacherId) {
+                    count++;
                 }
             });
         });
     });
     return count;
-  }, [activeTimetable, teacherId, teacherName, allTeachers]);
+  }, [activeTimetable]);
 
+  const totalGeneratedPeriods = useMemo(() => {
+    if (!teacherId) return 0;
+    return getGeneratedPeriodsForTeacher(teacherId);
+  }, [activeTimetable, teacherId, getGeneratedPeriodsForTeacher]);
 
   return (
     <div className="space-y-6 p-4 border rounded-lg relative">
@@ -716,7 +718,7 @@ export default function TeacherEditor() {
       )
   }
   
-  const getGeneratedPeriodsForTeacher = (teacherId: string) => {
+  const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
     if (!activeTimetable || !activeTimetable.timetable) {
       return 0;
     }
@@ -732,7 +734,7 @@ export default function TeacherEditor() {
         });
     });
     return count;
-  };
+  }, [activeTimetable]);
 
   return (
     <div className="p-2 space-y-4">
@@ -879,5 +881,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

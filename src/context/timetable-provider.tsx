@@ -298,50 +298,47 @@ const updateTeacher = useCallback((teacherData: Teacher) => {
     
     const optionBlocks: OptionBlockUnit[] = [];
     const conflicts: Conflict[] = [];
-    
     const optionGroups = [...new Set(optionalAssignments.map(a => a.optionGroup))].filter(Boolean);
 
     optionGroups.forEach(group => {
-      const assignmentsForGroup = optionalAssignments.filter(a => a.optionGroup === group);
-      const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods), 0);
+        const assignmentsForGroup = optionalAssignments.filter(a => a.optionGroup === group);
+        const maxPeriods = Math.max(...assignmentsForGroup.map(a => a.periods), 0);
 
-      for (let i = 0; i < maxPeriods; i++) {
-        const block: OptionBlockUnit = [];
-        const teachersInBlock = new Set<string>();
-        const classesInBlock = new Set<string>();
-        const sessionsForThisPeriod = assignmentsForGroup.filter(a => i < a.periods);
+        for (let i = 0; i < maxPeriods; i++) {
+            const block: OptionBlockUnit = [];
+            const teachersInBlock = new Set<string>();
+            const classesInBlock = new Set<string>();
+            const sessionsForThisPeriod = assignmentsForGroup.filter(a => i < a.periods);
 
-        sessionsForThisPeriod.forEach(session => {
-            if (!session) return; // Safeguard
+            sessionsForThisPeriod.forEach(session => {
+                const className = `${session.grades[0]} ${session.arms[0] || ''}`.trim();
+                
+                if (teachersInBlock.has(session.teacher)) {
+                    conflicts.push({ id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double-booked in Option Group ${group}.`});
+                }
+                if (classesInBlock.has(className)) {
+                    conflicts.push({ id: session.id, type: 'class', message: `Class ${className} has multiple subjects in Option Group ${group}.`});
+                }
+                
+                teachersInBlock.add(session.teacher);
+                classesInBlock.add(className);
 
-            const className = `${session.grades[0]} ${session.arms[0] || ''}`.trim();
-
-            if (teachersInBlock.has(session.teacher)) {
-                conflicts.push({ id: session.id, type: 'teacher', message: `Teacher ${session.teacher} is double-booked in Option Group ${group}.`});
-            }
-            if (classesInBlock.has(className)) {
-                conflicts.push({ id: session.id, type: 'class', message: `Class ${className} has multiple subjects in Option Group ${group}.`});
-            }
-            
-            teachersInBlock.add(session.teacher);
-            classesInBlock.add(className);
-
-            block.push({
-                id: session.id + `_period_${i}`,
-                subject: `Option ${group}`,
-                actualSubject: session.subject,
-                teacher: session.teacher,
-                className: className,
-                classes: [className],
-                isDouble: false,
-                optionGroup: group,
+                block.push({
+                    id: session.id + `_period_${i}`,
+                    subject: `Option ${group}`,
+                    actualSubject: session.subject,
+                    teacher: session.teacher,
+                    className: className,
+                    classes: [className],
+                    isDouble: false,
+                    optionGroup: group,
+                });
             });
-        });
-        
-        if (block.length > 0) {
-            optionBlocks.push(block);
+            
+            if (block.length > 0) {
+                optionBlocks.push(block);
+            }
         }
-      }
     });
 
     if (conflicts.length > 0) {
@@ -606,7 +603,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
 
     

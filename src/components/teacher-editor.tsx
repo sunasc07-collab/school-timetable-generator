@@ -720,14 +720,12 @@ export default function TeacherEditor() {
     if (!activeTimetable || !activeTimetable.timetable) {
       return 0;
     }
-    const teacher = currentTeachers.find(t => t.id === teacherId);
-    if (!teacher) return 0;
     
     let count = 0;
     Object.values(activeTimetable.timetable).forEach(day => {
         Object.values(day).forEach(period => {
             period.forEach(session => {
-                if (session.teacherId === teacher.id) {
+                if (session.teacherId === teacherId) {
                     count++;
                 }
             });
@@ -881,3 +879,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

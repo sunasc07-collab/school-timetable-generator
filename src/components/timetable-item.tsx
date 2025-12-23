@@ -4,7 +4,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
-import { BookOpen, GraduationCap, User } from "lucide-react";
+import { BookOpen, GraduationCap, User, AlertCircle } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
 import { useMemo } from "react";
 import { Badge } from "./ui/badge";
@@ -53,6 +53,7 @@ export default function TimetableItem({
         {session.optionGroup ? (
            <>
              <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", isConflict ? "text-destructive-foreground" : "text-foreground")}>
+               {isConflict && <AlertCircle className="h-4 w-4" />}
                <span className="truncate">{session.subject}</span>
              </div>
              <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
@@ -71,6 +72,7 @@ export default function TimetableItem({
         ) : (
           <>
             <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
+              {isConflict && <AlertCircle className="h-4 w-4" />}
               <BookOpen className="h-4 w-4 text-primary shrink-0"/>
               <span className="truncate">{session.subject}</span>
             </div>
@@ -88,3 +90,6 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+
+    

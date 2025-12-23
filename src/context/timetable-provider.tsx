@@ -247,7 +247,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     activeTeachers.forEach(teacher => {
         teacher.assignments.forEach(origAssignment => {
             if (origAssignment.schoolId !== schoolId || origAssignment.subject.toLowerCase() === 'assembly') return;
-
+            
             const grades = origAssignment.grades.length > 0 ? origAssignment.grades : [""];
             grades.forEach(grade => {
                 const arms = origAssignment.arms.length > 0 ? origAssignment.arms : [""];
@@ -268,10 +268,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         });
     });
-
+    
+    // Process non-optional subjects first
     const singleSessions: SingleSessionUnit[] = [];
     const doubleSessions: DoubleSessionUnit[] = [];
-    
     const nonOptionalAssignments = allRequiredAssignments.filter(a => !a.optionGroup);
     
     nonOptionalAssignments.forEach(req => {
@@ -293,7 +293,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     const optionBlocks: OptionBlockUnit[] = [];
     const optionalAssignments = allRequiredAssignments.filter(a => a.optionGroup);
-    
+
+    // Group optional assignments by school, option group, and grade
     const groupedOptions = optionalAssignments.reduce((acc, assignment) => {
         const grade = assignment.grades[0] || 'all_grades';
         const key = `${assignment.schoolId}-${assignment.optionGroup}-${grade}`;
@@ -304,47 +305,45 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return acc;
     }, {} as Record<string, (SubjectAssignment & { teacher: string; className: string })[]>);
 
-    Object.values(groupedOptions).forEach(assignments => {
-        if (assignments.length === 0) return;
+    Object.values(groupedOptions).forEach(assignmentsInGroup => {
+        if (assignmentsInGroup.length === 0) return;
 
-        const maxPeriods = Math.max(0, ...assignments.map(a => a.periods));
-        const groupDetails = assignments[0];
-        const grade = groupDetails.grades[0] || 'all_grades';
-
-        const classesInGroup = [...new Set(assignments.flatMap(a => a.className ? [a.className] : []))];
+        const maxPeriods = Math.max(0, ...assignmentsInGroup.map(a => a.periods));
+        const groupDetails = assignmentsInGroup[0];
+        const groupGrade = groupDetails.grades[0] || 'all_grades';
 
         for (let periodIndex = 0; periodIndex < maxPeriods; periodIndex++) {
             const blockId = crypto.randomUUID();
-            const teachersInBlock = new Set<string>();
-            let blockSessions: TimetableSession[] = [];
+            const teachersInThisBlock = new Set<string>();
+            const blockSessions: TimetableSession[] = [];
             
-            assignments.forEach(assignment => {
-                if (assignment.periods <= periodIndex) return;
+            assignmentsInGroup.forEach(assignment => {
+                // Only add a session for this teacher if they are assigned for this period instance
+                if (assignment.periods > periodIndex) {
+                    // Pre-solver conflict check
+                    if (teachersInThisBlock.has(assignment.teacher)) {
+                        const conflictMessage = `Pre-solver conflict: Teacher ${assignment.teacher} is double-booked in Option ${assignment.optionGroup} for ${groupGrade}.`;
+                        const conflictId = assignment.id || `${assignment.teacher}-${assignment.optionGroup}-${groupGrade}`;
+                        if (!newConflicts.some(c => c.id === conflictId)) {
+                            newConflicts.push({ id: conflictId, type: 'teacher', message: conflictMessage });
+                        }
+                        return; // Skip this conflicting session
+                    }
+                    teachersInThisBlock.add(assignment.teacher);
 
-                if (teachersInBlock.has(assignment.teacher)) {
-                     const conflictMessage = `Pre-solver conflict in Option ${assignment.optionGroup}: Teacher ${assignment.teacher} is double-booked for grade ${grade}.`;
-                     if (assignment.id) {
-                         const existingConflict = newConflicts.find(c => c.id === assignment.id);
-                         if (!existingConflict) {
-                             newConflicts.push({ id: assignment.id, type: 'teacher', message: conflictMessage });
-                         }
-                     }
-                     return; // Skip this assignment for this block
+                    blockSessions.push({
+                        id: blockId,
+                        subject: `Option ${assignment.optionGroup}`,
+                        actualSubject: assignment.subject,
+                        teacher: assignment.teacher,
+                        className: assignment.className,
+                        classes: [assignment.className], // Each session is for one class/arm
+                        isDouble: false,
+                        optionGroup: assignment.optionGroup,
+                    });
                 }
-                teachersInBlock.add(assignment.teacher);
-
-                blockSessions.push({
-                    id: blockId,
-                    subject: `Option ${assignment.optionGroup}`,
-                    actualSubject: assignment.subject,
-                    teacher: assignment.teacher,
-                    className: assignment.className,
-                    classes: [assignment.className],
-                    isDouble: false,
-                    optionGroup: assignment.optionGroup,
-                });
             });
-            
+
             if (blockSessions.length > 0) {
                  optionBlocks.push({
                     id: blockId,
@@ -366,11 +365,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, p: number) => {
             const slot = board[day]?.[p];
-            if (!slot) return false;
+            if (!slot) return false; // Period out of bounds
 
+            // Teacher clash
             if (slot.some(s => s.teacher === session.teacher)) return false;
+            
+            // Class clash
             if (slot.some(s => s.classes.some(c => session.classes.includes(c)))) return false;
             
+            // Same subject on the same day for the same class
             for (const existingPeriod of board[day]) {
               if (existingPeriod.some(existingSession =>
                   existingSession.className === session.className &&
@@ -429,7 +432,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     }
                 }
             } else if ('sessions' in unit) { // Option Block
-                for (let period = 0; period < periodCount; period++) {
+                 for (let period = 0; period < periodCount; period++) {
                     if (isValidPlacement(board, unit, day, period)) {
                        const newBoard = JSON.parse(JSON.stringify(board));
                        newBoard[day][period].push(...unit.sessions);
@@ -455,14 +458,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const validSessionsToPlace = sessionsToPlace.filter(unit => {
         if ('sessions' in unit) {
             unit.sessions = unit.sessions.filter(s => {
-                const assignment = optionalAssignments.find(oa => oa.teacher === s.teacher && oa.className === s.className);
-                return !conflictingAssignmentIds.has(assignment?.id || '');
+                 const assignment = optionalAssignments.find(oa => oa.teacher === s.teacher && oa.className === s.className);
+                 return assignment && !conflictingAssignmentIds.has(assignment.id);
             });
             return unit.sessions.length > 0;
         }
         return true;
     });
-
+    
     let boardCopy = JSON.parse(JSON.stringify(newTimetable));
     const [isSolved, solvedBoard] = solve(boardCopy, validSessionsToPlace);
     
@@ -583,7 +586,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const isConflict = (sessionId: string) => {
     if (!activeTimetable || !activeTimetable.conflicts) return false;
-    return activeTimetable.conflicts.some(c => c.id === sessionId);
+    return activeTimetable.conflicts.some(c => c.id === sessionId || c.id.startsWith(sessionId));
   }
   
   return (
@@ -621,7 +624,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    

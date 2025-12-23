@@ -167,59 +167,77 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const processTeacherData = (teacherData: Omit<Teacher, 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
-      const processedAssignments: SubjectAssignment[] = [];
-      
-      teacherData.assignments.forEach(formAssignment => {
-          const { grades = [], subjectType, isCore, optionGroup, ...restOfAssignment } = formAssignment;
+    const processedAssignments: SubjectAssignment[] = [];
+    const assignmentsToProcess = teacherData.assignments || [];
 
-          const seniorGrades = grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
-          const otherGrades = grades.filter(g => !SENIOR_SECONDARY_GRADES.includes(g));
+    assignmentsToProcess.forEach(formAssignment => {
+        const { grades = [], subjectType, isCore, optionGroup, arms, ...restOfAssignment } = formAssignment;
 
-          // Handle Senior Secondary grades (which might be core/optional)
-          if (seniorGrades.length > 0) {
-              processedAssignments.push({
-                  ...restOfAssignment,
-                  id: restOfAssignment.id || crypto.randomUUID(),
-                  grades: seniorGrades,
-                  isCore: subjectType === 'core',
-                  optionGroup: subjectType === 'optional' ? optionGroup : null,
-              });
-          }
-          
-          // Handle other grades (Primary, Junior Secondary)
-          if (otherGrades.length > 0) {
-              processedAssignments.push({
-                  ...restOfAssignment,
-                  id: crypto.randomUUID(), // New ID for the split part
-                  grades: otherGrades,
-                  isCore: false, // Other grades don't have this concept in our model
-                  optionGroup: null, // No option groups for non-senior
-              });
-          }
-      });
-      
-      // Merge assignments that are identical after processing
-      const mergedAssignments: SubjectAssignment[] = [];
-      processedAssignments.forEach(assignment => {
-          const existing = mergedAssignments.find(merged => 
-              merged.subject === assignment.subject &&
-              merged.periods === assignment.periods &&
-              merged.schoolId === assignment.schoolId &&
-              merged.isCore === assignment.isCore &&
-              merged.optionGroup === assignment.optionGroup &&
-              JSON.stringify(merged.arms) === JSON.stringify(assignment.arms)
-          );
-          if (existing) {
-              existing.grades = [...new Set([...existing.grades, ...assignment.grades])];
-          } else {
-              mergedAssignments.push({ ...assignment });
-          }
-      });
+        const hasSenior = grades.some(g => SENIOR_SECONDARY_GRADES.includes(g));
+        const hasJunior = grades.some(g => JUNIOR_SECONDARY_GRADES.includes(g));
+        const nonSecondaryGrades = grades.filter(g => !SENIOR_SECONDARY_GRADES.includes(g) && !JUNIOR_SECONDARY_GRADES.includes(g));
 
-      return {
-          ...teacherData,
-          assignments: mergedAssignments,
-      };
+        // Handle Senior Secondary Grades
+        if (hasSenior) {
+            const seniorGrades = grades.filter(g => SENIOR_SECONDARY_GRADES.includes(g));
+            processedAssignments.push({
+                ...restOfAssignment,
+                id: restOfAssignment.id || crypto.randomUUID(),
+                grades: seniorGrades,
+                arms: arms || [],
+                isCore: subjectType === 'core',
+                optionGroup: subjectType === 'optional' ? optionGroup : null,
+            });
+        }
+        
+        // Handle Junior Secondary Grades
+        if (hasJunior) {
+             const juniorGrades = grades.filter(g => JUNIOR_SECONDARY_GRADES.includes(g));
+            processedAssignments.push({
+                ...restOfAssignment,
+                id: crypto.randomUUID(),
+                grades: juniorGrades,
+                arms: arms || [],
+                isCore: false, 
+                optionGroup: null, 
+            });
+        }
+        
+        // Handle other grades (Primary, etc.)
+        if (nonSecondaryGrades.length > 0) {
+            processedAssignments.push({
+                ...restOfAssignment,
+                id: crypto.randomUUID(),
+                grades: nonSecondaryGrades,
+                arms: [],
+                isCore: false,
+                optionGroup: null,
+            });
+        }
+    });
+
+    // Merge assignments that are identical after processing
+    const mergedAssignments: SubjectAssignment[] = [];
+    processedAssignments.forEach(assignment => {
+        const existing = mergedAssignments.find(merged => 
+            merged.subject === assignment.subject &&
+            merged.periods === assignment.periods &&
+            merged.schoolId === assignment.schoolId &&
+            merged.isCore === assignment.isCore &&
+            merged.optionGroup === assignment.optionGroup &&
+            JSON.stringify(merged.arms.sort()) === JSON.stringify(assignment.arms.sort())
+        );
+        if (existing) {
+            existing.grades = [...new Set([...existing.grades, ...assignment.grades])].sort();
+        } else {
+            mergedAssignments.push({ ...assignment });
+        }
+    });
+
+    return {
+        ...teacherData,
+        assignments: mergedAssignments,
+    };
   };
 
   const addTeacher = useCallback((teacherData: Omit<Teacher, 'id' | 'assignments'> & { assignments: Partial<SubjectAssignment>[] }) => {
@@ -305,14 +323,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
 
     const sessionsToPlace: PlacementUnit[] = [];
+    const classSet = new Set<string>();
 
-    // Process core/regular subjects
     const coreAssignments = allRequiredSessions.filter(req => !req.optionGroup);
     coreAssignments.forEach(req => {
         req.grades.forEach(grade => {
             const gradeArms = req.arms && req.arms.length > 0 ? req.arms : [''];
             gradeArms.forEach(arm => {
                 const className = `${grade} ${arm}`.trim();
+                classSet.add(className);
                 let remainingPeriods = req.periods;
                 while (remainingPeriods >= 2) {
                     const doubleId = crypto.randomUUID();
@@ -328,52 +347,57 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
 
-    // Process optional subjects
     const optionalAssignments = allRequiredSessions.filter(req => req.optionGroup);
-    const optionGroups = new Map<string, (SubjectAssignment & { teacher: string; className: string })[]>();
-    
-    optionalAssignments.forEach(assign => {
-      assign.grades.forEach(grade => {
-        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
-        gradeArms.forEach(arm => {
-          const className = `${grade} ${arm}`.trim();
-          const key = assign.optionGroup!;
-          if (!optionGroups.has(key)) {
-            optionGroups.set(key, []);
-          }
-          optionGroups.get(key)!.push({ ...assign, className });
-        });
-      });
-    });
-    
-    optionGroups.forEach((assignments, group) => {
-        const periodsByClass = new Map<string, number>();
-        assignments.forEach(a => periodsByClass.set(a.className, a.periods));
-        const maxPeriods = Math.max(0, ...Array.from(periodsByClass.values()));
+    const optionGroups = new Map<string, {
+        assignments: (SubjectAssignment & { teacher: string })[],
+        maxPeriods: number
+    }>();
 
-        for (let i = 0; i < maxPeriods; i++) {
+    optionalAssignments.forEach(assign => {
+        const key = assign.optionGroup!;
+        if (!optionGroups.has(key)) {
+            optionGroups.set(key, { assignments: [], maxPeriods: 0 });
+        }
+        const group = optionGroups.get(key)!;
+        group.assignments.push(assign);
+        if (assign.periods > group.maxPeriods) {
+            group.maxPeriods = assign.periods;
+        }
+        assign.grades.forEach(grade => {
+            const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+            gradeArms.forEach(arm => classSet.add(`${grade} ${arm}`.trim()));
+        });
+    });
+
+    optionGroups.forEach((group, groupName) => {
+        for (let i = 0; i < group.maxPeriods; i++) {
             const block: TimetableSession[] = [];
-            const classesInBlock = new Set<string>();
-            assignments.forEach(assign => {
+            group.assignments.forEach(assign => {
                 if (i < assign.periods) {
-                  // Only add one session per class per block
-                  if(!classesInBlock.has(assign.className)){
-                     block.push({
-                        id: crypto.randomUUID(),
-                        subject: assign.subject,
-                        teacher: assign.teacher,
-                        className: assign.className,
-                        classes: [assign.className],
-                        isDouble: false,
-                        isCore: assign.isCore,
-                        optionGroup: assign.optionGroup,
+                    assign.grades.forEach(grade => {
+                        const gradeArms = assign.arms && assign.arms.length > 0 ? assign.arms : [''];
+                        gradeArms.forEach(arm => {
+                            const className = `${grade} ${arm}`.trim();
+                            block.push({
+                                id: crypto.randomUUID(),
+                                subject: `Option ${groupName}`,
+                                actualSubject: assign.subject,
+                                teacher: assign.teacher,
+                                className: className,
+                                classes: [className],
+                                isDouble: false,
+                                isCore: assign.isCore,
+                                optionGroup: assign.optionGroup,
+                            });
+                        });
                     });
-                    classesInBlock.add(assign.className);
-                  }
                 }
             });
             if (block.length > 0) {
-                sessionsToPlace.push(block);
+                const uniqueBlock = block.filter((session, index, self) => 
+                    index === self.findIndex(s => s.className === session.className && s.actualSubject === session.actualSubject)
+                );
+                sessionsToPlace.push(uniqueBlock);
             }
         }
     });
@@ -392,16 +416,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return 0;
     });
 
-    const classSet = new Set<string>();
-    allRequiredSessions.forEach(req => {
-        req.grades.forEach(grade => {
-            const classArms = req.arms && req.arms.length > 0 ? req.arms : [''];
-            classArms.forEach(arm => {
-                const className = `${grade} ${arm}`.trim();
-                classSet.add(className);
-            });
-        });
-    });
     const sortedClasses = Array.from(classSet).sort();
     
     const newTimetable: TimetableData = {};
@@ -424,10 +438,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         }
     
+        const subjectToCheck = session.optionGroup ? session.subject : session.actualSubject || session.subject;
         for (const classToCheck of session.classes) {
             for (const p of board[day]) {
                  for (const existingSession of p) {
-                    if (existingSession.classes.includes(classToCheck) && existingSession.subject === session.subject) {
+                    if (existingSession.classes.includes(classToCheck) && (existingSession.actualSubject || existingSession.subject) === subjectToCheck) {
                         if (existingSession.id !== session.id) {
                             return false;
                         }
@@ -471,12 +486,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             
             const shuffledPeriods = Array.from({ length: periodCount }, (_, i) => i).sort(() => Math.random() - 0.5);
             for (const day of shuffledDays) {
-                const subjectAlreadyOnDay = sessionGroup.some(sess => {
-                    return sess.classes.some(c => {
-                        return board[day].flat().some(ds => ds.classes.includes(c) && ds.subject === sess.subject && ds.id !== sess.id);
-                    });
+                const subjectAlreadyOnDayForAnyClass = sessionGroup.some(sess => {
+                     return board[day].flat().some(ds => ds.optionGroup === sess.optionGroup && ds.classes.some(c => sess.classes.includes(c)));
                 });
-                if (subjectAlreadyOnDay) continue;
+                if(subjectAlreadyOnDayForAnyClass) continue;
 
                 for (const period of shuffledPeriods) {
                     const canPlaceGroup = sessionGroup.every(session => isValidPlacement(board, session, day, period));

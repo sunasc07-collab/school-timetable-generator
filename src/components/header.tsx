@@ -130,9 +130,11 @@ export default function Header() {
     ];
     let colorIndex = 0;
 
-    const getSubjectColor = (subject: string) => {
+    const getSubjectColor = (session: TimetableSession) => {
+        const subject = session.actualSubject || session.subject;
         if (!subject) return [255, 255, 255];
-        if (subject === 'SHORT-BREAK' || subject === 'LUNCH' || subject === 'Sports') return [220, 220, 220];
+        if (['SHORT-BREAK', 'LUNCH', 'Sports'].includes(subject)) return [220, 220, 220];
+        if (session.optionGroup) return [255, 250, 205]; // LemonChiffon for option groups
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, pastelColors[colorIndex % pastelColors.length]);
             colorIndex++;
@@ -152,7 +154,7 @@ export default function Header() {
 
     const getClassInitials = (className: string) => {
       if (!className) return '';
-      return className.replace("Grade ", "").substring(0, 4);
+      return className.replace("Grade ", "G").replace("A-Level Year", "Y").substring(0, 4);
     };
 
     listToIterate.forEach((item, index) => {
@@ -176,7 +178,7 @@ export default function Header() {
                 const breakCell = {
                     content: slot.label?.replace('-', ' '),
                     colSpan: days.length,
-                    styles: { halign: 'center', valign: 'middle', fillColor: getSubjectColor(slot.label!) }
+                    styles: { halign: 'center', valign: 'middle', fillColor: getSubjectColor({} as TimetableSession) }
                 };
                 rowData.push(breakCell);
             } else {
@@ -213,45 +215,34 @@ export default function Header() {
                 
                 const sessions = data.cell.raw as TimetableSession[];
                 if (sessions.length === 0) return;
-
-                const uniqueSubjects = new Map<string, TimetableSession>();
-                sessions.forEach(session => {
-                    const key = session.optionGroup ? `${session.optionGroup}-${session.className}` : session.subject;
-                    if (!uniqueSubjects.has(key)) {
-                        uniqueSubjects.set(key, session);
-                    }
-                });
-                const sessionsToRender = Array.from(uniqueSubjects.values());
                 
                 const cellHeight = data.cell.height;
-                const sessionHeight = cellHeight / sessionsToRender.length;
+                const sessionHeight = cellHeight / sessions.length;
 
-                sessionsToRender.forEach((session, i) => {
+                sessions.forEach((session, i) => {
                     const sessionY = data.cell.y + (i * sessionHeight);
                     
-                    doc.setFillColor(...(getSubjectColor(session.subject) as [number, number, number]));
+                    doc.setFillColor(...(getSubjectColor(session) as [number, number, number]));
                     doc.rect(data.cell.x, sessionY, data.cell.width, sessionHeight, 'F');
                     doc.setTextColor(0, 0, 0);
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                         const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
-                         const optionText = `${session.optionGroup}`;
-                         const subjectText = `${getSubjectInitials(session.subject)}`;
-                         const detailsText = `${details}`;
-                        
-                         doc.setFontSize(10);
-                         doc.setFont(undefined, 'bold');
-                         doc.text(optionText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
-                         
-                         doc.setFontSize(7);
-                         doc.setFont(undefined, 'normal');
-                         doc.text(subjectText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 2, { halign: 'center' });
-                         doc.text(detailsText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 5, { halign: 'center' });
-                    } else {
+                        const optionText = `${session.subject}`; // "Option A"
+                        const actualSubjectText = getSubjectInitials(session.actualSubject || '');
                         const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
-                        const subjectText = `${getSubjectInitials(session.subject)}`;
-                        const detailsText = `${details}`;
+
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(optionText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
+                        
+                        doc.setFontSize(7);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(`${actualSubjectText} (${details})`, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
+
+                    } else {
+                        const subjectText = getSubjectInitials(session.subject);
+                        const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
 
                         doc.setFontSize(8);
                         doc.setFont(undefined, 'bold');
@@ -259,7 +250,7 @@ export default function Header() {
 
                         doc.setFontSize(7);
                         doc.setFont(undefined, 'normal');
-                        doc.text(detailsText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
+                        doc.text(details, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
                     }
                 });
             },

@@ -28,7 +28,7 @@ export default function TimetableItem({
     e.dataTransfer.setData("application/json", JSON.stringify(dragData));
   };
 
-  const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
+  const title = `Subject: ${session.actualSubject || session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
 
   const teacherInitials = useMemo(() => {
     if (!session.teacher) return '';
@@ -52,10 +52,12 @@ export default function TimetableItem({
       <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
         {session.optionGroup ? (
            <>
-             <div className={cn("flex items-center justify-center gap-1.5 font-medium", isConflict ? "text-destructive-foreground" : "text-foreground")}>
-               <BookOpen className="h-4 w-4 text-primary shrink-0"/>
+             <div className={cn("flex items-center justify-center gap-1.5 font-bold text-base", isConflict ? "text-destructive-foreground" : "text-foreground")}>
                <span className="truncate">{session.subject}</span>
-               <Badge variant="outline" className="text-xs px-1 py-0">{session.optionGroup}</Badge>
+             </div>
+             <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+               <BookOpen className="h-3 w-3 shrink-0"/>
+               <span className="truncate">{session.actualSubject}</span>
              </div>
              <div className={cn("flex items-center justify-center gap-1.5", isConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
                <User className="h-3 w-3 shrink-0"/>

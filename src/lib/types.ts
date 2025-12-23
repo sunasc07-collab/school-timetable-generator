@@ -4,6 +4,7 @@
 
 
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -25,6 +26,7 @@ export type Teacher = {
 export type TimetableSession = {
   id: string;
   subject: string;
+  actualSubject?: string;
   className: string;
   teacher: string;
   isDouble: boolean;
@@ -76,5 +78,6 @@ export type Timetable = {
     
 
     
+
 
 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, useFieldArray, FormProvider, useFormContext, useWatch } from "react-hook-form";
@@ -133,7 +134,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         armOptions = JUNIOR_SECONDARY_ARMS;
         showArms = true;
       } else if (hasSeniorSecondary && !hasJuniorSecondary) {
-        armOptions = SENIOR_SECONDARY_ARMS;
         showArms = false; // Hide separate arms for senior secondary, as it's in the options box
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
         showArms = true; // Show for junior
@@ -649,61 +649,28 @@ export default function TeacherEditor() {
 
   function onSubmit(data: MultiTeacherFormValues) {
     if (!activeTimetable) return;
-
+    
     data.teachers.forEach(teacherData => {
-      let finalAssignments: SubjectAssignment[] = [];
+        const finalAssignments = teacherData.assignments.map(formAssignment => ({
+            ...formAssignment,
+            id: formAssignment.id || crypto.randomUUID(),
+            isCore: formAssignment.subjectType === 'core',
+            optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
+        }));
 
-      teacherData.assignments.forEach(formAssignment => {
-        const isCore = formAssignment.subjectType === 'core';
-        
-        if (formAssignment.subjectType === 'optional' && formAssignment.optionGroup) {
-            // For optional subjects, keep grades and arms grouped in a single assignment
-            finalAssignments.push({
-                ...formAssignment,
-                id: formAssignment.id || crypto.randomUUID(),
-                isCore: false,
-            });
+        const teacherWithId: Teacher = {
+            ...teacherData,
+            id: teacherData.id || crypto.randomUUID(),
+            assignments: finalAssignments,
+        };
+
+        if (editingTeacher) {
+            const otherSchoolAssignments = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId !== activeTimetable?.id) || [];
+            teacherWithId.assignments.push(...otherSchoolAssignments);
+            updateTeacher(teacherWithId);
         } else {
-            // For core subjects, expand into individual assignments per grade/arm
-            formAssignment.grades.forEach(grade => {
-                if (formAssignment.arms && formAssignment.arms.length > 0) {
-                    formAssignment.arms.forEach(arm => {
-                        finalAssignments.push({
-                            ...formAssignment,
-                            id: crypto.randomUUID(),
-                            grades: [grade],
-                            arms: [arm],
-                            isCore: isCore,
-                            optionGroup: null, 
-                        });
-                    });
-                } else {
-                    finalAssignments.push({
-                        ...formAssignment,
-                        id: crypto.randomUUID(),
-                        grades: [grade],
-                        arms: [],
-                        isCore: isCore,
-                        optionGroup: null,
-                    });
-                }
-            });
+            addTeacher(teacherWithId);
         }
-      });
-
-      const teacherWithId: Teacher = {
-          ...teacherData,
-          id: teacherData.id || crypto.randomUUID(),
-          assignments: finalAssignments,
-      };
-
-      if (editingTeacher) {
-          const otherSchoolAssignments = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId !== activeTimetable?.id) || [];
-          teacherWithId.assignments.push(...otherSchoolAssignments);
-          updateTeacher(teacherWithId);
-      } else {
-          addTeacher(teacherWithId);
-      }
     });
     
     form.reset({ teachers: [] });
@@ -884,3 +851,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

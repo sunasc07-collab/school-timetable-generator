@@ -39,26 +39,31 @@ export default function TimetableItem({
   const isOptionGroup = !!session.optionGroup;
   
   // For option groups, we only want to render ONE card that represents the entire block.
-  // We can ensure this by only rendering if the current session is the first one in the block.
-  if (isOptionGroup && allSessionsInSlot.map(s => s.actualSubject).indexOf(session.actualSubject) > 0) {
-    return null;
+  // We can ensure this by only rendering if the current session is the first one in the block for that specific option group id.
+  if (isOptionGroup && allSessionsInSlot.findIndex(s => s.id === session.id) > 0) {
+    // If it is not the first session of this id, don't render it.
+     if (allSessionsInSlot.find(s => s.id === session.id) !== session) {
+        return null;
+     }
   }
 
   if (isOptionGroup) {
-    const teachersAndSubjects = allSessionsInSlot.map(s => `${s.teacher} (${s.actualSubject})`).join(', ');
-    const classes = [...new Set(allSessionsInSlot.map(s => s.className))].join(', ');
+    const relevantSessions = allSessionsInSlot.filter(s => s.id === session.id);
+    const teachersAndSubjects = relevantSessions.map(s => `${s.teacher} (${s.actualSubject})`).join(', ');
+    const classes = [...new Set(relevantSessions.flatMap(s => s.classes))].join(', ');
     const title = `Option Group: ${session.subject}\nDetails: ${teachersAndSubjects}\nClasses: ${classes}`;
     const hasConflict = isConflict(session.id);
 
     // Group teachers by their subject for display
-    const teachersBySubject = allSessionsInSlot.reduce((acc, s) => {
+    const teachersBySubject = relevantSessions.reduce((acc, s) => {
         const key = s.actualSubject || 'Unknown';
         if (!acc[key]) {
-            acc[key] = [];
+            acc[key] = { teachers: [], classes: new Set() };
         }
-        acc[key].push(s.teacher);
+        acc[key].teachers.push(s.teacher);
+        s.classes.forEach(c => acc[key].classes.add(c));
         return acc;
-    }, {} as Record<string, string[]>);
+    }, {} as Record<string, { teachers: string[], classes: Set<string> }>);
 
 
      return (
@@ -77,20 +82,28 @@ export default function TimetableItem({
                <span className="truncate">{session.subject}</span>
              </div>
              
-             {Object.entries(teachersBySubject).map(([subj, teachers]) => (
-                <div key={subj} className={cn("flex items-start justify-center gap-1.5 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-                    <BookOpen className="h-3 w-3 shrink-0 mt-0.5"/>
-                    <div className="text-left">
-                        <span className="font-medium">{subj}: </span>
-                        <span className="truncate">{[...new Set(teachers)].join(', ')}</span>
+             {Object.entries(teachersBySubject).map(([subj, data]) => (
+                <div key={subj} className={cn("flex flex-col items-center justify-center gap-1 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+                    <div className="flex items-start justify-center gap-1.5">
+                      <BookOpen className="h-3 w-3 shrink-0 mt-0.5"/>
+                      <div className="text-center">
+                          <span className="font-medium">{subj}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-start justify-center gap-1.5">
+                      <User className="h-3 w-3 shrink-0 mt-0.5"/>
+                       <div className="text-center">
+                          <span className="truncate">{[...new Set(data.teachers)].join(', ')}</span>
+                       </div>
+                    </div>
+                     <div className="flex items-start justify-center gap-1.5">
+                      <GraduationCap className="h-3 w-3 shrink-0 mt-0.5"/>
+                       <div className="text-center">
+                          <span className="truncate">{[...data.classes].join(', ')}</span>
+                       </div>
                     </div>
                 </div>
              ))}
-
-             <div className={cn("flex items-center justify-center gap-1.5 text-xs pt-1", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-               <GraduationCap className="h-3 w-3 shrink-0"/>
-               <span className="break-words">{classes}</span>
-             </div>
         </CardContent>
        </Card>
      )
@@ -131,3 +144,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+    

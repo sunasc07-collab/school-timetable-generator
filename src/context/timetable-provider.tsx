@@ -355,18 +355,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         });
     });
     
-    // Group optional assignments by school, grade, and option group
     const optionalGroups = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
     optionalAssignments.forEach(assignment => {
-        assignment.grades.forEach(grade => {
-            const groupKey = `${assignment.schoolId}-${grade}-${assignment.optionGroup}`;
-            if (!optionalGroups.has(groupKey)) {
-                optionalGroups.set(groupKey, []);
-            }
-            optionalGroups.get(groupKey)!.push({ ...assignment });
-        });
+      assignment.grades.forEach(grade => {
+        const groupKey = `${assignment.schoolId}-${grade}-${assignment.optionGroup}`;
+        if (!optionalGroups.has(groupKey)) {
+          optionalGroups.set(groupKey, []);
+        }
+        optionalGroups.get(groupKey)!.push({ ...assignment });
+      });
     });
-
 
     optionalGroups.forEach((assignmentsInGroup, groupKey) => {
         const firstAssignment = assignmentsInGroup[0];
@@ -378,50 +376,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const blockId = `${groupKey}-period-${i}`;
             const blockSessions: TimetableSession[] = [];
             
-            // Get all unique arms for this option group
-            const allArmsForGroup = [...new Set(assignmentsInGroup.flatMap(a => a.arms))];
-            const allBlockClasses = allArmsForGroup.length > 0 ? allArmsForGroup.map(arm => `${grade} ${arm}`.trim()) : [`${grade}`.trim()];
+            const assignmentsForPeriod = assignmentsInGroup.filter(a => i < a.periods);
+
+            const allArmsForBlock = [...new Set(assignmentsForPeriod.flatMap(a => a.arms))];
+            
+            const allBlockClasses = allArmsForBlock.length > 0 
+                ? allArmsForBlock.map(arm => `${grade} ${arm}`.trim())
+                : [`${grade}`.trim()];
+
             allBlockClasses.forEach(c => classSet.add(c));
             
             const teachersInBlock = new Set<string>();
 
-            // Group assignments by teacher
-            const assignmentsByTeacher = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
-             assignmentsInGroup.forEach(assignment => {
-                if (!assignmentsByTeacher.has(assignment.teacherId)) {
-                    assignmentsByTeacher.set(assignment.teacherId, []);
-                }
-                assignmentsByTeacher.get(assignment.teacherId)!.push(assignment);
-            });
-
-
-            assignmentsByTeacher.forEach((teacherAssignments, teacherId) => {
-                const mainAssignmentForTeacher = teacherAssignments[0];
-
-                if (i < mainAssignmentForTeacher.periods) {
-                     if (teachersInBlock.has(teacherId)) {
-                        const conflictId = `${blockId}-${teacherId}`;
-                        if (!newConflicts.some(c => c.id === conflictId)) {
-                            newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${mainAssignmentForTeacher.teacherName} has multiple assignments in Option Group ${optionGroupName} for ${grade}.` });
-                        }
-                        return; // Skip adding this session to avoid internal conflict
+            assignmentsForPeriod.forEach(assignment => {
+                if (teachersInBlock.has(assignment.teacherId)) {
+                    const conflictId = `${blockId}-${assignment.teacherId}`;
+                    if (!newConflicts.some(c => c.id === conflictId)) {
+                        newConflicts.push({ id: conflictId, type: 'teacher', message: `Teacher ${assignment.teacherName} has multiple assignments in Option Group ${optionGroupName} for ${grade}.` });
                     }
-                    teachersInBlock.add(teacherId);
-
-                    blockSessions.push({
-                        id: blockId,
-                        subject: `Option ${optionGroupName}`,
-                        actualSubject: mainAssignmentForTeacher.subject,
-                        teacher: mainAssignmentForTeacher.teacherName,
-                        teacherId: teacherId,
-                        className: allBlockClasses.join(', '),
-                        classes: allBlockClasses,
-                        isDouble: false,
-                        optionGroup: optionGroupName,
-                    });
+                    return; 
                 }
-            });
+                teachersInBlock.add(assignment.teacherId);
+                
+                const armsForThisTeacher = assignment.arms && assignment.arms.length > 0 ? assignment.arms : allArmsForBlock;
+                const classesForThisTeacher = armsForThisTeacher.map(arm => `${grade} ${arm}`.trim());
 
+                blockSessions.push({
+                    id: blockId,
+                    subject: `Option ${optionGroupName}`,
+                    actualSubject: assignment.subject,
+                    teacher: assignment.teacherName,
+                    teacherId: assignment.teacherId, 
+                    className: allBlockClasses.join(', '),
+                    classes: classesForThisTeacher,
+                    isDouble: false,
+                    optionGroup: optionGroupName,
+                });
+            });
 
             if (newConflicts.some(c => c.id.startsWith(blockId))) continue;
 
@@ -679,3 +670,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

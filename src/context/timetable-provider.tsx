@@ -362,7 +362,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (!optionalGroups.has(groupKey)) {
           optionalGroups.set(groupKey, []);
         }
-        optionalGroups.get(groupKey)!.push({ ...assignment });
+        optionalGroups.get(groupKey)!.push({ ...assignment, teacherId: assignment.teacherId, teacherName: assignment.teacherName });
       });
     });
 
@@ -670,5 +670,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
 
     

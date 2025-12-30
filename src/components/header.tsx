@@ -188,7 +188,7 @@ export default function Header() {
 
         const PAGE_WIDTH = doc.internal.pageSize.getWidth();
         const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
-        const MARGIN = 20;
+        const MARGIN = 10;
 
         doc.setFillColor(83, 4, 133);
         doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
@@ -197,21 +197,21 @@ export default function Header() {
         roundedRect(MARGIN, MARGIN, PAGE_WIDTH - (MARGIN * 2), 50, 5, 'F');
         doc.setFont(FONT_FAMILY, "bold");
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(16);
+        doc.setFontSize(22);
         doc.text("SCHOOL TIMETABLE", PAGE_WIDTH / 2, MARGIN + 25, { align: 'center' });
-        doc.setFontSize(12);
+        doc.setFontSize(16);
         doc.text(currentTimetable.name, PAGE_WIDTH / 2, MARGIN + 40, { align: 'center' });
 
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
-        doc.setFontSize(18);
+        doc.setFontSize(24);
         doc.setFont(FONT_FAMILY, "bold");
         doc.text(itemTitle, MARGIN, MARGIN + 75);
 
         const gridX = MARGIN;
         const gridY = MARGIN + 90;
         const gridWidth = PAGE_WIDTH - (MARGIN * 2);
-        const dayHeaderHeight = 30;
-        const timeColWidth = 60;
+        const dayHeaderHeight = 35;
+        const timeColWidth = 70;
         const dayColWidth = (gridWidth - timeColWidth) / days.length;
         
         const periodSlots = timeSlots.filter(slot => !slot.isBreak);
@@ -227,10 +227,10 @@ export default function Header() {
             doc.setFillColor(r, g, b);
             roundedRect(dayX, gridY, dayColWidth, dayHeaderHeight, 10, 'F');
 
-            doc.setFontSize(12);
+            doc.setFontSize(16);
             doc.setFont(FONT_FAMILY, "bold");
             doc.setTextColor(255, 255, 255);
-            doc.text(day.toUpperCase(), dayX + dayColWidth / 2, gridY + dayHeaderHeight / 2 + 4, { align: 'center' });
+            doc.text(day.toUpperCase(), dayX + dayColWidth / 2, gridY + dayHeaderHeight / 2 + 5, { align: 'center' });
         });
 
         let currentY = gridY + dayHeaderHeight;
@@ -242,12 +242,12 @@ export default function Header() {
             if (slot.isBreak) {
                 doc.setFillColor(240, 240, 240);
                 roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
-                doc.setFontSize(16);
+                doc.setFontSize(22);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
-                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 5, { align: 'center' });
+                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
             } else {
-                doc.setFontSize(10);
+                doc.setFontSize(12);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(255, 255, 255);
                 doc.text(slot.time, gridX + timeColWidth - 5, currentY + rowHeight / 2 + 4, { align: 'right' });
@@ -284,36 +284,39 @@ export default function Header() {
                              roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 8, 'F');
 
                              doc.setTextColor(50, 50, 50);
-                             doc.setFont(FONT_FAMILY, "bold");
                              
                              if (firstSession.optionGroup) {
-                                doc.setFontSize(15);
-                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
+                                doc.setFontSize(18);
+                                doc.setFont(FONT_FAMILY, "bold");
+                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + 15, { align: 'center' });
                                 
-                                doc.setFontSize(9);
-                                doc.setFont(FONT_FAMILY, "normal");
+                                doc.setFontSize(11);
+                                doc.setFont(FONT_FAMILY, "bold");
                                 if (type === 'class') {
-                                    // No teacher initials for class view optional subjects
+                                    const sessionForThisClass = sessionsInBlock.find(s => s.classes.includes(itemName));
+                                    if(sessionForThisClass){
+                                        doc.text(sessionForThisClass.actualSubject || '', cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
+                                    }
                                 } else {
                                      const classNames = [...new Set(sessionsInBlock.map(s => s.classes.map(formatClassName)).flat())].join(', ');
                                      const classText = `Class: ${classNames}`;
-                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
                                 }
 
                              } else {
-                                doc.setFontSize(10);
+                                doc.setFontSize(14);
                                 doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + 15, { align: 'center' });
 
-                                doc.setFontSize(9);
-                                doc.setFont(FONT_FAMILY, "normal");
+                                doc.setFontSize(11);
+                                doc.setFont(FONT_FAMILY, "bold");
                                 if(type === 'class'){
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
                                 } else { // teacher view
                                     const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
                                     const classText = `Class: ${classNames}`;
-                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
                                 }
                              }
                              sessionIndex++;

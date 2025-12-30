@@ -400,12 +400,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 
                 const armsForThisTeacher = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [];
                 
-                const classesForThisTeacher = armsForThisTeacher.map(arm => `${grade} ${arm}`.trim());
+                let classesForThisTeacher = armsForThisTeacher.map(arm => `${grade} ${arm}`.trim());
 
                 if (classesForThisTeacher.length === 0) {
                   classesForThisTeacher.push(`${grade}`.trim());
                 }
-
 
                 blockSessions.push({
                     id: blockId,
@@ -676,5 +675,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
 
     

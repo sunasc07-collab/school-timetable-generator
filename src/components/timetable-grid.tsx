@@ -199,70 +199,55 @@ export default function TimetableGrid() {
         <Table>
             <TableHeader>
             <TableRow>
-                <TableHead className="w-28">Day</TableHead>
-                <TableHead className="w-32 border-x-0"></TableHead>
-                {timeSlots.map((slot, index) => {
-                  if (slot.isBreak || slot.isLocked) {
-                     return (
-                      <TableHead key={index} className="w-10 p-0 font-headline text-center align-middle border-x-0">
-                        <div className="text-xs font-normal h-full">{slot.time}</div>
-                      </TableHead>
-                    );
-                  }
-                  return (
-                    <TableHead key={index} className={cn("font-headline text-center align-middle")}>
-                        <div>Period {slot.period}</div>
-                        <div className="text-xs font-normal">{slot.time}</div>
-                    </TableHead>
-                  );
-                })}
+                <TableHead className="w-28">Time</TableHead>
+                {days.map((day) => (
+                  <TableHead key={day} className="font-headline text-center align-middle">
+                    {day}
+                  </TableHead>
+                ))}
             </TableRow>
             </TableHeader>
             <TableBody>
-            {days.map((day) => {
-                const rowCells = [];
-                let periodIndex = 0;
-                
-                for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
-                    const slot = timeSlots[slotIndex];
-
-                    if (slot.isBreak || slot.isLocked) {
-                        let breakText: React.ReactNode = slot.label || '';
-                        
-                        rowCells.push(
-                            <TableCell key={slotIndex} className="p-0 relative border-x-0">
-                                <div className={cn(
-                                        "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center justify-center gap-4 h-full",
-                                        "absolute inset-0 text-2xl font-bold"
-                                    )}>
-                                    {breakText}
-                                </div>
-                           </TableCell>
-                        );
-                        continue;
-                    }
-                    
-                    rowCells.push(
-                        <TableCell
-                            key={slotIndex}
-                            className={cn("p-1 align-top", "hover:bg-muted/50 transition-colors")}
-                            onDragOver={(e) => handleDragOver(e)}
-                            onDrop={(e) => handleDrop(e, day, periodIndex)}
-                        >
-                            {renderCellContent(day, periodIndex, filterValue)}
-                        </TableCell>
+             {timeSlots.map((slot, slotIndex) => {
+                if (slot.isBreak || slot.isLocked) {
+                    return (
+                        <TableRow key={slot.id}>
+                            <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
+                                <div className="text-xs">{slot.time}</div>
+                            </TableCell>
+                            <TableCell 
+                                colSpan={days.length} 
+                                className="text-center bg-muted/50"
+                            >
+                                <span className="font-semibold text-muted-foreground tracking-widest uppercase">
+                                    {slot.label}
+                                </span>
+                            </TableCell>
+                        </TableRow>
                     );
-
-                    periodIndex++;
                 }
 
                 return (
-                    <TableRow key={day}>
-                        <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        <TableCell className="w-32 relative border-x-0" />
-                        {rowCells}
+                    <TableRow key={slot.id}>
+                        <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
+                            <div>Period {slot.period}</div>
+                            <div className="text-xs">{slot.time}</div>
+                        </TableCell>
+                        {days.map((day) => {
+                            const periodIndex = timeSlots.slice(0, slotIndex).filter(s => !s.isBreak && !s.isLocked).length;
+                            return (
+                                <TableCell
+                                    key={day}
+                                    className={cn("p-1 align-top", "hover:bg-muted/50 transition-colors")}
+                                    onDragOver={(e) => handleDragOver(e)}
+                                    onDrop={(e) => handleDrop(e, day, periodIndex)}
+                                >
+                                    {renderCellContent(day, periodIndex, filterValue)}
+                                </TableCell>
+                            )
+                        })}
                     </TableRow>
-                );
+                )
             })}
             </TableBody>
         </Table>
@@ -272,11 +257,11 @@ export default function TimetableGrid() {
   
   let itemsToRender: { title: string, filterValue: string }[] = [];
   if (viewMode === 'class') {
-    itemsToRender = classes.map(className => ({ title: `${className}'s Timetable`, filterValue: className }));
+    itemsToRender = classes.map(className => ({ title: `${className} Timetable`, filterValue: className }));
   } else if (viewMode === 'teacher') {
     itemsToRender = teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.id }));
   } else if (viewMode === 'arm') {
-    itemsToRender = arms.map(armName => ({ title: `${armName}'s Timetable`, filterValue: armName }));
+    itemsToRender = arms.map(armName => ({ title: `${armName} Timetable`, filterValue: armName }));
   }
 
   return (
@@ -333,6 +318,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-
-    

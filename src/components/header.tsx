@@ -202,7 +202,7 @@ export default function Header() {
         doc.setFontSize(14);
         doc.text(currentTimetable.name, PAGE_WIDTH / 2, MARGIN + 42, { align: 'center' });
 
-        const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
+        const itemTitle = type === 'class' ? `${itemName} Class Timetable` : `${itemName}'s Timetable`;
         doc.setFontSize(26);
         doc.setFont(FONT_FAMILY, "bold");
         doc.text(itemTitle, MARGIN, MARGIN + 75);
@@ -237,16 +237,16 @@ export default function Header() {
         let periodIdxCounter = 0;
 
         timeSlots.forEach((slot) => {
-            const rowHeight = slot.isBreak ? breakCellHeight : normalCellHeight;
+            const rowHeight = slot.isBreak || slot.isLocked ? breakCellHeight : normalCellHeight;
 
             if (slot.isBreak || slot.isLocked) {
                 const label = slot.label || '';
                 doc.setFillColor(240, 240, 240);
-                roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
+                roundedRect(gridX + timeColWidth, currentY, gridWidth - timeColWidth, rowHeight, 5, 'F');
                 doc.setFontSize(18);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
-                doc.text(label.replace('-', ' '), PAGE_WIDTH / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
+                doc.text(label.replace('-', ' '), (gridX + timeColWidth + gridWidth) / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
             } else {
                 doc.setFontSize(12);
                 doc.setFont(FONT_FAMILY, "bold");
@@ -496,7 +496,3 @@ export default function Header() {
     </>
   );
 }
-
-    
-
-    

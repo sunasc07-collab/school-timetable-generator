@@ -14,7 +14,7 @@ import TimetableItem from "./timetable-item";
 import type { TimetableDragData, TimetableSession, Teacher } from "@/lib/types";
 import { cn, formatTime } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { Trash2, Zap, ZapOff } from "lucide-react";
+import { Trash2, ZapOff } from "lucide-react";
 import { useState, useMemo } from "react";
 import {
   AlertDialog,
@@ -211,7 +211,7 @@ export default function TimetableGrid() {
                 const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
                 if (slot.isBreak) {
-                  const breakDays = slot.days || days;
+                  const breakDays = slot.days || [];
                   return (
                     <TableRow key={slot.id}>
                       <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
@@ -219,24 +219,25 @@ export default function TimetableGrid() {
                       </TableCell>
                       {days.map(day => {
                         const isBreakOnThisDay = breakDays.includes(day);
+                        if (isBreakOnThisDay) {
+                           return (
+                               <TableCell key={day} className="text-center p-0 h-12 bg-muted/50">
+                                   <span className="font-semibold text-muted-foreground tracking-widest uppercase">
+                                       {slot.label}
+                                   </span>
+                               </TableCell>
+                           );
+                        }
+                        // This day is a teaching period, render content if any
+                        const period = timeSlots.find(ts => !ts.isBreak && ts.time === slot.time)?.period;
                         return (
                            <TableCell 
                                 key={day} 
-                                className={cn(
-                                    "text-center p-0 h-12", 
-                                    isBreakOnThisDay ? "bg-muted/50" : "p-1 align-top hover:bg-muted/50 transition-colors"
-                                )}
-                                onDragOver={(e) => !isBreakOnThisDay && handleDragOver(e)}
-                                onDrop={(e) => !isBreakOnThisDay && slot.period && handleDrop(e, day, slot.period)}
+                                className="p-1 align-top hover:bg-muted/50 transition-colors"
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => period && handleDrop(e, day, period)}
                             >
-                              {isBreakOnThisDay ? (
-                                <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                                  {slot.label}
-                                </span>
-                              ) : (
-                                // This slot on this day is a teaching period, render content if any
-                                slot.period ? renderCellContent(day, slot.period, filterValue) : <div className="h-20 w-full" />
-                              )}
+                              {period ? renderCellContent(day, period, filterValue) : <div className="h-20 w-full" />}
                            </TableCell>
                         )
                       })}
@@ -244,13 +245,12 @@ export default function TimetableGrid() {
                   );
                 }
 
-                const periodIndex = slot.period;
-                if (periodIndex === null) return null;
-
-                // For teaching periods, check if there's an overriding break for this slot's time
+                // For teaching periods, check if it's overridden by a break on any day
                 const isOverriddenByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time);
                 if (isOverriddenByBreak) return null;
 
+                const periodIndex = slot.period;
+                if (periodIndex === null) return null;
 
                 return (
                     <TableRow key={slot.id}>
@@ -260,7 +260,7 @@ export default function TimetableGrid() {
                         {days.map((day) => (
                             <TableCell
                                 key={day}
-                                className={cn("p-1 align-top hover:bg-muted/50 transition-colors")}
+                                className="p-1 align-top hover:bg-muted/50 transition-colors"
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, day, periodIndex)}
                             >

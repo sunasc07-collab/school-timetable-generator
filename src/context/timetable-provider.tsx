@@ -451,11 +451,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         newTimetable[day] = [];
         const teachingSlots = timeSlots.filter(ts => {
             if (ts.isBreak) {
-                // It's a break slot, only a teaching slot if this day is NOT in its days array
+                // If it's a break slot, it's NOT a teaching slot ONLY IF this day is included in its 'days' array.
+                // If 'days' is undefined, it applies to all days.
                 return !(ts.days || days).includes(day);
             }
-            return true; // It's a regular teaching slot
+            // If another slot at the same time IS a break on this day, then this is not a teaching slot.
+            const isOverriddenByBreak = timeSlots.some(otherTs => 
+                otherTs.isBreak && 
+                otherTs.time === ts.time && 
+                (otherTs.days || days).includes(day)
+            );
+            return !isOverriddenByBreak;
         });
+        
         teachingPeriodsByDay[day] = teachingSlots
             .map(ts => ts.period)
             .filter((p): p is number => p !== null)
@@ -502,17 +510,21 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         };
 
         if ('partner' in unit) {
-            const periodSlotIndex = timeSlots.findIndex(ts => ts.period === period);
-            if (periodSlotIndex === -1 || periodSlotIndex + 1 >= timeSlots.length) return false;
+            const periodSlotIndex = teachingPeriodsByDay[day].indexOf(period);
+            if (periodSlotIndex === -1 || periodSlotIndex + 1 >= teachingPeriodsByDay[day].length) return false;
             
-            const nextSlot = timeSlots[periodSlotIndex+1];
-            // The next slot must be a teaching period on this specific day
-            if (!nextSlot.period || (nextSlot.isBreak && (nextSlot.days || days).includes(day))) {
-                return false;
-            }
-            const partnerPeriod = nextSlot.period;
+            const nextTeachingPeriod = teachingPeriodsByDay[day][periodSlotIndex + 1];
+            const periodSlotObj = timeSlots.find(p => p.period === period);
+            const nextPeriodSlotObj = timeSlots.find(p => p.period === nextTeachingPeriod);
 
-            return checkSession(unit.session, day, period) && checkSession(unit.partner, day, partnerPeriod);
+            if (!nextPeriodSlotObj) return false;
+
+            const timeSlotIndex = timeSlots.findIndex(p => p.id === periodSlotObj?.id);
+            const nextTimeSlotIndex = timeSlots.findIndex(p => p.id === nextPeriodSlotObj.id);
+
+            if(timeSlotIndex + 1 !== nextTimeSlotIndex) return false;
+
+            return checkSession(unit.session, day, period) && checkSession(unit.partner, day, nextTeachingPeriod);
         } else if ('sessions' in unit) {
             for (const s of unit.sessions) {
               if (!checkSession(s, day, period)) return false;
@@ -545,7 +557,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                    if ('partner' in unit) {
                        placeSession(unit.session, period);
-                       const partnerPeriod = timeSlots[timeSlots.findIndex(ts => ts.period === period) + 1].period!;
+                       const periodSlotIndex = teachingPeriodsByDay[day].indexOf(period);
+                       const partnerPeriod = teachingPeriodsByDay[day][periodSlotIndex + 1];
                        placeSession(unit.partner, partnerPeriod);
                    } else if ('sessions' in unit) {
                        unit.sessions.forEach(s => placeSession(s, period));

@@ -252,7 +252,7 @@ export default function Header() {
             doc.setFontSize(11);
             doc.setFont(FONT_FAMILY, "bold");
             doc.setTextColor(255, 255, 255);
-            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 4, { align: 'right' });
+            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 4, { align: 'right', baseline: 'middle' });
 
 
             days.forEach((day, dayIndex) => {
@@ -266,7 +266,7 @@ export default function Header() {
                      doc.setFontSize(12);
                      doc.setFont(FONT_FAMILY, "bold");
                      doc.setTextColor(100, 100, 100);
-                     doc.text(label.replace('-', ' '), cellX + dayColWidth / 2, currentY + rowHeight / 2 + 5, { align: 'center' });
+                     doc.text(label.replace('-', ' '), cellX + dayColWidth / 2, currentY + rowHeight / 2, { align: 'center', baseline: 'middle' });
                 } else if (!slot.isBreak) {
                     const allSessionsInSlot = timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                     

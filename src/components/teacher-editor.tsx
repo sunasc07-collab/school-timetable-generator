@@ -659,35 +659,30 @@ export default function TeacherEditor() {
 
     data.teachers.forEach(teacherData => {
         const expandedAssignments: SubjectAssignment[] = [];
+        
         teacherData.assignments.forEach(formAssignment => {
-            if (formAssignment.optionGroup && formAssignment.arms && formAssignment.arms.length > 0) {
-                 // For optional subjects with multiple arms, create separate assignments for each arm but keep grades together
-                formAssignment.arms.forEach(arm => {
-                    expandedAssignments.push({
-                        ...formAssignment,
-                        id: formAssignment.id || crypto.randomUUID(),
-                        arms: [arm], // one arm per assignment
-                        isCore: formAssignment.subjectType === 'core',
-                        optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
-                    });
-                });
-            } else if (formAssignment.grades.length > 1 && !formAssignment.optionGroup) {
-                 // For core subjects with multiple grades, create separate assignments
-                formAssignment.grades.forEach(grade => {
-                    expandedAssignments.push({
-                        ...formAssignment,
-                        id: formAssignment.id || crypto.randomUUID(),
-                        grades: [grade],
-                        isCore: formAssignment.subjectType === 'core',
-                        optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
-                    });
+            const assignmentBase = {
+                ...formAssignment,
+                id: formAssignment.id || crypto.randomUUID(),
+                isCore: formAssignment.subjectType === 'core',
+                optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
+            };
+
+            if (formAssignment.optionGroup) {
+                // For optional subjects, keep grades and arms together in one assignment
+                expandedAssignments.push({
+                    ...assignmentBase,
+                    grades: formAssignment.grades,
+                    arms: formAssignment.arms || [],
                 });
             } else {
-                 expandedAssignments.push({
-                    ...formAssignment,
-                    id: formAssignment.id || crypto.randomUUID(),
-                    isCore: formAssignment.subjectType === 'core',
-                    optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
+                 // For core subjects, create separate assignments for each grade
+                formAssignment.grades.forEach(grade => {
+                    expandedAssignments.push({
+                        ...assignmentBase,
+                        grades: [grade],
+                        arms: formAssignment.arms || [], // arms are handled at generation for core subjects
+                    });
                 });
             }
         });
@@ -885,5 +880,7 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    
 
     

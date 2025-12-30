@@ -291,9 +291,9 @@ export default function Header() {
                                 doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
                                 
                                 doc.setFontSize(9);
+                                doc.setFont(FONT_FAMILY, "normal");
                                 if (type === 'class') {
-                                    const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                    // No teacher initials for class view optional subjects
                                 } else {
                                      const classNames = [...new Set(sessionsInBlock.map(s => s.classes.map(formatClassName)).flat())].join(', ');
                                      const classText = `Class: ${classNames}`;
@@ -302,9 +302,11 @@ export default function Header() {
 
                              } else {
                                 doc.setFontSize(10);
+                                doc.setFont(FONT_FAMILY, "bold");
                                 doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
 
                                 doc.setFontSize(9);
+                                doc.setFont(FONT_FAMILY, "normal");
                                 if(type === 'class'){
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
                                     doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });

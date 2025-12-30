@@ -121,7 +121,7 @@ export default function Header() {
         return;
     }
 
-    const doc = new jsPDF({ orientation: "landscape", unit: 'px' });
+    const doc = new jsPDF({ orientation: "landscape", unit: 'pt', format: 'a4' });
 
     const FONT_FAMILY = "Helvetica";
     const DAY_HEADER_COLORS = [
@@ -186,30 +186,30 @@ export default function Header() {
 
         const PAGE_WIDTH = doc.internal.pageSize.getWidth();
         const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
-        const MARGIN = 10;
+        const MARGIN = 20;
 
         doc.setFillColor(83, 4, 133);
         doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
 
         doc.setFillColor(76, 175, 225);
-        roundedRect(MARGIN, MARGIN, PAGE_WIDTH - (MARGIN * 2), 50, 5, 'F');
+        roundedRect(MARGIN, MARGIN, PAGE_WIDTH - (MARGIN * 2), 40, 10, 'F');
         doc.setFont(FONT_FAMILY, "bold");
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
+        doc.setFontSize(18);
         doc.text("SCHOOL TIMETABLE", PAGE_WIDTH / 2, MARGIN + 25, { align: 'center' });
-        doc.setFontSize(16);
-        doc.text(currentTimetable.name, PAGE_WIDTH / 2, MARGIN + 40, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text(currentTimetable.name, PAGE_WIDTH / 2, MARGIN + 38, { align: 'center' });
 
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
-        doc.setFontSize(24);
+        doc.setFontSize(22);
         doc.setFont(FONT_FAMILY, "bold");
-        doc.text(itemTitle, MARGIN, MARGIN + 75);
+        doc.text(itemTitle, MARGIN, MARGIN + 65);
 
         const gridX = MARGIN;
-        const gridY = MARGIN + 90;
+        const gridY = MARGIN + 80;
         const gridWidth = PAGE_WIDTH - (MARGIN * 2);
-        const dayHeaderHeight = 35;
-        const timeColWidth = 70;
+        const dayHeaderHeight = 25;
+        const timeColWidth = 60;
         const dayColWidth = (gridWidth - timeColWidth) / days.length;
         
         const periodSlots = timeSlots.filter(slot => !slot.isBreak);
@@ -223,9 +223,9 @@ export default function Header() {
             const dayX = gridX + timeColWidth + (dayIndex * dayColWidth);
             const [r, g, b] = DAY_HEADER_COLORS[dayIndex % DAY_HEADER_COLORS.length];
             doc.setFillColor(r, g, b);
-            roundedRect(dayX, gridY, dayColWidth, dayHeaderHeight, 10, 'F');
+            roundedRect(dayX, gridY, dayColWidth, dayHeaderHeight, 8, 'F');
 
-            doc.setFontSize(16);
+            doc.setFontSize(14);
             doc.setFont(FONT_FAMILY, "bold");
             doc.setTextColor(255, 255, 255);
             doc.text(day.toUpperCase(), dayX + dayColWidth / 2, gridY + dayHeaderHeight / 2 + 5, { align: 'center' });
@@ -240,12 +240,12 @@ export default function Header() {
             if (slot.isBreak) {
                 doc.setFillColor(240, 240, 240);
                 roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
-                doc.setFontSize(22);
+                doc.setFontSize(16);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
-                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
+                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 6, { align: 'center' });
             } else {
-                doc.setFontSize(12);
+                doc.setFontSize(10);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(255, 255, 255);
                 doc.text(slot.time, gridX + timeColWidth - 5, currentY + rowHeight / 2 + 4, { align: 'right' });
@@ -279,28 +279,28 @@ export default function Header() {
                              const subject = firstSession.optionGroup ? `Option ${firstSession.optionGroup}` : (firstSession.actualSubject || firstSession.subject);
                              const [r, g, b] = getSubjectColor(subject);
                              doc.setFillColor(r, g, b);
-                             roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 8, 'F');
+                             roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 5, 'F');
 
                              doc.setTextColor(50, 50, 50);
                              
                              if (firstSession.optionGroup) {
-                                doc.setFontSize(18);
+                                doc.setFontSize(14);
                                 doc.setFont(FONT_FAMILY, "bold");
                                 doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 5, { align: 'center' });
                              } else {
-                                doc.setFontSize(16);
+                                doc.setFontSize(12);
                                 doc.setFont(FONT_FAMILY, "bold");
                                 doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
 
-                                doc.setFontSize(14);
+                                doc.setFontSize(10);
                                 doc.setFont(FONT_FAMILY, "bold");
                                 if(type === 'class'){
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 10, { align: 'center' });
                                 } else { // teacher view
                                     const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
                                     const classText = `Class: ${classNames}`;
-                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 10, { align: 'center' });
                                 }
                              }
                              sessionIndex++;
@@ -308,7 +308,7 @@ export default function Header() {
 
                     } else {
                         doc.setFillColor(255, 255, 255, 0.1);
-                        roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 8, 'F');
+                        roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 5, 'F');
                     }
                 });
 
@@ -487,3 +487,5 @@ export default function Header() {
     </>
   );
 }
+
+    

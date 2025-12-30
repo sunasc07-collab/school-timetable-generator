@@ -252,22 +252,30 @@ export default function TimetableGrid() {
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
                         {days.map((day) => {
-                            const isSlotUsedByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && (ts.days || days).includes(day));
-                            if(isSlotUsedByBreak) return (
-                              <TableCell
-                                key={day}
-                                className={cn("p-1 align-top hover:bg-muted/50 transition-colors")}
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => handleDrop(e, day, periodIndex)}
-                              >
-                                {renderCellContent(day, periodIndex, filterValue)}
-                              </TableCell>
+                            // Find if there's a break defined for this specific day and time
+                            const breakOnThisDay = timeSlots.find(ts => 
+                                ts.isBreak && 
+                                ts.time === slot.time && 
+                                (ts.days || days).includes(day)
                             );
+
+                            if (breakOnThisDay) {
+                                return (
+                                    <TableCell 
+                                        key={day} 
+                                        className="text-center p-0 h-12 bg-muted/50"
+                                    >
+                                        <span className="font-semibold text-muted-foreground tracking-widest uppercase">
+                                          {breakOnThisDay.label}
+                                        </span>
+                                    </TableCell>
+                                );
+                            }
 
                             return (
                                 <TableCell
                                     key={day}
-                                    className={cn("p-1 align-top", {"hover:bg-muted/50 transition-colors": true})}
+                                    className={cn("p-1 align-top hover:bg-muted/50 transition-colors")}
                                     onDragOver={handleDragOver}
                                     onDrop={(e) => handleDrop(e, day, periodIndex)}
                                 >
@@ -347,5 +355,7 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    
 
     

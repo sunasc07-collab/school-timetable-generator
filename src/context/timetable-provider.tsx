@@ -446,23 +446,25 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     const newTimetable: TimetableData = {};
     const dailyTeachingPeriods: { [day: string]: number[] } = {};
-    days.forEach(day => { 
-      newTimetable[day] = []; 
-      const teachingSlotsForDay = timeSlots.filter(ts => {
-        if (ts.isBreak) {
-          return !(ts.days || days).includes(day);
-        }
-        return true;
-      });
-      dailyTeachingPeriods[day] = teachingSlotsForDay
-        .map(ts => ts.period)
-        .filter((p): p is number => p !== null)
-        .sort((a,b) => a - b);
+    
+    days.forEach(day => {
+        newTimetable[day] = [];
+        const teachingSlotsForDay = timeSlots.filter(ts => {
+            if (ts.isBreak) {
+                // If it's a break, it's NOT a teaching slot for that day
+                return !(ts.days || days).includes(day);
+            }
+            return true; // It's a teaching slot
+        });
+        dailyTeachingPeriods[day] = teachingSlotsForDay
+            .map(ts => ts.period)
+            .filter((p): p is number => p !== null)
+            .sort((a, b) => a - b);
     });
 
     // Pre-fill locked sessions
     (lockedSessions || []).filter(ls => ls.day !== 'all_week').forEach(ls => {
-        if (newTimetable[ls.day] && dailyTeachingPeriods[ls.day].includes(ls.period)) {
+        if (newTimetable[ls.day] && timeSlots.some(ts => ts.period === ls.period)) {
             const classNames = ls.className === 'all' ? sortedClasses : [ls.className];
             const lockedSlot: TimetableSession[] = [{
                 id: ls.id, subject: ls.activity, className: ls.className, classes: classNames, teacher: '', isLocked: true, isDouble: false, period: ls.period
@@ -478,50 +480,41 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     });
 
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
-      const checkSession = (session: TimetableSession, day: string, p: number) => {
-        const targetSlot = board[day]?.find(slot => slot[0]?.period === p);
-        
-        if (targetSlot) {
-            if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId && !s.isLocked)) return false;
-            if (targetSlot.some(s => s.isLocked)) return false;
-            for (const className of session.classes) {
-              if (targetSlot.some(s => s.classes.includes(className))) return false;
+        const checkSession = (session: TimetableSession, day: string, p: number) => {
+            const targetSlot = board[day]?.find(slot => slot[0]?.period === p);
+            
+            if (targetSlot) {
+                // Cannot place if a locked session is already there
+                if (targetSlot.some(s => s.isLocked)) return false;
+                
+                // Teacher conflict
+                if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
+
+                // Class conflict
+                for (const className of session.classes) {
+                  if (targetSlot.some(s => s.classes.includes(className))) return false;
+                }
             }
+            return true;
+        };
+
+        if ('partner' in unit) {
+            const periodSlotIndex = timeSlots.findIndex(ts => ts.period === period);
+            // Ensure there is a next slot and it's not a break
+            if (periodSlotIndex === -1 || periodSlotIndex + 1 >= timeSlots.length || timeSlots[periodSlotIndex+1].isBreak) return false;
+            
+            const partnerPeriod = timeSlots[periodSlotIndex+1].period;
+            if(partnerPeriod === null) return false;
+
+            return checkSession(unit.session, day, period) && checkSession(unit.partner, day, partnerPeriod);
+        } else if ('sessions' in unit) {
+            for (const s of unit.sessions) {
+              if (!checkSession(s, day, period)) return false;
+            }
+            return true;
+        } else { // SingleSessionUnit
+            return checkSession(unit, day, period);
         }
-        return true;
-      };
-
-      if ('partner' in unit) {
-          const currentIndex = dailyTeachingPeriods[day].indexOf(period);
-          if (currentIndex === -1 || currentIndex + 1 >= dailyTeachingPeriods[day].length) return false;
-          const partnerPeriod = dailyTeachingPeriods[day][currentIndex + 1];
-
-          // Ensure consecutive periods in the actual timeSlots, not just the filtered daily array
-          const periodSlotIndex = timeSlots.findIndex(ts => ts.period === period);
-          const partnerPeriodSlotIndex = timeSlots.findIndex(ts => ts.period === partnerPeriod);
-          if (periodSlotIndex === -1 || partnerPeriodSlotIndex === -1 || partnerPeriodSlotIndex !== periodSlotIndex + 1) return false;
-
-          return checkSession(unit.session, day, period) && checkSession(unit.partner, day, partnerPeriod);
-      } else if ('sessions' in unit) {
-          const sessionTeachers = unit.sessions.map(s => s.teacherId).filter(Boolean);
-          const sessionClasses = unit.sessions.flatMap(s => s.classes);
-          if(new Set(sessionTeachers).size < sessionTeachers.length) {
-              newConflicts.push({ id: unit.id, type: 'teacher', message: `Teacher conflict within option group ${unit.optionGroup}.` });
-              return false;
-          }
-          if(new Set(sessionClasses).size < sessionClasses.length) {
-              newConflicts.push({ id: unit.id, type: 'class', message: `Class conflict within option group ${unit.optionGroup}.` });
-              return false;
-          }
-          
-          for (const s of unit.sessions) {
-            if (!checkSession(s, day, period)) return false;
-          }
-          return true;
-
-      } else { // SingleSessionUnit
-          return checkSession(unit, day, period);
-      }
     }
     
     function solve(board: TimetableData, units: PlacementUnit[]): [boolean, TimetableData] {
@@ -546,8 +539,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                    if ('partner' in unit) {
                        placeSession(unit.session, period);
-                       const currentIndex = dailyTeachingPeriods[day].indexOf(period);
-                       const partnerPeriod = dailyTeachingPeriods[day][currentIndex + 1];
+                       const partnerPeriod = timeSlots[timeSlots.findIndex(ts => ts.period === period) + 1].period!;
                        placeSession(unit.partner, partnerPeriod);
                    } else if ('sessions' in unit) {
                        unit.sessions.forEach(s => placeSession(s, period));
@@ -680,5 +672,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

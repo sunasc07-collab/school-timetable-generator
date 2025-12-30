@@ -60,6 +60,7 @@ export type TimeSlot = {
   time: string;
   isBreak?: boolean;
   label?: string;
+  days?: string[];
 };
 
 export type ViewMode = 'class' | 'teacher' | 'arm';

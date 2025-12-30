@@ -40,11 +40,11 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 1, time: '8:00-8:40', id: crypto.randomUUID() },
     { period: 2, time: '8:40-9:20', id: crypto.randomUUID() },
     { period: 3, time: '9:20-10:00', id: crypto.randomUUID() },
-    { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK', id: crypto.randomUUID() },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK', id: crypto.randomUUID(), days: DEFAULT_DAYS },
     { period: 4, time: '10:20-11:00', id: crypto.randomUUID() },
     { period: 5, time: '11:00-11:40', id: crypto.randomUUID() },
     { period: 6, time: '11:40-12:20', id: crypto.randomUUID() },
-    { period: null, time: '12:20-13:00', isBreak: true, label: 'LUNCH', id: crypto.randomUUID() },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'LUNCH', id: crypto.randomUUID(), days: DEFAULT_DAYS },
     { period: 7, time: '13:00-13:40', id: crypto.randomUUID() },
     { period: 8, time: '13:40-14:20', id: crypto.randomUUID() },
     { period: 9, time: '14:20-15:00', id: crypto.randomUUID() },
@@ -98,10 +98,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v24", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v24", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v24", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v24', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v25", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v25", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v25", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v25', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -370,13 +370,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.assignments.some(a => a.schoolId === activeTimetable.id)
     );
     const { timeSlots, days, name: schoolName, id: schoolId, lockedSessions } = activeTimetable;
-    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
+    
     let newConflicts: Conflict[] = [];
 
     const teacherAvailability: { [day: string]: { [period: number]: Set<string> } } = {};
     days.forEach(day => {
         teacherAvailability[day] = {};
-        for (let i = 0; i < periodCount; i++) {
+        for (let i = 0; i < timeSlots.length; i++) { // Use timeSlots length
             teacherAvailability[day][i] = new Set<string>();
         }
     });
@@ -389,7 +389,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         const slot = tt.timetable[day][period] || [];
                         slot.forEach(session => {
                             if (session.teacherId) {
-                                teacherAvailability[day][period]?.add(session.teacherId);
+                                // Find the original slot index from timeslot definitions
+                                const teachingPeriodsSoFar = tt.timeSlots.slice(0, tt.timeSlots.findIndex(ts => ts.period === period + 1) + 1).filter(p => !p.isBreak).length;
+                                const originalSlotIndex = tt.timeSlots.findIndex(ts => ts.period === period + 1);
+
+                                if (originalSlotIndex !== -1) {
+                                    teacherAvailability[day][originalSlotIndex]?.add(session.teacherId);
+                                }
                             }
                         });
                     }
@@ -397,7 +403,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         }
     });
-
+    
     const singleSessions: SingleSessionUnit[] = [];
     const doubleSessions: DoubleSessionUnit[] = [];
     const optionBlocks: OptionBlockUnit[] = [];
@@ -516,7 +522,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const sortedClasses = Array.from(classSet).sort();
     
     const newTimetable: TimetableData = {};
-    days.forEach(day => { newTimetable[day] = Array.from({ length: periodCount }, () => []); });
+    days.forEach(day => { newTimetable[day] = Array.from({ length: timeSlots.filter(ts => !ts.isBreak).length }, () => []); });
 
     (lockedSessions || []).filter(ls => ls.day !== 'all_week').forEach(ls => {
         const periodIndex = timeSlots.findIndex(ts => ts.period === ls.period);
@@ -537,44 +543,55 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-
     const CONSECUTIVE_PERIODS = getConsecutivePeriods(timeSlots);
     
-    function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
-        const checkSession = (session: TimetableSession, p: number) => {
-            if (p < 0 || p >= periodCount) return false;
-            if (!session.teacherId) return false;
-            if (teacherAvailability[day]?.[p]?.has(session.teacherId)) return false;
-
-            const slot = board[day]?.[p];
-            if (!slot) return false;
+    function getTeachingPeriodIndex(slotIndex: number) {
+        if (slotIndex < 0 || slotIndex >= timeSlots.length || timeSlots[slotIndex].isBreak) {
+            return -1;
+        }
+        return timeSlots.slice(0, slotIndex + 1).filter(p => !p.isBreak).length - 1;
+    }
+    
+    function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, slotIndex: number): boolean {
+        const checkSession = (session: TimetableSession, day: string, currentSlotIndex: number) => {
+            if (currentSlotIndex < 0 || currentSlotIndex >= timeSlots.length || timeSlots[currentSlotIndex].isBreak) return false;
             
-            if (slot.some(s => s.teacherId === session.teacherId)) return false;
+            const teachingPeriodIdx = getTeachingPeriodIndex(currentSlotIndex);
+            if (teachingPeriodIdx === -1) return false;
+
+            if (!session.teacherId) return false; // Or handle sessions without teachers if applicable
+            
+            // Check cross-timetable teacher availability
+            if (teacherAvailability[day]?.[currentSlotIndex]?.has(session.teacherId)) return false;
+
+            const slotInBoard = board[day]?.[teachingPeriodIdx];
+            if (!slotInBoard) return false;
+            
+            if (slotInBoard.some(s => s.teacherId === session.teacherId)) return false;
             
             for (const className of session.classes) {
-                 if (slot.some(s => s.classes.includes(className))) {
+                if (slotInBoard.some(s => s.classes.includes(className))) {
                     return false;
-                }
-                
-                for (let i = 0; i < p; i++) {
-                    const existingSlot = board[day][i];
-                    if (existingSlot.some(s => s.classes.includes(className) && (s.actualSubject || s.subject) === (session.actualSubject || session.subject))) {
-                        return false;
-                    }
                 }
             }
             return true;
         };
 
         if ('partner' in unit) { // Double period
-            const { session, partner } = unit;
-            const partnerPeriod = CONSECUTIVE_PERIODS.find(p => p[0] === period)?.[1];
-            if (partnerPeriod === undefined) return false;
-            return checkSession(session, period) && checkSession(partner, partnerPeriod);
+            let partnerSlotIndex = -1;
+            for (let i = slotIndex + 1; i < timeSlots.length; i++) {
+                if (!timeSlots[i].isBreak) {
+                    partnerSlotIndex = i;
+                    break;
+                }
+            }
+            if (slotIndex + 1 !== partnerSlotIndex) return false; // Must be consecutive teaching slots in the original definition
+
+            return checkSession(unit.session, day, slotIndex) && checkSession(unit.partner, day, partnerSlotIndex);
         } else if ('sessions' in unit) { // Option block
-            return unit.sessions.every(session => checkSession(session, period));
+            return unit.sessions.every(session => checkSession(session, day, slotIndex));
         } else { // Single session
-            return checkSession(unit, period);
+            return checkSession(unit, day, slotIndex);
         }
     }
     
@@ -587,28 +604,32 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const remainingUnits = units.slice(1);
         
         for (const day of days) {
-            if ('partner' in unit) { // Handle doubles
-                for (const [p1, p2] of CONSECUTIVE_PERIODS) {
-                    if (isValidPlacement(board, unit, day, p1)) {
-                        const newBoard = JSON.parse(JSON.stringify(board));
-                        newBoard[day][p1].push(unit.session);
-                        newBoard[day][p2].push(unit.partner);
-                        const [solved, finalBoard] = solve(newBoard, remainingUnits);
-                        if (solved) return [true, finalBoard];
-                    }
-                }
-            } else { // Handle singles and option blocks
-                 for (let period = 0; period < periodCount; period++) {
-                    if (isValidPlacement(board, unit, day, period)) {
-                       const newBoard = JSON.parse(JSON.stringify(board));
-                       if ('sessions' in unit) {
-                           newBoard[day][period].push(...unit.sessions);
-                       } else {
-                           newBoard[day][period].push(unit);
+            for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
+                if (timeSlots[slotIndex].isBreak) continue;
+
+                if (isValidPlacement(board, unit, day, slotIndex)) {
+                   const newBoard = JSON.parse(JSON.stringify(board));
+                   const teachingPeriodIdx = getTeachingPeriodIndex(slotIndex);
+
+                   if ('partner' in unit) {
+                       newBoard[day][teachingPeriodIdx].push(unit.session);
+                       let partnerSlotIndex = -1;
+                       for (let i = slotIndex + 1; i < timeSlots.length; i++) {
+                           if (!timeSlots[i].isBreak) {
+                               partnerSlotIndex = i;
+                               break;
+                           }
                        }
-                       const [solved, finalBoard] = solve(newBoard, remainingUnits);
-                       if (solved) return [true, finalBoard];
-                    }
+                       const partnerTeachingIdx = getTeachingPeriodIndex(partnerSlotIndex);
+                       newBoard[day][partnerTeachingIdx].push(unit.partner);
+                   } else if ('sessions' in unit) {
+                       newBoard[day][teachingPeriodIdx].push(...unit.sessions);
+                   } else {
+                       newBoard[day][teachingPeriodIdx].push(unit);
+                   }
+                   
+                   const [solved, finalBoard] = solve(newBoard, remainingUnits);
+                   if (solved) return [true, finalBoard];
                 }
             }
         }

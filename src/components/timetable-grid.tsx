@@ -234,7 +234,8 @@ export default function TimetableGrid() {
                                   {slot.label}
                                 </span>
                               ) : (
-                                slot.period ? renderCellContent(day, slot.period, filterValue) : null
+                                // This slot on this day is a teaching period, render content if any
+                                slot.period ? renderCellContent(day, slot.period, filterValue) : <div className="h-20 w-full" />
                               )}
                            </TableCell>
                         )
@@ -246,43 +247,26 @@ export default function TimetableGrid() {
                 const periodIndex = slot.period;
                 if (periodIndex === null) return null;
 
+                // For teaching periods, check if there's an overriding break for this slot's time
+                const isOverriddenByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time);
+                if (isOverriddenByBreak) return null;
+
+
                 return (
                     <TableRow key={slot.id}>
                         <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
-                        {days.map((day) => {
-                            // Find if there's a break defined for this specific day and time
-                            const breakOnThisDay = timeSlots.find(ts => 
-                                ts.isBreak && 
-                                ts.time === slot.time && 
-                                (ts.days || days).includes(day)
-                            );
-
-                            if (breakOnThisDay) {
-                                return (
-                                    <TableCell 
-                                        key={day} 
-                                        className="text-center p-0 h-12 bg-muted/50"
-                                    >
-                                        <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                                          {breakOnThisDay.label}
-                                        </span>
-                                    </TableCell>
-                                );
-                            }
-
-                            return (
-                                <TableCell
-                                    key={day}
-                                    className={cn("p-1 align-top hover:bg-muted/50 transition-colors")}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, day, periodIndex)}
-                                >
-                                    {renderCellContent(day, periodIndex, filterValue)}
-                                </TableCell>
-                            )
-                        })}
+                        {days.map((day) => (
+                            <TableCell
+                                key={day}
+                                className={cn("p-1 align-top hover:bg-muted/50 transition-colors")}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, day, periodIndex)}
+                            >
+                                {renderCellContent(day, periodIndex, filterValue)}
+                            </TableCell>
+                        ))}
                     </TableRow>
                 )
             })}
@@ -355,7 +339,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    
 
     

@@ -252,8 +252,17 @@ export default function TimetableGrid() {
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
                         {days.map((day) => {
-                           const isDayUsedByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && (ts.days || days).includes(day));
-                           if(isDayUsedByBreak) return <TableCell key={day} className="p-1 align-top bg-muted/50" />;
+                            const isSlotUsedByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && (ts.days || days).includes(day));
+                            if(isSlotUsedByBreak) return (
+                              <TableCell
+                                key={day}
+                                className={cn("p-1 align-top hover:bg-muted/50 transition-colors")}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, day, periodIndex)}
+                              >
+                                {renderCellContent(day, periodIndex, filterValue)}
+                              </TableCell>
+                            );
 
                             return (
                                 <TableCell
@@ -338,6 +347,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
 
     

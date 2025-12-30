@@ -448,8 +448,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const dailyTeachingPeriods: { [day: string]: number[] } = {};
     days.forEach(day => { 
       newTimetable[day] = []; 
-      dailyTeachingPeriods[day] = timeSlots
-        .filter(ts => !ts.isBreak || !(ts.days || days).includes(day))
+      const teachingSlotsForDay = timeSlots.filter(ts => {
+        if (ts.isBreak) {
+          return !(ts.days || days).includes(day);
+        }
+        return true;
+      });
+      dailyTeachingPeriods[day] = teachingSlotsForDay
         .map(ts => ts.period)
         .filter((p): p is number => p !== null)
         .sort((a,b) => a - b);
@@ -490,13 +495,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           const currentIndex = dailyTeachingPeriods[day].indexOf(period);
           if (currentIndex === -1 || currentIndex + 1 >= dailyTeachingPeriods[day].length) return false;
           const partnerPeriod = dailyTeachingPeriods[day][currentIndex + 1];
-          // Ensure consecutive periods in the timetable, not just in the array index
-          const originalSlot = timeSlots.find(ts => ts.period === period);
-          const partnerSlot = timeSlots.find(ts => ts.period === partnerPeriod);
-          const originalSlotIndex = timeSlots.findIndex(ts => ts.id === originalSlot?.id);
-          const partnerSlotIndex = timeSlots.findIndex(ts => ts.id === partnerSlot?.id);
-          if (partnerSlotIndex !== originalSlotIndex + 1) return false;
-          
+
+          // Ensure consecutive periods in the actual timeSlots, not just the filtered daily array
+          const periodSlotIndex = timeSlots.findIndex(ts => ts.period === period);
+          const partnerPeriodSlotIndex = timeSlots.findIndex(ts => ts.period === partnerPeriod);
+          if (periodSlotIndex === -1 || partnerPeriodSlotIndex === -1 || partnerPeriodSlotIndex !== periodSlotIndex + 1) return false;
+
           return checkSession(unit.session, day, period) && checkSession(unit.partner, day, partnerPeriod);
       } else if ('sessions' in unit) {
           const sessionTeachers = unit.sessions.map(s => s.teacherId).filter(Boolean);

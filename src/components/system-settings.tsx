@@ -146,7 +146,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                     onDragOver={onDragOver}
                                     onDrop={(e) => onDrop(e, slot)}
                                 >
-                                    <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-end gap-3">
+                                    <div className="grid grid-cols-[auto_1fr_1fr_auto_auto_auto] items-end gap-3">
                                         <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
                                         
                                         <div className="space-y-1">
@@ -222,8 +222,10 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                                     handleTimeSlotChange(index, 'isBreak', checked)
                                                     if (checked) {
                                                         handleTimeSlotChange(index, 'label', 'Break')
+                                                        handleTimeSlotChange(index, 'days', activeTimetable?.days || [])
                                                     } else {
                                                         handleTimeSlotChange(index, 'label', '')
+                                                        handleTimeSlotChange(index, 'days', undefined)
                                                     }
                                                 }}
                                             />
@@ -232,7 +234,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         <div className="flex flex-col gap-2">
                                             <Button variant="outline" size="sm" className="h-8" onClick={() => handleAddSlot(index)}>
                                                 <Plus className="mr-2 h-4 w-4" />
-                                                Add Slot
+                                                Add
                                             </Button>
                                             <Button variant="destructive" size="sm" className="h-8" onClick={() => handleRemoveSlot(index)} disabled={localTimeSlots.length <= 1}>
                                                 <Trash2 className="mr-2 h-4 w-4" />

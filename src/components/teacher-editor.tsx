@@ -71,7 +71,8 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
-const PRIMARY_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
+const PRE_SCHOOL_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten"];
+const PRIMARY_GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 const JUNIOR_SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const SENIOR_SECONDARY_GRADES = ["Grade 10", "Grade 11", "Grade 12"];
@@ -85,7 +86,7 @@ const OPTION_GROUPS = ['A', 'B', 'C', 'D', 'E'] as const;
 const getGradeOptionsForSchool = (schoolName: string) => {
     const lowerCaseSchoolName = schoolName.toLowerCase();
     if (lowerCaseSchoolName.includes('primary')) {
-        return PRIMARY_GRADES;
+        return [...PRE_SCHOOL_GRADES, ...PRIMARY_GRADES];
     }
     if (lowerCaseSchoolName.includes('secondary')) {
         return [...SECONDARY_GRADES, ...A_LEVEL_GRADES];

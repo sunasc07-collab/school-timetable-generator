@@ -613,7 +613,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     const fromSlot = newTimetableData[from.day]?.[from.period];
     if (fromSlot) {
-        const sessionIndex = fromSlot.findIndex((s: TimetableSession) => s.id === session.id && s.part === session.part);
+        const sessionIndex = fromSlot.findIndex((s: TimetableSession) => s.id === session.id && s.className === session.className && s.part === session.part);
         if (sessionIndex > -1) {
             fromSlot.splice(sessionIndex, 1);
         }

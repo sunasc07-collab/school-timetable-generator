@@ -30,6 +30,8 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
 import ErrorDisplay from "./error-display";
+import { useIsMobile } from "@/hooks/use-mobile";
+import MobileTimetableView from "./mobile-timetable-view";
 
 
 export default function TimetableGrid() {
@@ -41,6 +43,8 @@ export default function TimetableGrid() {
     clearTimetable, 
     resolveConflicts 
   } = useTimetable();
+
+  const isMobile = useIsMobile();
 
   const timetable = activeTimetable?.timetable || {};
   const days = activeTimetable?.days || [];
@@ -359,7 +363,11 @@ export default function TimetableGrid() {
                 </Button>
             </div>
         </div>
-          {itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))}
+          {isMobile ? (
+              <MobileTimetableView itemsToRender={itemsToRender} />
+          ) : (
+             itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))
+          )}
       </div>
     </ClientOnly>
   );

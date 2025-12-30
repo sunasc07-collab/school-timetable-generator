@@ -118,11 +118,6 @@ export default function Header() {
 
     const doc = new jsPDF({ orientation: "landscape", unit: 'px' });
     const listToIterate = type === 'class' ? classes : teachers;
-    
-    // Helper function to draw rounded rectangles
-    const roundedRect = (x: number, y: number, w: number, h: number, r: number, style: 'F' | 'S' | 'FD') => {
-        doc.roundedRect(x, y, w, h, r, r, style);
-    };
 
     const FONT_FAMILY = "Helvetica";
     const DAY_HEADER_COLORS = [
@@ -134,6 +129,10 @@ export default function Header() {
     ];
     const subjectColorMap = new Map<string, number[]>();
     let colorIndex = 0;
+
+    const roundedRect = (x: number, y: number, w: number, h: number, r: number, style: 'F' | 'S' | 'FD') => {
+        doc.roundedRect(x, y, w, h, r, r, style);
+    };
 
     const getSubjectColor = (subject: string) => {
         if (!subject) return [255, 255, 255];
@@ -177,21 +176,18 @@ export default function Header() {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
         const itemId = type === 'class' ? '' : (item as Teacher).id;
         
-        doc.addPage();
-        if (index === 0) {
-            doc.deletePage(1); // Remove the default blank page
+        if (index > 0) {
+            doc.addPage();
         }
 
         const PAGE_WIDTH = doc.internal.pageSize.getWidth();
         const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
         const MARGIN = 20;
 
-        // Background
-        doc.setFillColor(83, 4, 133); // Rich purple
+        doc.setFillColor(83, 4, 133);
         doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
 
-        // Header Ribbon
-        doc.setFillColor(76, 175, 225); // Blue ribbon
+        doc.setFillColor(76, 175, 225);
         roundedRect(MARGIN, MARGIN, PAGE_WIDTH - (MARGIN * 2), 50, 5, 'F');
         doc.setFont(FONT_FAMILY, "bold");
         doc.setTextColor(255, 255, 255);
@@ -200,13 +196,11 @@ export default function Header() {
         doc.setFontSize(12);
         doc.text(currentTimetable.name, PAGE_WIDTH / 2, MARGIN + 40, { align: 'center' });
 
-        // Timetable Title
         const itemTitle = type === 'class' ? `${itemName}'s Class Timetable` : `${itemName}'s Timetable`;
         doc.setFontSize(18);
         doc.setFont(FONT_FAMILY, "bold");
         doc.text(itemTitle, MARGIN, MARGIN + 75);
 
-        // Timetable Grid
         const gridX = MARGIN;
         const gridY = MARGIN + 90;
         const gridWidth = PAGE_WIDTH - (MARGIN * 2);
@@ -215,10 +209,13 @@ export default function Header() {
         const dayColWidth = (gridWidth - timeColWidth) / days.length;
         
         const periodSlots = timeSlots.filter(slot => !slot.isBreak);
-        const cellHeight = (PAGE_HEIGHT - gridY - MARGIN) / (periodSlots.length + 1);
+        const breakSlots = timeSlots.filter(slot => slot.isBreak);
+        const normalCellHeight = (PAGE_HEIGHT - gridY - MARGIN) / (periodSlots.length + 1);
+        const breakCellHeight = normalCellHeight / 2;
+        const totalEffectiveRows = periodSlots.length + breakSlots.length;
+        const availableGridHeight = PAGE_HEIGHT - gridY - MARGIN;
+        const cellHeight = availableGridHeight / totalEffectiveRows;
 
-
-        // Draw Day Headers
         days.forEach((day, dayIndex) => {
             const dayX = gridX + timeColWidth + (dayIndex * dayColWidth);
             const [r, g, b] = DAY_HEADER_COLORS[dayIndex % DAY_HEADER_COLORS.length];
@@ -231,94 +228,93 @@ export default function Header() {
             doc.text(day.toUpperCase(), dayX + dayColWidth / 2, gridY + dayHeaderHeight / 2 + 4, { align: 'center' });
         });
 
-        // Draw Time Slots and Cells
+        let currentY = gridY + dayHeaderHeight;
         let periodIdxCounter = 0;
-        timeSlots.forEach((slot, slotIndex) => {
-            const rowY = gridY + dayHeaderHeight + (periodIdxCounter * cellHeight);
+
+        timeSlots.forEach((slot) => {
+            const rowHeight = slot.isBreak ? breakCellHeight : cellHeight;
 
             if (slot.isBreak) {
-                const breakY = gridY + dayHeaderHeight + (periodIdxCounter * cellHeight) - (cellHeight / 4);
                 doc.setFillColor(240, 240, 240);
-                roundedRect(gridX, breakY, gridWidth, cellHeight / 2, 5, 'F');
-                doc.setFontSize(14);
+                roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
+                doc.setFontSize(16);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
-                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, breakY + cellHeight / 4 + 4, { align: 'center' });
-                return; // Don't increment periodIdxCounter for breaks
-            }
-            
-            // Time Column
-            doc.setFontSize(10);
-            doc.setFont(FONT_FAMILY, "normal");
-            doc.setTextColor(255, 255, 255);
-            doc.text(slot.time, gridX + timeColWidth - 5, rowY + cellHeight / 2 + 4, { align: 'right' });
+                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 5, { align: 'center' });
+            } else {
+                doc.setFontSize(10);
+                doc.setFont(FONT_FAMILY, "normal");
+                doc.setTextColor(255, 255, 255);
+                doc.text(slot.time, gridX + timeColWidth - 5, currentY + rowHeight / 2 + 4, { align: 'right' });
 
-            // Session Cells
-            days.forEach((day, dayIndex) => {
-                const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);
-                const allSessionsInSlot = timetable[day]?.[periodIdxCounter] || [];
-                
-                let relevantSessions: TimetableSession[] = [];
-                if (type === 'class') {
-                    relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(itemName));
-                } else if (type === 'teacher') {
-                    relevantSessions = allSessionsInSlot.filter(s => s.teacherId === itemId);
-                }
-
-                if (relevantSessions.length > 0) {
-                     const sessionHeight = (cellHeight - 4) / relevantSessions.length;
+                days.forEach((day, dayIndex) => {
+                    const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);
+                    const allSessionsInSlot = timetable[day]?.[periodIdxCounter] || [];
                     
-                    relevantSessions.forEach((session, sessionIndex) => {
-                         const sessionY = rowY + (sessionIndex * sessionHeight) + 2;
-                         const subject = session.actualSubject || session.subject;
-                         const [r, g, b] = getSubjectColor(subject);
-                         doc.setFillColor(r, g, b);
-                         roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 8, 'F');
+                    let relevantSessions: TimetableSession[] = [];
+                    if (type === 'class') {
+                        relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(itemName));
+                    } else { // type === 'teacher'
+                        relevantSessions = allSessionsInSlot.filter(s => s.teacherId === itemId);
+                    }
 
-                         doc.setTextColor(50, 50, 50);
-                         doc.setFont(FONT_FAMILY, "bold");
-                         doc.setFontSize(9);
-                         doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
+                    if (relevantSessions.length > 0) {
+                        const uniqueSessionBlocks = new Map<string, TimetableSession[]>();
+                        relevantSessions.forEach(session => {
+                            const key = session.optionGroup ? session.id : session.className;
+                            if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
+                            uniqueSessionBlocks.get(key)!.push(session);
+                        });
 
-                         doc.setFontSize(8);
-                         doc.setFont(FONT_FAMILY, "normal");
-                         
-                         if(type === 'class'){
-                             const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
-                             doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
-                         } else {
-                             const classText = `Class: ${session.classes.map(formatClassName).join(', ')}`;
-                             doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
-                         }
-                    });
+                        const sessionBlockCount = uniqueSessionBlocks.size;
+                        const sessionHeight = (rowHeight - 4) / sessionBlockCount;
+                        
+                        let sessionIndex = 0;
+                        uniqueSessionBlocks.forEach((sessionsInBlock) => {
+                             const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
+                             const firstSession = sessionsInBlock[0];
+                             const subject = firstSession.actualSubject || firstSession.subject;
+                             const [r, g, b] = getSubjectColor(subject);
+                             doc.setFillColor(r, g, b);
+                             roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 8, 'F');
 
-                } else {
-                    doc.setFillColor(255, 255, 255, 0.1);
-                    roundedRect(cellX + 2, rowY + 2, dayColWidth - 4, cellHeight - 4, 8, 'F');
-                }
-            });
+                             doc.setTextColor(50, 50, 50);
+                             doc.setFont(FONT_FAMILY, "bold");
+                             doc.setFontSize(9);
+                             doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
 
-            periodIdxCounter++;
+                             docsetFontSize(8);
+                             doc.setFont(FONT_FAMILY, "normal");
+                             
+                             if(type === 'class'){
+                                 const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
+                                 doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                             } else { // teacher view
+                                 const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
+                                 const classText = `Class: ${classNames}`;
+                                 doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                             }
+                             sessionIndex++;
+                        });
+
+                    } else {
+                        doc.setFillColor(255, 255, 255, 0.1);
+                        roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 8, 'F');
+                    }
+                });
+
+                periodIdxCounter++;
+            }
+            currentY += rowHeight;
         });
-
-        // Special case for secondary school sports on Friday
-        const isSecondary = currentTimetable.name.toLowerCase().includes('secondary');
-        if (isSecondary && days.includes('Fri')) {
-            const sportsPeriods = 2; // Assuming sports takes 2 periods
-            const sportsY = gridY + dayHeaderHeight + ((periodSlots.length - sportsPeriods) * cellHeight);
-            const sportsX = gridX + timeColWidth + (days.indexOf('Fri') * dayColWidth);
-            const sportsHeight = cellHeight * sportsPeriods;
-
-            doc.setFillColor(100, 149, 237); // Cornflower blue for sports
-            roundedRect(sportsX + 2, sportsY + 2, dayColWidth - 4, sportsHeight - 4, 8, 'F');
-            doc.setFontSize(16);
-            doc.setFont(FONT_FAMILY, "bold");
-            doc.setTextColor(255, 255, 255);
-            doc.text("SPORTS", sportsX + dayColWidth / 2, sportsY + sportsHeight / 2 + 6, { align: 'center' });
-        }
     });
 
-    doc.save(`${currentTimetable.name}-${type}-timetables.pdf`);
+    if (listToIterate.length > 0) {
+      doc.save(`${currentTimetable.name}-${type}-timetables.pdf`);
+    } else {
+      // Handle case with no items to iterate, maybe show a toast or alert
+      console.warn(`No ${type}s to generate PDF for.`);
+    }
   };
 
   return (

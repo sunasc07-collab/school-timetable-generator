@@ -122,7 +122,7 @@ export default function TimetableGrid() {
 
 
   const renderCellContent = (day: string, period: number, filterValue: string) => {
-     const allSessionsInSlot = timetable[day]?.[period] || [];
+     const allSessionsInSlot = timetable[day]?.find(slot => slot[0]?.period === period) || [];
      
      let relevantSessions: TimetableSession[] = [];
      if (viewMode === 'class' || viewMode === 'arm') {
@@ -214,27 +214,9 @@ export default function TimetableGrid() {
 
                 if (slot.isBreak) {
                   const breakDays = slot.days || days;
-                   if (breakDays.length === days.length) {
-                    return (
-                        <TableRow key={slot.id}>
-                            <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
-                                <div className="text-xs">{formattedTime}</div>
-                            </TableCell>
-                            <TableCell 
-                                colSpan={days.length} 
-                                className="text-center bg-muted/50"
-                            >
-                                <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                                    {slot.label}
-                                </span>
-                            </TableCell>
-                        </TableRow>
-                    );
-                  }
-                  // Partial week break
                   return (
                     <TableRow key={slot.id}>
-                      <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
+                      <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
                         <div className="text-xs">{formattedTime}</div>
                       </TableCell>
                       {days.map(day => (
@@ -250,9 +232,8 @@ export default function TimetableGrid() {
                   );
                 }
 
-                const periodIndex = timeSlots.filter(s => !s.isBreak && s.period! <= slot.period!).length - 1;
-                
-                 if (periodIndex < 0) return null; // Should not happen if data is correct
+                const periodIndex = slot.period;
+                if (periodIndex === null) return null;
 
                 return (
                     <TableRow key={slot.id}>
@@ -261,12 +242,13 @@ export default function TimetableGrid() {
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
                         {days.map((day) => {
+                           const isBreakOnThisDay = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && ts.days?.includes(day));
                             return (
                                 <TableCell
                                     key={day}
-                                    className={cn("p-1 align-top", "hover:bg-muted/50 transition-colors")}
-                                    onDragOver={(e) => handleDragOver(e)}
-                                    onDrop={(e) => handleDrop(e, day, periodIndex)}
+                                    className={cn("p-1 align-top", {"hover:bg-muted/50 transition-colors": !isBreakOnThisDay})}
+                                    onDragOver={(e) => !isBreakOnThisDay && handleDragOver(e)}
+                                    onDrop={(e) => !isBreakOnThisDay && handleDrop(e, day, periodIndex)}
                                 >
                                     {renderCellContent(day, periodIndex, filterValue)}
                                 </TableCell>
@@ -344,5 +326,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

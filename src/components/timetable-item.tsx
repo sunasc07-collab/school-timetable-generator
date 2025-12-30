@@ -27,7 +27,7 @@ export default function TimetableItem({
 
   const allSessionsInSlot = useMemo(() => {
     if (!activeTimetable?.timetable) return [];
-    return activeTimetable.timetable[from.day]?.[from.period] || [];
+    return activeTimetable.timetable[from.day]?.find(slot => slot[0]?.period === from.period) || [];
   }, [activeTimetable, from.day, from.period]);
 
   const isOptionGroup = !!session.optionGroup;

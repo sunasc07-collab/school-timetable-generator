@@ -1,4 +1,5 @@
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -32,6 +33,7 @@ export type TimetableSession = {
   isCore?: boolean;
   optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   isLocked?: boolean;
+  period: number;
 };
 
 export type TimetableSlot = TimetableSession[];
@@ -66,7 +68,7 @@ export type TimeSlot = {
 export type ViewMode = 'class' | 'teacher' | 'arm';
 
 export type LockedSession = {
-  id: string;
+  id:string;
   schoolId: string;
   day: string; // can be a specific day or 'all_week' for the master record
   period: number;

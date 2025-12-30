@@ -480,6 +480,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, currentDay: string, p: number) => {
+            if (!teachingPeriodsByDay[currentDay].includes(p)) return false; // Not a valid teaching period for this day
             const targetSlot = board[currentDay]?.find(slot => slot[0]?.period === p);
             
             if (targetSlot) {
@@ -677,5 +678,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

@@ -235,9 +235,10 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                        const gradeMatch = session.className.match(/(Grade \d+|A-Level Year \d+)/);
-                        const grade = gradeMatch ? gradeMatch[0] : session.className;
-                        const armMatch = session.className.match(/([A-Z])$/);
+                        const className = session.classes[0] || '';
+                        const gradeMatch = className.match(/(Grade \d+|A-Level Year \d+)/);
+                        const grade = gradeMatch ? gradeMatch[0] : '';
+                        const armMatch = className.match(/([A-Z])$/);
                         const arm = armMatch ? armMatch[1] : '';
 
                         const gradeInitial = getClassInitials(grade);

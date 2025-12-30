@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -99,6 +100,9 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const { timetables, activeTimetable } = useTimetable();
     const { setValue, getValues, trigger, formState: { errors } } = useFormContext();
     
+    const [customArms, setCustomArms] = useState<string[]>([]);
+    const [newArm, setNewArm] = useState('');
+    
     const schoolId = useWatch({
         control,
         name: `teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`
@@ -126,6 +130,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     const hasJuniorSecondary = selectedGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
     const hasSeniorSecondary = Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
+    
+    const isCoreSenior = hasSeniorSecondary && subjectType === 'core';
 
     let armOptions: string[] = [];
     let showArms = false;
@@ -133,7 +139,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
       if (hasJuniorSecondary && !hasSeniorSecondary) {
         armOptions = JUNIOR_SECONDARY_ARMS;
         showArms = true;
-      } else if (hasSeniorSecondary && !hasJuniorSecondary) {
+      } else if ((hasSeniorSecondary || hasJuniorSecondary) && isCoreSenior) {
+        armOptions = hasSeniorSecondary ? SENIOR_SECONDARY_ARMS : JUNIOR_SECONDARY_ARMS;
+        showArms = true;
+      }
+      else if (hasSeniorSecondary && !hasJuniorSecondary) {
         showArms = false; 
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
         showArms = true; 
@@ -143,6 +153,19 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
       }
     }
     
+    const allArmOptions = useMemo(() => {
+        const currentArms = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
+        const dynamicArms = currentArms.filter((arm: string) => !armOptions.includes(arm));
+        return [...armOptions, ...[...new Set([...customArms, ...dynamicArms])]];
+    }, [armOptions, customArms, getValues, teacherIndex, assignmentIndex]);
+
+    const handleAddArm = () => {
+        if (newArm && !allArmOptions.includes(newArm)) {
+            setCustomArms(prev => [...prev, newArm]);
+        }
+        setNewArm('');
+    };
+
     const hideGradesAndArms = isALevelSchool || isNurserySchool;
     
     useEffect(() => {
@@ -397,9 +420,29 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                             render={() => (
                             <FormItem>
-                                <FormLabel>Arms</FormLabel>
+                                <div className="flex items-center justify-between">
+                                  <FormLabel>Arms</FormLabel>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-6 text-xs px-2">
+                                            <Plus className="mr-1 h-3 w-3" /> Add
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-2">
+                                        <div className="grid gap-2">
+                                            <Input
+                                                placeholder="New arm..."
+                                                value={newArm}
+                                                onChange={(e) => setNewArm(e.target.value.toUpperCase())}
+                                                className="h-8"
+                                            />
+                                            <Button onClick={handleAddArm} size="sm" className="h-8">Add Arm</Button>
+                                        </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
                                 <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                    {SENIOR_SECONDARY_ARMS.map((arm) => (
+                                    {[...SENIOR_SECONDARY_ARMS, ...customArms].map((arm) => (
                                         <FormField
                                             key={arm}
                                             control={control}
@@ -438,9 +481,29 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                 name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
                                 render={() => (
                                 <FormItem>
-                                    {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
-                                    <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-10 items-center">
-                                        {armOptions.map((arm) => (
+                                    <div className="flex items-center justify-between">
+                                      {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm" className={cn("h-6 text-xs px-2", assignmentIndex > 0 && "mt-6")}>
+                                                <Plus className="mr-1 h-3 w-3" /> Add
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-48 p-2">
+                                            <div className="grid gap-2">
+                                                <Input
+                                                    placeholder="New arm..."
+                                                    value={newArm}
+                                                    onChange={(e) => setNewArm(e.target.value.toUpperCase())}
+                                                    className="h-8"
+                                                />
+                                                <Button onClick={handleAddArm} size="sm" className="h-8">Add Arm</Button>
+                                            </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                        {allArmOptions.map((arm) => (
                                             <FormField
                                                 key={arm}
                                                 control={control}
@@ -879,3 +942,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

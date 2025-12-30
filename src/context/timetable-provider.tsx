@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from "react";
-import type { Teacher, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode, SubjectAssignment } from "@/lib/types";
+import type { Teacher, TimetableData, TimetableSession, Conflict, TimeSlot, Timetable, ViewMode, SubjectAssignment, LockedSession } from "@/lib/types";
 
 type TimetableContextType = {
   timetables: Timetable[];
@@ -17,6 +17,9 @@ type TimetableContextType = {
   addTeacher: (teacherData: Teacher) => void;
   removeTeacher: (teacherId: string) => void;
   updateTeacher: (teacherData: Teacher) => void;
+
+  addLockedSession: (session: Omit<LockedSession, 'id' | 'schoolId'>) => void;
+  removeLockedSession: (sessionId: string) => void;
   
   generateTimetable: () => void;
   clearTimetable: () => void;
@@ -84,6 +87,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIMESLOTS,
         error: null,
+        lockedSessions: [],
     };
 }
 
@@ -94,10 +98,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v23", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v23", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v23", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v23', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v24", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v24", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v24", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v24', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -116,7 +120,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
     
     const { days, timeSlots } = currentTT;
-    const periodCount = timeSlots.filter(ts => !ts.isBreak && !ts.isLocked).length;
+    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
     const newConflicts: Conflict[] = [];
 
     for (const day of days) {
@@ -128,7 +132,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const classClashes = new Map<string, TimetableSession[]>();
 
             for (const session of slot) {
-                if (session.teacherId) {
+                if (session.teacherId && !session.isLocked) {
                     if (!teacherClashes.has(session.teacherId)) {
                         teacherClashes.set(session.teacherId, []);
                     }
@@ -157,9 +161,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
             
             classClashes.forEach((sessions, className) => {
-                const uniqueSessionIds = new Set(sessions.map(s => s.id));
+                 const nonLockedSessions = sessions.filter(s => !s.isLocked);
+                 if(nonLockedSessions.length <= 1) return;
+
+                const uniqueSessionIds = new Set(nonLockedSessions.map(s => s.id));
                  if (uniqueSessionIds.size > 1) {
-                    sessions.forEach(session => {
+                    nonLockedSessions.forEach(session => {
                         newConflicts.push({
                             id: session.id,
                             type: 'class',
@@ -268,8 +275,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const updateTimeSlots = (newTimeSlots: TimeSlot[]) => {
     if (!activeTimetable) return;
     const numberedTimeSlots = newTimeSlots.map((slot, index) => {
-        if (!slot.isBreak && !slot.isLocked) {
-            const periodNumber = newTimeSlots.slice(0, index + 1).filter(s => !s.isBreak && !s.isLocked).length;
+        if (!slot.isBreak) {
+            const periodNumber = newTimeSlots.slice(0, index + 1).filter(s => !s.isBreak).length;
             return { ...slot, period: periodNumber };
         }
         return { ...slot, period: null };
@@ -278,12 +285,29 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     resetTimetableForSchool(activeTimetable.id);
   }
 
+  const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId'>) => {
+      if (!activeTimetable) return;
+      const newSession: LockedSession = {
+          ...session,
+          id: crypto.randomUUID(),
+          schoolId: activeTimetable.id,
+      };
+      updateTimetable(activeTimetable.id, { lockedSessions: [...(activeTimetable.lockedSessions || []), newSession] });
+      resetTimetableForSchool(activeTimetable.id);
+  };
+
+  const removeLockedSession = (sessionId: string) => {
+      if (!activeTimetable || !activeTimetable.lockedSessions) return;
+      updateTimetable(activeTimetable.id, { lockedSessions: activeTimetable.lockedSessions.filter(s => s.id !== sessionId) });
+      resetTimetableForSchool(activeTimetable.id);
+  }
+
   const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
     const consecutive: number[][] = [];
     const teachingPeriods: { originalIndex: number, newIndex: number}[] = [];
     let periodCounter = 0;
     slots.forEach((slot, originalIndex) => {
-        if(!slot.isBreak && !slot.isLocked) {
+        if(!slot.isBreak) {
             teachingPeriods.push({ originalIndex: originalIndex, newIndex: periodCounter });
             periodCounter++;
         }
@@ -306,8 +330,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const activeTeachers = allTeachers.filter(teacher => 
         teacher.assignments.some(a => a.schoolId === activeTimetable.id)
     );
-    const { timeSlots, days, name: schoolName, id: schoolId } = activeTimetable;
-    const periodCount = timeSlots.filter(ts => !ts.isBreak && !ts.isLocked).length;
+    const { timeSlots, days, name: schoolName, id: schoolId, lockedSessions } = activeTimetable;
+    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
     let newConflicts: Conflict[] = [];
 
     const teacherAvailability: { [day: string]: { [period: number]: Set<string> } } = {};
@@ -455,10 +479,31 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const newTimetable: TimetableData = {};
     days.forEach(day => { newTimetable[day] = Array.from({ length: periodCount }, () => []); });
 
+    (lockedSessions || []).forEach(ls => {
+        const periodIndex = timeSlots.findIndex(ts => ts.period === ls.period);
+        if (periodIndex !== -1) {
+            const teachingPeriodIndex = timeSlots.slice(0, periodIndex + 1).filter(p => !p.isBreak).length - 1;
+            if (newTimetable[ls.day] && newTimetable[ls.day][teachingPeriodIndex]) {
+                const classNames = ls.className === 'all' ? sortedClasses : [ls.className];
+                newTimetable[ls.day][teachingPeriodIndex].push({
+                    id: ls.id,
+                    subject: ls.activity,
+                    className: ls.className,
+                    classes: classNames,
+                    teacher: '',
+                    isLocked: true,
+                    isDouble: false,
+                });
+            }
+        }
+    });
+
+
     const CONSECUTIVE_PERIODS = getConsecutivePeriods(timeSlots);
     
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, p: number) => {
+            if (p < 0 || p >= periodCount) return false;
             if (!session.teacherId) return false;
             if (teacherAvailability[day]?.[p]?.has(session.teacherId)) return false;
 
@@ -536,7 +581,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     if (!isSolved) {
         const errorMessage = `Could not generate a valid timetable. This is often due to conflicting teacher assignments or not enough available time slots. Please review teacher assignments for overlaps.`;
-        updateTimetable(activeTimetable.id, { timetable: {}, conflicts: newConflicts, classes: [], error: errorMessage });
+        updateTimetable(activeTimetable.id, { timetable: newTimetable, conflicts: newConflicts, classes: sortedClasses, error: errorMessage });
         return;
     }
     
@@ -637,6 +682,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         addTeacher,
         removeTeacher,
         updateTeacher,
+        addLockedSession,
+        removeLockedSession,
         generateTimetable,
         clearTimetable,
         moveSession,
@@ -659,6 +706,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-
-    

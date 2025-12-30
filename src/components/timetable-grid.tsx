@@ -138,7 +138,7 @@ export default function TimetableGrid() {
         <div className="space-y-1">
         {relevantSessions.map(session => (
             <TimetableItem
-              key={`${session.id}-${session.subject}-${session.teacher}-${session.className}`}
+              key={`${session.id}-${session.subject}-${session.teacher}-${session.className}-${session.part || ''}`}
               session={session}
               from={{ day, period }}
             />
@@ -209,7 +209,7 @@ export default function TimetableGrid() {
             </TableHeader>
             <TableBody>
              {timeSlots.map((slot, slotIndex) => {
-                if (slot.isBreak || slot.isLocked) {
+                if (slot.isBreak) {
                     return (
                         <TableRow key={slot.id}>
                             <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
@@ -234,7 +234,7 @@ export default function TimetableGrid() {
                             <div className="text-xs">{slot.time}</div>
                         </TableCell>
                         {days.map((day) => {
-                            const periodIndex = timeSlots.slice(0, slotIndex).filter(s => !s.isBreak && !s.isLocked).length;
+                            const periodIndex = timeSlots.slice(0, slotIndex).filter(s => !s.isBreak).length;
                             return (
                                 <TableCell
                                     key={day}

@@ -18,14 +18,11 @@ import { Switch } from "./ui/switch";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot } from "@/lib/types";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface SystemSettingsProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
-
-const LOCKED_SLOT_OPTIONS = ["Assembly", "Club Activities", "Guidance", "Sports"];
 
 export default function SystemSettings({ open, onOpenChange }: SystemSettingsProps) {
     const { activeTimetable, updateTimeSlots } = useTimetable();
@@ -50,7 +47,6 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
             period: null,
             time: '00:00-00:00',
             isBreak: false,
-            isLocked: false,
             label: ''
         };
         const newTimeSlots = [...localTimeSlots];
@@ -72,7 +68,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle className="font-headline">System Settings</DialogTitle>
                     <DialogDescription>
@@ -82,7 +78,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                 <div className="max-h-[60vh] overflow-y-auto p-1 pr-4">
                     <div className="grid gap-4 py-4">
                         {localTimeSlots.map((slot, index) => (
-                            <div key={slot.id} className="grid grid-cols-[auto_1fr_1fr_auto_1fr_auto] items-center gap-3 p-3 border rounded-lg relative group">
+                            <div key={slot.id} className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-center gap-3 p-3 border rounded-lg relative group">
                                 <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
                                 
                                 <div className="space-y-1">
@@ -101,10 +97,10 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         value={slot.label || ''}
                                         onChange={(e) => handleTimeSlotChange(index, 'label', e.target.value)}
                                         placeholder="e.g., Short Break"
-                                        disabled={!slot.isBreak && !slot.isLocked}
+                                        disabled={!slot.isBreak}
                                     />
                                 </div>
-                                <div className="flex flex-col items-center space-y-2">
+                                <div className="flex flex-col items-center space-y-2 pt-4">
                                     <Label htmlFor={`isBreak-${index}`} className="text-xs">Break</Label>
                                     <Switch
                                         id={`isBreak-${index}`}
@@ -112,7 +108,6 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         onCheckedChange={(checked) => {
                                             handleTimeSlotChange(index, 'isBreak', checked)
                                             if (checked) {
-                                                handleTimeSlotChange(index, 'isLocked', false)
                                                 handleTimeSlotChange(index, 'label', 'Break')
                                             } else {
                                                  handleTimeSlotChange(index, 'label', '')
@@ -120,44 +115,8 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         }}
                                     />
                                 </div>
-                                
-                                <div className="flex items-end gap-2">
-                                    <div className="flex flex-col items-center space-y-2">
-                                        <Label htmlFor={`isLocked-${index}`} className="text-xs">Locked</Label>
-                                        <Switch
-                                            id={`isLocked-${index}`}
-                                            checked={slot.isLocked}
-                                            onCheckedChange={(checked) => {
-                                                handleTimeSlotChange(index, 'isLocked', checked)
-                                                if (checked) {
-                                                    handleTimeSlotChange(index, 'isBreak', false)
-                                                    if (!slot.label || !LOCKED_SLOT_OPTIONS.includes(slot.label)) {
-                                                        handleTimeSlotChange(index, 'label', LOCKED_SLOT_OPTIONS[0])
-                                                    }
-                                                } else {
-                                                    handleTimeSlotChange(index, 'label', '')
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                    {slot.isLocked && (
-                                        <Select
-                                            value={slot.label}
-                                            onValueChange={(value) => handleTimeSlotChange(index, 'label', value)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select Activity" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {LOCKED_SLOT_OPTIONS.map(opt => (
-                                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                </div>
 
-                                <div className="flex flex-col gap-1">
+                                <div className="flex flex-col gap-1 pt-4">
                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleAddSlot(index)}>
                                         <Plus className="h-4 w-4" />
                                     </Button>

@@ -31,6 +31,7 @@ export type TimetableSession = {
   classes: string[]; 
   isCore?: boolean;
   optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
+  isLocked?: boolean;
 };
 
 export type TimetableSlot = TimetableSession[];
@@ -58,11 +59,19 @@ export type TimeSlot = {
   period: number | null;
   time: string;
   isBreak?: boolean;
-  isLocked?: boolean;
   label?: string;
 };
 
 export type ViewMode = 'class' | 'teacher' | 'arm';
+
+export type LockedSession = {
+  id: string;
+  schoolId: string;
+  day: string;
+  period: number;
+  activity: string;
+  className: string; // can be 'all'
+};
 
 export type Timetable = {
   id: string;
@@ -73,6 +82,5 @@ export type Timetable = {
   days: string[];
   timeSlots: TimeSlot[];
   error: string | null;
+  lockedSessions: LockedSession[];
 };
-
-    

@@ -4,7 +4,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
-import { BookOpen, GraduationCap, User, AlertCircle, Users } from "lucide-react";
+import { BookOpen, GraduationCap, User, AlertCircle, Users, Lock } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
 import { useMemo } from "react";
 
@@ -31,6 +31,31 @@ export default function TimetableItem({
   }, [activeTimetable, from.day, from.period]);
 
   const isOptionGroup = !!session.optionGroup;
+  const isLocked = session.isLocked;
+
+  if (isLocked) {
+     return (
+       <Card
+        className={cn(
+          "transition-all duration-200 ease-in-out shadow-md w-full flex flex-col items-center justify-center relative group bg-muted",
+        )}
+        title={session.subject}
+      >
+        <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
+            <div className={cn("flex items-center justify-center gap-1.5 font-medium text-muted-foreground")}>
+              <Lock className="h-4 w-4 text-muted-foreground/80 shrink-0"/>
+              <span className="truncate">{session.subject}</span>
+            </div>
+            {session.classes.length > 0 && session.classes[0] !== 'all' && (
+              <div className={cn("flex items-center justify-center gap-1.5 text-muted-foreground/80")}>
+                <GraduationCap className="h-3 w-3 shrink-0"/>
+                <span className="break-words">{session.classes.join(', ')}</span>
+              </div>
+            )}
+        </CardContent>
+       </Card>
+     )
+  }
   
   if (isOptionGroup && viewMode === 'teacher') {
     // In teacher view, merge all parts of an option block for this teacher into one item

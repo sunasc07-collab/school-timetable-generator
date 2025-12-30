@@ -6,11 +6,13 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import Header from "@/components/header";
 import TeacherEditor from "@/components/teacher-editor";
 import ClientOnly from "./client-only";
 import TimetableGrid from "./timetable-grid";
+import LockedSessions from "./locked-sessions";
 
 export default function AppLayout() {
   return (
@@ -40,6 +42,8 @@ export default function AppLayout() {
         <SidebarContent>
           <ClientOnly>
             <TeacherEditor />
+            <SidebarSeparator />
+            <LockedSessions />
           </ClientOnly>
         </SidebarContent>
       </Sidebar>

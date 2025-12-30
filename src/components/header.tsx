@@ -142,7 +142,7 @@ export default function Header() {
 
     const getSubjectColor = (subject: string) => {
         if (!subject) return [255, 255, 255];
-        if (['SHORT-BREAK', 'LUNCH', 'Sports'].includes(subject)) return [220, 220, 220];
+        if (['SHORT-BREAK', 'LUNCH', 'Sports', 'Assembly', 'Club Activities', 'Guidance'].includes(subject)) return [220, 220, 220];
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, SUBJECT_COLORS[colorIndex % SUBJECT_COLORS.length]);
             colorIndex++;
@@ -237,16 +237,16 @@ export default function Header() {
         let periodIdxCounter = 0;
 
         timeSlots.forEach((slot) => {
-            const rowHeight = slot.isBreak || slot.isLocked ? breakCellHeight : normalCellHeight;
+            const rowHeight = slot.isBreak ? breakCellHeight : normalCellHeight;
 
-            if (slot.isBreak || slot.isLocked) {
+            if (slot.isBreak) {
                 const label = slot.label || '';
                 doc.setFillColor(240, 240, 240);
-                roundedRect(gridX + timeColWidth, currentY, gridWidth - timeColWidth, rowHeight, 5, 'F');
+                roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
                 doc.setFontSize(18);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
-                doc.text(label.replace('-', ' '), (gridX + timeColWidth + gridWidth) / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
+                doc.text(label.replace('-', ' '), (gridX + gridWidth) / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
             } else {
                 doc.setFontSize(12);
                 doc.setFont(FONT_FAMILY, "bold");
@@ -267,7 +267,7 @@ export default function Header() {
                     if (relevantSessions.length > 0) {
                         const uniqueSessionBlocks = new Map<string, TimetableSession[]>();
                         relevantSessions.forEach(session => {
-                            const key = session.optionGroup ? session.id : `${session.className}-${session.subject}`;
+                            const key = session.optionGroup ? session.id : `${session.id}-${session.className}-${session.subject}`;
                             if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
                             uniqueSessionBlocks.get(key)!.push(session);
                         });
@@ -279,14 +279,18 @@ export default function Header() {
                         uniqueSessionBlocks.forEach((sessionsInBlock) => {
                              const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
                              const firstSession = sessionsInBlock[0];
-                             const subject = firstSession.optionGroup ? `Option ${firstSession.optionGroup}` : (firstSession.actualSubject || firstSession.subject);
+                             const subject = firstSession.isLocked ? firstSession.subject : (firstSession.optionGroup ? `Option ${firstSession.optionGroup}` : (firstSession.actualSubject || firstSession.subject));
                              const [r, g, b] = getSubjectColor(subject);
                              doc.setFillColor(r, g, b);
                              roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 5, 'F');
 
                              doc.setTextColor(50, 50, 50);
                              
-                             if (firstSession.optionGroup) {
+                             if (firstSession.isLocked) {
+                                doc.setFontSize(16);
+                                doc.setFont(FONT_FAMILY, "bold");
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 6, { align: 'center' });
+                             } else if (firstSession.optionGroup) {
                                 doc.setFontSize(16);
                                 doc.setFont(FONT_FAMILY, "bold");
                                 doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 6, { align: 'center' });

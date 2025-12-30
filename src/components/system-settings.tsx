@@ -19,7 +19,7 @@ import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
-import { formatTime, to12Hour, to24Hour } from "@/lib/utils";
+import { to12Hour, to24Hour } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface SystemSettingsProps {
@@ -34,6 +34,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
 
     useEffect(() => {
         if (activeTimetable) {
+            // Deep copy to avoid modifying the original state directly
             setLocalTimeSlots(JSON.parse(JSON.stringify(activeTimetable.timeSlots)));
         }
     }, [activeTimetable, open]);
@@ -57,7 +58,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         newTimeSlots[index].time = newTime;
         setLocalTimeSlots(newTimeSlots);
     };
-
+    
     const handleDayToggle = (index: number, day: string) => {
         const newTimeSlots = [...localTimeSlots];
         const slot = newTimeSlots[index];
@@ -68,6 +69,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         
         handleTimeSlotChange(index, 'days', newDays);
     }
+
 
     const handleAddSlot = (index: number) => {
         const newSlot: TimeSlot = {

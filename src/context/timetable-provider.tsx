@@ -477,7 +477,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const targetSlot = board[day]?.find(slot => slot[0]?.period === p);
         
         if (targetSlot) {
-            if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
+            if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId && !s.isLocked)) return false;
             if (targetSlot.some(s => s.isLocked)) return false;
             for (const className of session.classes) {
               if (targetSlot.some(s => s.classes.includes(className))) return false;

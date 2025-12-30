@@ -89,3 +89,5 @@ export type Timetable = {
   error: string | null;
   lockedSessions: LockedSession[];
 };
+
+    

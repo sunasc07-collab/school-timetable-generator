@@ -253,7 +253,7 @@ export default function TimetableGrid() {
                         </TableCell>
                         {days.map((day) => {
                            const isDayUsedByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && (ts.days || days).includes(day));
-                           if(isDayUsedByBreak) return <TableCell key={day} className="p-1 align-top bg-muted/50" />
+                           if(isDayUsedByBreak) return <TableCell key={day} className="p-1 align-top bg-muted/50" />;
 
                             return (
                                 <TableCell
@@ -338,5 +338,6 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
 
     

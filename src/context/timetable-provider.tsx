@@ -569,7 +569,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         error: null,
     });
     findConflicts(finalTimetable, activeTimetable.id);
-  }, [updateTimetable, activeTimetable, allTeachers, timetables]);
+  }, [updateTimetable, activeTimetable, allTeachers, timetables, findConflicts]);
 
 
   const clearTimetable = () => {
@@ -678,6 +678,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
 
     

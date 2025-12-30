@@ -115,9 +115,15 @@ export default function Header() {
 
   const generatePdf = (type: 'class' | 'teacher') => {
     if (!currentTimetable) return;
+    
+    const listToIterate = type === 'class' ? classes : teachers;
+    if (listToIterate.length === 0) {
+        console.warn(`No ${type}s to generate PDF for.`);
+        // Optionally, show a toast or alert to the user
+        return;
+    }
 
     const doc = new jsPDF({ orientation: "landscape", unit: 'px' });
-    const listToIterate = type === 'class' ? classes : teachers;
 
     const FONT_FAMILY = "Helvetica";
     const DAY_HEADER_COLORS = [
@@ -279,18 +285,34 @@ export default function Header() {
 
                              doc.setTextColor(50, 50, 50);
                              doc.setFont(FONT_FAMILY, "bold");
-                             doc.setFontSize(10);
-                             doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
-
-                             doc.setFontSize(9);
                              
-                             if(type === 'class'){
-                                 const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                 doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
-                             } else { // teacher view
-                                 const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
-                                 const classText = `Class: ${classNames}`;
-                                 doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                             if (firstSession.optionGroup) {
+                                doc.setFontSize(15);
+                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
+                                
+                                doc.setFontSize(9);
+                                if (type === 'class') {
+                                    const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                } else {
+                                     const classNames = [...new Set(sessionsInBlock.map(s => s.classes.map(formatClassName)).flat())].join(', ');
+                                     const classText = `Class: ${classNames}`;
+                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                }
+
+                             } else {
+                                doc.setFontSize(10);
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
+
+                                doc.setFontSize(9);
+                                if(type === 'class'){
+                                    const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                } else { // teacher view
+                                    const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
+                                    const classText = `Class: ${classNames}`;
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + 22, { align: 'center' });
+                                }
                              }
                              sessionIndex++;
                         });
@@ -307,12 +329,7 @@ export default function Header() {
         });
     });
 
-    if (listToIterate.length > 0) {
-      doc.save(`${currentTimetable.name}-${type}-timetables.pdf`);
-    } else {
-      // Handle case with no items to iterate, maybe show a toast or alert
-      console.warn(`No ${type}s to generate PDF for.`);
-    }
+    doc.save(`${currentTimetable.name}-${type}-timetables.pdf`);
   };
 
   return (

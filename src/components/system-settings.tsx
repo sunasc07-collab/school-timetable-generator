@@ -29,6 +29,7 @@ interface SystemSettingsProps {
 export default function SystemSettings({ open, onOpenChange }: SystemSettingsProps) {
     const { activeTimetable, updateTimeSlots } = useTimetable();
     const [localTimeSlots, setLocalTimeSlots] = useState<TimeSlot[]>([]);
+    const [draggedItem, setDraggedItem] = useState<TimeSlot | null>(null);
 
     useEffect(() => {
         if (activeTimetable) {
@@ -74,10 +75,34 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
     };
 
     const handleSaveChanges = () => {
+        if (!activeTimetable) return;
         updateTimeSlots(localTimeSlots);
         onOpenChange(false);
     }
     
+    const onDragStart = (e: React.DragEvent<HTMLDivElement>, item: TimeSlot) => {
+        setDraggedItem(item);
+    };
+
+    const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+
+    const onDrop = (e: React.DragEvent<HTMLDivElement>, targetItem: TimeSlot) => {
+        if (!draggedItem) return;
+
+        const currentIndex = localTimeSlots.findIndex(item => item.id === draggedItem.id);
+        const targetIndex = localTimeSlots.findIndex(item => item.id === targetItem.id);
+
+        if (currentIndex !== -1 && targetIndex !== -1) {
+            const newTimeSlots = [...localTimeSlots];
+            const [removed] = newTimeSlots.splice(currentIndex, 1);
+            newTimeSlots.splice(targetIndex, 0, removed);
+            setLocalTimeSlots(newTimeSlots);
+        }
+        setDraggedItem(null);
+    };
+
     if (!activeTimetable) return null;
 
     return (
@@ -96,7 +121,14 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                             const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
                             return (
-                                <div key={slot.id} className="grid grid-cols-1 items-end gap-3 p-3 border rounded-lg relative group">
+                                <div 
+                                    key={slot.id} 
+                                    className="grid grid-cols-1 items-end gap-3 p-3 border rounded-lg relative group"
+                                    draggable
+                                    onDragStart={(e) => onDragStart(e, slot)}
+                                    onDragOver={onDragOver}
+                                    onDrop={(e) => onDrop(e, slot)}
+                                >
                                     <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-end gap-3">
                                         <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
                                         

@@ -33,71 +33,56 @@ export default function TimetableItem({
   const isOptionGroup = !!session.optionGroup;
   
   if (isOptionGroup) {
-    // For option groups, we only want to render ONE card that represents the entire block.
-    // We achieve this by finding all sessions in the slot with the same option block ID
-    // and only rendering if the current session is the VERY FIRST one in that found group.
-    const relevantSessions = allSessionsInSlot.filter(s => s.id === session.id);
-    if (relevantSessions.length === 0 || relevantSessions[0]?.actualSubject !== session.actualSubject || relevantSessions[0]?.teacherId !== session.teacherId) {
-        return null;
+    const relevantSessions = allSessionsInSlot.filter(s => 
+      s.optionGroup === session.optionGroup &&
+      (s.actualSubject || s.subject) === (session.actualSubject || session.subject)
+    );
+
+    if (relevantSessions.length === 0 || relevantSessions[0]?.teacherId !== session.teacherId) {
+      return null;
     }
-    
-    const teachersAndSubjects = relevantSessions.map(s => `${s.teacher} (${s.actualSubject})`).join(', ');
-    const classes = [...new Set(relevantSessions.flatMap(s => s.classes))].join(', ');
-    const title = `Option Group: ${session.subject}\nDetails: ${teachersAndSubjects}\nClasses: ${classes}`;
+
+    const subjectName = session.actualSubject || session.subject;
+    const teacherName = session.teacher;
+    const classes = [...new Set(relevantSessions.flatMap(s => s.classes))].sort().join(', ');
+
+    const title = `Subject: ${subjectName}\nTeacher: ${teacherName}\nClasses: ${classes}`;
     const hasConflict = isConflict(session.id);
 
-    // Group teachers by their subject for display
-    const teachersBySubject = relevantSessions.reduce((acc, s) => {
-        const key = s.actualSubject || 'Unknown';
-        if (!acc[key]) {
-            acc[key] = { teachers: [], classes: new Set() };
-        }
-        acc[key].teachers.push(s.teacher);
-        s.classes.forEach(c => acc[key].classes.add(c));
-        return acc;
-    }, {} as Record<string, { teachers: string[], classes: Set<string> }>);
-
-     return (
-       <Card
+    return (
+      <Card
         draggable
         onDragStart={handleDragStart}
         className={cn(
-            "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
-            hasConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
+          "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
+          hasConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
         )}
         title={title}
-       >
+      >
         <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
-            <div className={cn("flex items-center justify-center gap-1.5 font-bold", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
-               {hasConflict && <AlertCircle className="h-4 w-4" />}
-               <span className="truncate">{session.subject}</span>
-             </div>
-             
-             {Object.entries(teachersBySubject).map(([subj, data]) => (
-                <div key={subj} className={cn("flex flex-col items-center justify-center gap-1 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-                    <div className="flex items-start justify-center gap-1.5">
-                      <BookOpen className="h-3 w-3 shrink-0 mt-0.5"/>
-                      <div className="text-center">
-                          <span className="font-medium">{subj}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-start justify-center gap-1.5">
-                      <User className="h-3 w-3 shrink-0 mt-0.5"/>
-                       <div className="text-center">
-                          <span className="truncate">{[...new Set(data.teachers)].join(', ')}</span>
-                       </div>
-                    </div>
-                     <div className="flex items-start justify-center gap-1.5">
-                      <GraduationCap className="h-3 w-3 shrink-0 mt-0.5"/>
-                       <div className="text-center">
-                          <span className="truncate">{[...data.classes].join(', ')}</span>
-                       </div>
-                    </div>
-                </div>
-             ))}
+          <div className={cn("flex items-center justify-center gap-1.5 font-bold", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
+            {hasConflict && <AlertCircle className="h-4 w-4" />}
+            <BookOpen className="h-4 w-4 text-primary shrink-0" />
+            <span className="truncate">{subjectName}</span>
+          </div>
+
+          <div className={cn("flex flex-col items-center justify-center gap-1 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
+            <div className="flex items-start justify-center gap-1.5">
+              <User className="h-3 w-3 shrink-0 mt-0.5" />
+              <div className="text-center">
+                <span className="truncate">{teacherName}</span>
+              </div>
+            </div>
+            <div className="flex items-start justify-center gap-1.5">
+              <GraduationCap className="h-3 w-3 shrink-0 mt-0.5" />
+              <div className="text-center">
+                <span className="break-words">{classes}</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
-       </Card>
-     )
+      </Card>
+    );
   }
   
   const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
@@ -136,4 +121,3 @@ export default function TimetableItem({
   );
 }
 
-    

@@ -160,6 +160,7 @@ export default function Header() {
 
     const getClassInitials = (className: string) => {
         if (!className) return '';
+        if (className.startsWith("Grade") || className.startsWith("A-Level Year")) return className.charAt(0);
         return className.charAt(0);
     };
 
@@ -234,7 +235,6 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                         // Grade, Arm, Subject
                         const gradeMatch = session.className.match(/(Grade \d+|A-Level Year \d+)/);
                         const grade = gradeMatch ? gradeMatch[0] : session.className;
                         const armMatch = session.className.match(/([A-Z])$/);
@@ -243,10 +243,14 @@ export default function Header() {
                         const gradeInitial = getClassInitials(grade);
                         const subjectInitial = getSubjectInitials(session.actualSubject || session.subject);
                         
-                        doc.setFontSize(12);
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+                        const gradeArmText = `${gradeInitial}${arm}`;
+                        doc.text(gradeArmText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
+
+                        doc.setFontSize(8);
                         doc.setFont(undefined, 'bold');
-                        const text = `${gradeInitial}${arm} ${subjectInitial}`;
-                        doc.text(text, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 2, { halign: 'center' });
+                         doc.text(subjectInitial, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
 
                     } else {
                         const subjectText = getSubjectInitials(session.subject);

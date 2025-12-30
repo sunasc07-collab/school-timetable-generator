@@ -158,6 +158,27 @@ export default function Header() {
       return subject;
     };
 
+    const formatClassName = (className: string) => {
+        if (!className) return '';
+        const gradeMatch = className.match(/Grade (\d+)/);
+        const alevelMatch = className.match(/A-Level Year (\d+)/);
+        const armMatch = className.match(/(?:Grade \d+|A-Level Year \d+)\s+(.+)/);
+
+        let gradePart = '';
+        if (gradeMatch) {
+            gradePart = `G${gradeMatch[1]}`;
+        } else if (alevelMatch) {
+            gradePart = `A${alevelMatch[1]}`;
+        }
+
+        let armPart = '';
+        if (armMatch && armMatch[1]) {
+            armPart = armMatch[1].charAt(0).toUpperCase();
+        }
+
+        return `${gradePart}${armPart}`;
+    };
+
     const getClassInitials = (className: string) => {
         if (!className) return '';
         if (className.startsWith("Grade") || className.startsWith("A-Level Year")) return className.charAt(0);
@@ -236,26 +257,20 @@ export default function Header() {
 
                     if (session.optionGroup) {
                         const className = session.classes[0] || '';
-                        const gradeMatch = className.match(/(Grade \d+|A-Level Year \d+)/);
-                        const grade = gradeMatch ? gradeMatch[0] : '';
-                        const armMatch = className.match(/([A-Z])$/);
-                        const arm = armMatch ? armMatch[1] : '';
-
-                        const gradeInitial = getClassInitials(grade);
+                        const formattedClass = formatClassName(className);
                         const subjectInitial = getSubjectInitials(session.actualSubject || session.subject);
                         
                         doc.setFontSize(10);
-                        doc.setFont(undefined, 'normal');
-                        const gradeArmText = `${gradeInitial}${arm}`;
-                        doc.text(gradeArmText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
+                        doc.setFont(undefined, 'bold');
+                        doc.text(formattedClass, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
 
                         doc.setFontSize(8);
-                        doc.setFont(undefined, 'bold');
+                        doc.setFont(undefined, 'normal');
                          doc.text(subjectInitial, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
 
                     } else {
                         const subjectText = getSubjectInitials(session.subject);
-                        const details = type === 'class' ? getTeacherInitials(session.teacher) : getClassInitials(session.className);
+                        const details = type === 'class' ? getTeacherInitials(session.teacher) : formatClassName(session.className);
 
                         doc.setFontSize(8);
                         doc.setFont(undefined, 'bold');
@@ -439,3 +454,5 @@ export default function Header() {
     </>
   );
 }
+
+    

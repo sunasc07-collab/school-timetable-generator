@@ -37,9 +37,9 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const DEFAULT_TIMESLOTS: TimeSlot[] = [
-    { period: 1, time: '8:00-8:40', id: crypto.randomUUID() },
-    { period: 2, time: '8:40-9:20', id: crypto.randomUUID() },
-    { period: 3, time: '9:20-10:00', id: crypto.randomUUID() },
+    { period: 1, time: '08:00-08:40', id: crypto.randomUUID() },
+    { period: 2, time: '08:40-09:20', id: crypto.randomUUID() },
+    { period: 3, time: '09:20-10:00', id: crypto.randomUUID() },
     { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK', id: crypto.randomUUID(), days: DEFAULT_DAYS },
     { period: 4, time: '10:20-11:00', id: crypto.randomUUID() },
     { period: 5, time: '11:00-11:40', id: crypto.randomUUID() },
@@ -490,20 +490,26 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           const currentIndex = dailyTeachingPeriods[day].indexOf(period);
           if (currentIndex === -1 || currentIndex + 1 >= dailyTeachingPeriods[day].length) return false;
           const partnerPeriod = dailyTeachingPeriods[day][currentIndex + 1];
-          if(partnerPeriod !== period + 1) return false; // Ensure consecutive
+          // Ensure consecutive periods in the timetable, not just in the array index
+          const originalSlot = timeSlots.find(ts => ts.period === period);
+          const partnerSlot = timeSlots.find(ts => ts.period === partnerPeriod);
+          const originalSlotIndex = timeSlots.findIndex(ts => ts.id === originalSlot?.id);
+          const partnerSlotIndex = timeSlots.findIndex(ts => ts.id === partnerSlot?.id);
+          if (partnerSlotIndex !== originalSlotIndex + 1) return false;
+          
           return checkSession(unit.session, day, period) && checkSession(unit.partner, day, partnerPeriod);
       } else if ('sessions' in unit) {
           const sessionTeachers = unit.sessions.map(s => s.teacherId).filter(Boolean);
           const sessionClasses = unit.sessions.flatMap(s => s.classes);
-          if(new Set(sessionTeachers).size < sessionTeachers.length) return false;
-          if(new Set(sessionClasses).size < sessionClasses.length) return false;
-
+          if(new Set(sessionTeachers).size < sessionTeachers.length) return false; // This is a conflict in data setup
+          if(new Set(sessionClasses).size < sessionClasses.length) return false; // This is a conflict in data setup
+          
           for (const s of unit.sessions) {
             if (!checkSession(s, day, period)) return false;
           }
           return true;
 
-      } else {
+      } else { // SingleSessionUnit
           return checkSession(unit, day, period);
       }
     }
@@ -611,38 +617,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const resolveConflicts = () => {
-    if (!activeTimetable || !activeTimetable.conflicts || activeTimetable.conflicts.length === 0) return;
-
-    const conflictIds = new Set(activeTimetable.conflicts.map(c => c.id).filter(Boolean));
-    if (conflictIds.size === 0) {
-        if (activeTimetable) {
-            updateTimetable(activeTimetable.id, { conflicts: [] });
-        }
-        return;
-    }
-    
-    setAllTeachers(prev => {
-        const newTeachers = [...prev];
-        let wasChanged = false;
-        newTeachers.forEach(teacher => {
-            const originalAssignmentCount = teacher.assignments.length;
-            teacher.assignments = teacher.assignments.filter(a => !conflictIds.has(a.id));
-            if (teacher.assignments.length < originalAssignmentCount) {
-                wasChanged = true;
-            }
-        });
-        
-        if (wasChanged) {
-            if (activeTimetable) {
-              updateTimetable(activeTimetable.id, { timetable: {}, classes: [], conflicts: [] });
-            }
-        }
-        return newTeachers;
-    });
-
-    if (activeTimetable) {
-        updateTimetable(activeTimetable.id, { conflicts: [] });
-    }
+    if (!activeTimetable) return;
+    // This simply clears the board, prompting the user to re-generate.
+    clearTimetable();
   };
 
   const isConflict = (sessionId: string): boolean => {

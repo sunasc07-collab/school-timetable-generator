@@ -60,8 +60,6 @@ export default function TimetableGrid() {
 
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
-  const isSecondarySchool = useMemo(() => activeTimetable?.name.toLowerCase().includes('secondary'), [activeTimetable]);
-
   const arms = useMemo(() => {
     if (!activeTimetable || viewMode !== 'arm') return [];
 
@@ -299,7 +297,7 @@ export default function TimetableGrid() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle> {conflicts.length} Conflict{conflicts.length > 1 ? 's' : ''} Detected!</AlertTitle>
                     <AlertDescription>
-                      {conflicts[0].message} {conflicts.length > 1 ? ` (and ${conflicts.length - 1} more)`: ''} Review the highlighted slots or click "Resolve Conflicts".
+                      Review the highlighted slots. Resolving conflicts will clear the timetable.
                     </AlertDescription>
                   </Alert>
               )}

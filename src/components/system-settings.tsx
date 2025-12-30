@@ -19,7 +19,8 @@ import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
-import { formatTime } from "@/lib/utils";
+import { formatTime, to12Hour, to24Hour } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface SystemSettingsProps {
     open: boolean;
@@ -41,6 +42,19 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         const newTimeSlots = [...localTimeSlots];
         // @ts-ignore
         newTimeSlots[index][field] = value;
+        setLocalTimeSlots(newTimeSlots);
+    };
+
+    const handleTimeValueChange = (index: number, part: 'start' | 'end', value: string) => {
+        const newTimeSlots = [...localTimeSlots];
+        const [start, end] = newTimeSlots[index].time.split('-');
+        let newTime;
+        if (part === 'start') {
+            newTime = `${value}-${end}`;
+        } else {
+            newTime = `${start}-${value}`;
+        }
+        newTimeSlots[index].time = newTime;
         setLocalTimeSlots(newTimeSlots);
     };
 
@@ -107,7 +121,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
                     <DialogTitle className="font-headline">System Settings</DialogTitle>
                     <DialogDescription>
@@ -118,7 +132,8 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                     <div className="grid gap-4 py-4">
                         {localTimeSlots.map((slot, index) => {
                             const [start, end] = slot.time.split('-');
-                            const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+                            const { time: startTime12, ampm: startAmPm } = to12Hour(start);
+                            const { time: endTime12, ampm: endAmPm } = to12Hour(end);
 
                             return (
                                 <div 
@@ -133,14 +148,58 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
                                         
                                         <div className="space-y-1">
-                                            <Label htmlFor={`time-${index}`}>Time Range</Label>
-                                            <Input
-                                                id={`time-${index}`}
-                                                value={slot.time}
-                                                onChange={(e) => handleTimeSlotChange(index, 'time', e.target.value)}
-                                                placeholder="e.g., 08:00-08:40"
-                                            />
-                                            <p className="text-xs text-muted-foreground">{formattedTime}</p>
+                                            <Label htmlFor={`time-start-${index}`}>Start Time</Label>
+                                            <div className="flex gap-1">
+                                                <Input
+                                                    id={`time-start-${index}`}
+                                                    value={startTime12}
+                                                    onChange={(e) => {
+                                                        const new24h = to24Hour(e.target.value, startAmPm);
+                                                        handleTimeValueChange(index, 'start', new24h);
+                                                    }}
+                                                    placeholder="e.g., 08:00"
+                                                />
+                                                <Select
+                                                  value={startAmPm}
+                                                  onValueChange={(ampm) => {
+                                                    const new24h = to24Hour(startTime12, ampm as 'am' | 'pm');
+                                                    handleTimeValueChange(index, 'start', new24h);
+                                                  }}
+                                                >
+                                                  <SelectTrigger className="w-20"><SelectValue/></SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="am">AM</SelectItem>
+                                                    <SelectItem value="pm">PM</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <Label htmlFor={`time-end-${index}`}>End Time</Label>
+                                            <div className="flex gap-1">
+                                                <Input
+                                                    id={`time-end-${index}`}
+                                                    value={endTime12}
+                                                    onChange={(e) => {
+                                                        const new24h = to24Hour(e.target.value, endAmPm);
+                                                        handleTimeValueChange(index, 'end', new24h);
+                                                    }}
+                                                    placeholder="e.g., 08:40"
+                                                />
+                                                <Select
+                                                  value={endAmPm}
+                                                  onValueChange={(ampm) => {
+                                                    const new24h = to24Hour(endTime12, ampm as 'am' | 'pm');
+                                                    handleTimeValueChange(index, 'end', new24h);
+                                                  }}
+                                                >
+                                                  <SelectTrigger className="w-20"><SelectValue/></SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="am">AM</SelectItem>
+                                                    <SelectItem value="pm">PM</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
                                         <div className="space-y-1">
                                             <Label htmlFor={`label-${index}`}>Label</Label>
@@ -212,3 +271,5 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
+
+    

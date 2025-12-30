@@ -33,20 +33,22 @@ export default function TimetableItem({
   const isOptionGroup = !!session.optionGroup;
   
   if (isOptionGroup && viewMode === 'teacher') {
-    // In teacher view, merge all parts of an option block into one item
-    const blockSessions = allSessionsInSlot.filter(s => s.id === session.id);
+    // In teacher view, merge all parts of an option block for this teacher into one item
+    const teacherSessionsInBlock = allSessionsInSlot.filter(
+      s => s.id === session.id && s.teacherId === session.teacherId
+    );
     
-    // Only render one card for the entire block
-    if (blockSessions.length === 0 || blockSessions[0].teacherId !== session.teacherId) {
+    // Only render one card for the entire block for this teacher
+    if (teacherSessionsInBlock.length === 0 || teacherSessionsInBlock[0].className !== session.className) {
       return null;
     }
 
-    const firstSession = blockSessions[0];
+    const firstSession = teacherSessionsInBlock[0];
     const subjectName = firstSession.actualSubject;
     const teacherName = firstSession.teacher;
-    const allBlockClasses = [...new Set(blockSessions.flatMap(s => s.classes))].sort();
+    const teacherBlockClasses = [...new Set(teacherSessionsInBlock.map(s => s.className))].sort();
 
-    const title = `Subject: ${subjectName}\nTeacher: ${teacherName}\nClasses: ${allBlockClasses.join(', ')}`;
+    const title = `Subject: ${subjectName}\nTeacher: ${teacherName}\nClasses: ${teacherBlockClasses.join(', ')}`;
     const hasConflict = isConflict(session.id);
 
     return (
@@ -76,7 +78,7 @@ export default function TimetableItem({
             <div className="flex items-start justify-center gap-1.5">
               <GraduationCap className="h-3 w-3 shrink-0 mt-0.5" />
               <div className="text-center">
-                <span className="break-words">{allBlockClasses.join(', ')}</span>
+                <span className="break-words">{teacherBlockClasses.join(', ')}</span>
               </div>
             </div>
           </div>
@@ -120,5 +122,3 @@ export default function TimetableItem({
     </Card>
   );
 }
-
-    

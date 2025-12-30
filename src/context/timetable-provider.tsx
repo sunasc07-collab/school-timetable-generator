@@ -380,14 +380,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             
             const assignmentsForPeriod = assignmentsInGroup.filter(a => i < a.periods);
 
-            const allArmsForBlock = [...new Set(assignmentsForPeriod.flatMap(a => a.arms))];
-            
-            const allBlockClasses = allArmsForBlock.length > 0 
-                ? allArmsForBlock.map(arm => `${grade} ${arm}`.trim())
-                : [`${grade}`.trim()];
-
-            allBlockClasses.forEach(c => classSet.add(c));
-            
             const teachersInBlock = new Set<string>();
 
             assignmentsForPeriod.forEach(assignment => {
@@ -409,14 +401,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
 
                 classesForThisTeacher.forEach(cls => {
+                  classSet.add(cls);
                   blockSessions.push({
                       id: blockId,
                       subject: `Option ${optionGroupName}`,
                       actualSubject: assignment.subject,
                       teacher: assignment.teacherName,
                       teacherId: assignment.teacherId,
-                      className: cls, // Individual class/arm
-                      classes: [cls], // Array with single class
+                      className: cls, 
+                      classes: [cls],
                       isDouble: false,
                       optionGroup: optionGroupName,
                   });
@@ -680,7 +673,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    

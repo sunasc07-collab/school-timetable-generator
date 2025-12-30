@@ -286,21 +286,7 @@ export default function Header() {
                              if (firstSession.optionGroup) {
                                 doc.setFontSize(18);
                                 doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
-                                
-                                doc.setFontSize(14);
-                                doc.setFont(FONT_FAMILY, "bold");
-                                if (type === 'class') {
-                                    const sessionForThisClass = sessionsInBlock.find(s => s.classes.includes(itemName));
-                                    if(sessionForThisClass){
-                                        doc.text(sessionForThisClass.actualSubject || '', cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
-                                    }
-                                } else {
-                                     const classNames = [...new Set(sessionsInBlock.map(s => s.classes.map(formatClassName)).flat())].join(', ');
-                                     const classText = `Class: ${classNames}`;
-                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
-                                }
-
+                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 5, { align: 'center' });
                              } else {
                                 doc.setFontSize(16);
                                 doc.setFont(FONT_FAMILY, "bold");

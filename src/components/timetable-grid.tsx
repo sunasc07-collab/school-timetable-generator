@@ -229,18 +229,9 @@ export default function TimetableGrid() {
                                 );
                             }
                             
-                            // This is a teaching period for this day
                             const periodIndex = slot.period;
                             if (periodIndex === null) {
-                                 // Render an empty, but droppable, cell if there's no period number (e.g. break on other days)
-                                 return (
-                                    <TableCell 
-                                        key={`${slot.id}-${day}`} 
-                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
-                                        onDragOver={handleDragOver}
-                                        // Still needs a drop handler for empty slots if we want to allow dropping here
-                                    />
-                                 );
+                                return <TableCell key={`${slot.id}-${day}`} className="p-1 align-top min-h-[6rem]" />;
                             }
 
                             return (
@@ -326,3 +317,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

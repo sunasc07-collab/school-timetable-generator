@@ -234,11 +234,19 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                        const gradeText = getClassInitials(session.className);
+                         // Grade, Arm, Subject
+                        const gradeMatch = session.className.match(/(Grade \d+|A-Level Year \d+)/);
+                        const grade = gradeMatch ? gradeMatch[0] : session.className;
+                        const armMatch = session.className.match(/([A-Z])$/);
+                        const arm = armMatch ? armMatch[1] : '';
 
-                        doc.setFontSize(28);
+                        const gradeInitial = getClassInitials(grade);
+                        const subjectInitial = getSubjectInitials(session.actualSubject || session.subject);
+                        
+                        doc.setFontSize(12);
                         doc.setFont(undefined, 'bold');
-                        doc.text(gradeText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 4, { halign: 'center' });
+                        const text = `${gradeInitial}${arm} ${subjectInitial}`;
+                        doc.text(text, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 2, { halign: 'center' });
 
                     } else {
                         const subjectText = getSubjectInitials(session.subject);

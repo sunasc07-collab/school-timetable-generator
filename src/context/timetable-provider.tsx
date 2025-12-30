@@ -287,20 +287,59 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId'>) => {
       if (!activeTimetable) return;
-      const newSession: LockedSession = {
-          ...session,
-          id: crypto.randomUUID(),
-          schoolId: activeTimetable.id,
-      };
-      updateTimetable(activeTimetable.id, { lockedSessions: [...(activeTimetable.lockedSessions || []), newSession] });
+
+      const newSessions: LockedSession[] = [];
+      const commonId = crypto.randomUUID();
+
+      if (session.day === 'all_week') {
+          activeTimetable.days.forEach(day => {
+              newSessions.push({
+                  ...session,
+                  id: `${commonId}-${day}`,
+                  schoolId: activeTimetable.id,
+                  day: day,
+                  isWeekly: true,
+                  weeklyId: commonId,
+              });
+          });
+          newSessions.push({
+              ...session,
+              id: commonId,
+              schoolId: activeTimetable.id,
+              day: 'all_week', // master entry
+          });
+      } else {
+          newSessions.push({
+              ...session,
+              id: commonId,
+              schoolId: activeTimetable.id,
+          });
+      }
+      
+      updateTimetable(activeTimetable.id, { lockedSessions: [...(activeTimetable.lockedSessions || []), ...newSessions] });
       resetTimetableForSchool(activeTimetable.id);
   };
 
   const removeLockedSession = (sessionId: string) => {
       if (!activeTimetable || !activeTimetable.lockedSessions) return;
-      updateTimetable(activeTimetable.id, { lockedSessions: activeTimetable.lockedSessions.filter(s => s.id !== sessionId) });
+      const sessionToRemove = activeTimetable.lockedSessions.find(s => s.id === sessionId);
+
+      let sessionsToKeep = activeTimetable.lockedSessions;
+
+      if(sessionToRemove?.isWeekly) {
+          // It's a derived weekly session, so we need to remove all related sessions
+          sessionsToKeep = sessionsToKeep.filter(s => s.weeklyId !== sessionToRemove.weeklyId);
+      } else if (sessionToRemove?.day === 'all_week') {
+          // It's the master weekly session
+          sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionToRemove.id && s.weeklyId !== sessionToRemove.id);
+      } else {
+          // It's a single session
+          sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionId);
+      }
+      
+      updateTimetable(activeTimetable.id, { lockedSessions: sessionsToKeep });
       resetTimetableForSchool(activeTimetable.id);
-  }
+  };
 
   const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
     const consecutive: number[][] = [];
@@ -479,7 +518,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const newTimetable: TimetableData = {};
     days.forEach(day => { newTimetable[day] = Array.from({ length: periodCount }, () => []); });
 
-    (lockedSessions || []).forEach(ls => {
+    (lockedSessions || []).filter(ls => ls.day !== 'all_week').forEach(ls => {
         const periodIndex = timeSlots.findIndex(ts => ts.period === ls.period);
         if (periodIndex !== -1) {
             const teachingPeriodIndex = timeSlots.slice(0, periodIndex + 1).filter(p => !p.isBreak).length - 1;
@@ -668,11 +707,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     return activeTimetable.conflicts.some(c => c.id === sessionId || sessionId.startsWith(c.id));
   };
   
+  const filteredLockedSessions = useMemo(() => {
+    if (!activeTimetable?.lockedSessions) return [];
+    const weeklyIds = new Set(activeTimetable.lockedSessions.filter(ls => ls.day === 'all_week').map(ls => ls.id));
+    return activeTimetable.lockedSessions.filter(ls => ls.day === 'all_week' || !weeklyIds.has(ls.weeklyId || ''));
+  }, [activeTimetable?.lockedSessions]);
+
   return (
     <TimetableContext.Provider
       value={{
         timetables,
-        activeTimetable,
+        activeTimetable: activeTimetable ? { ...activeTimetable, lockedSessions: filteredLockedSessions } : null,
         activeTimetableId,
         allTeachers,
         addTimetable,

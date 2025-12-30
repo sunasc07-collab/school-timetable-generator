@@ -47,6 +47,7 @@ export default function LockedSessions() {
     };
 
     const classOptions = ["all", ...classes];
+    const dayOptions = ["all_week", ...days];
 
     return (
         <div className="p-2 space-y-4">
@@ -103,7 +104,7 @@ export default function LockedSessions() {
                                             <SelectTrigger><SelectValue placeholder="Select Day..." /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                            {dayOptions.map(d => <SelectItem key={d} value={d}>{d === 'all_week' ? 'All Week' : d}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -143,7 +144,7 @@ export default function LockedSessions() {
                         <div>
                             <p className="font-semibold">{ls.activity}</p>
                             <p className="text-xs text-muted-foreground">
-                                {ls.day}, Period {ls.period} ({ls.className === 'all' ? 'All Classes' : ls.className})
+                                {ls.day === 'all_week' ? `All Week, Period ${ls.period}` : `${ls.day}, Period ${ls.period}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
                             </p>
                         </div>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeLockedSession(ls.id)}>

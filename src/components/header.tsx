@@ -234,16 +234,11 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
-                        const optionLetter = session.optionGroup;
                         const gradeText = getClassInitials(session.className);
 
-                        doc.setFontSize(12);
+                        doc.setFontSize(28);
                         doc.setFont(undefined, 'bold');
-                        doc.text(optionLetter, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 1, { halign: 'center' });
-                        
-                        doc.setFontSize(8);
-                        doc.setFont(undefined, 'bold');
-                        doc.text(gradeText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 5, { halign: 'center' });
+                        doc.text(gradeText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 4, { halign: 'center' });
 
                     } else {
                         const subjectText = getSubjectInitials(session.subject);

@@ -408,16 +408,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                   classesForThisTeacher.push(`${grade}`.trim());
                 }
 
-                blockSessions.push({
-                    id: blockId,
-                    subject: `Option ${optionGroupName}`,
-                    actualSubject: assignment.subject,
-                    teacher: assignment.teacherName,
-                    teacherId: assignment.teacherId, 
-                    className: allBlockClasses.join(', '),
-                    classes: classesForThisTeacher,
-                    isDouble: false,
-                    optionGroup: optionGroupName,
+                classesForThisTeacher.forEach(cls => {
+                  blockSessions.push({
+                      id: blockId,
+                      subject: `Option ${optionGroupName}`,
+                      actualSubject: assignment.subject,
+                      teacher: assignment.teacherName,
+                      teacherId: assignment.teacherId,
+                      className: cls, // Individual class/arm
+                      classes: [cls], // Array with single class
+                      isDouble: false,
+                      optionGroup: optionGroupName,
+                  });
                 });
             });
 
@@ -678,5 +680,7 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     

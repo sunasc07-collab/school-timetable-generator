@@ -32,21 +32,21 @@ export default function TimetableItem({
 
   const isOptionGroup = !!session.optionGroup;
   
-  if (isOptionGroup) {
-    const relevantSessions = allSessionsInSlot.filter(s => 
-      s.optionGroup === session.optionGroup &&
-      (s.actualSubject || s.subject) === (session.actualSubject || session.subject)
-    );
-
-    if (relevantSessions.length === 0 || relevantSessions[0]?.teacherId !== session.teacherId) {
+  if (isOptionGroup && viewMode === 'teacher') {
+    // In teacher view, merge all parts of an option block into one item
+    const blockSessions = allSessionsInSlot.filter(s => s.id === session.id);
+    
+    // Only render one card for the entire block
+    if (blockSessions.length === 0 || blockSessions[0].teacherId !== session.teacherId) {
       return null;
     }
 
-    const subjectName = session.actualSubject || session.subject;
-    const teacherName = session.teacher;
-    const classes = [...new Set(relevantSessions.flatMap(s => s.classes))].sort().join(', ');
+    const firstSession = blockSessions[0];
+    const subjectName = firstSession.actualSubject;
+    const teacherName = firstSession.teacher;
+    const allBlockClasses = [...new Set(blockSessions.flatMap(s => s.classes))].sort();
 
-    const title = `Subject: ${subjectName}\nTeacher: ${teacherName}\nClasses: ${classes}`;
+    const title = `Subject: ${subjectName}\nTeacher: ${teacherName}\nClasses: ${allBlockClasses.join(', ')}`;
     const hasConflict = isConflict(session.id);
 
     return (
@@ -76,7 +76,7 @@ export default function TimetableItem({
             <div className="flex items-start justify-center gap-1.5">
               <GraduationCap className="h-3 w-3 shrink-0 mt-0.5" />
               <div className="text-center">
-                <span className="break-words">{classes}</span>
+                <span className="break-words">{allBlockClasses.join(', ')}</span>
               </div>
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function TimetableItem({
     );
   }
   
-  const title = `Subject: ${session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
+  const title = `Subject: ${session.actualSubject || session.subject}\nClass: ${session.className}\nTeacher: ${session.teacher}${session.isDouble ? ` (Double Period, Part ${session.part})` : ''}`;
   const hasConflict = isConflict(session.id);
 
   return (
@@ -106,7 +106,7 @@ export default function TimetableItem({
             <div className={cn("flex items-center justify-center gap-1.5 font-medium", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
               {hasConflict && <AlertCircle className="h-4 w-4" />}
               <BookOpen className="h-4 w-4 text-primary shrink-0"/>
-              <span className="truncate">{session.subject}</span>
+              <span className="truncate">{session.actualSubject || session.subject}</span>
             </div>
             <div className={cn("flex items-center justify-center gap-1.5", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
               <User className="h-3 w-3 shrink-0"/>
@@ -121,3 +121,4 @@ export default function TimetableItem({
   );
 }
 
+    

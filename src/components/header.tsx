@@ -272,7 +272,7 @@ export default function Header() {
                         uniqueSessionBlocks.forEach((sessionsInBlock) => {
                              const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
                              const firstSession = sessionsInBlock[0];
-                             const subject = firstSession.actualSubject || firstSession.subject;
+                             const subject = firstSession.optionGroup ? firstSession.subject : (firstSession.actualSubject || firstSession.subject);
                              const [r, g, b] = getSubjectColor(subject);
                              doc.setFillColor(r, g, b);
                              roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 8, 'F');
@@ -482,3 +482,5 @@ export default function Header() {
     </>
   );
 }
+
+    

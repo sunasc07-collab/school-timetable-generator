@@ -68,7 +68,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="font-headline">System Settings</DialogTitle>
                     <DialogDescription>
@@ -78,7 +78,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                 <div className="max-h-[60vh] overflow-y-auto p-1 pr-4">
                     <div className="grid gap-4 py-4">
                         {localTimeSlots.map((slot, index) => (
-                            <div key={slot.id} className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-center gap-3 p-3 border rounded-lg relative group">
+                            <div key={slot.id} className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-end gap-3 p-3 border rounded-lg relative group">
                                 <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
                                 
                                 <div className="space-y-1">
@@ -100,7 +100,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         disabled={!slot.isBreak}
                                     />
                                 </div>
-                                <div className="flex flex-col items-center space-y-2 pt-4">
+                                <div className="flex flex-col items-center space-y-2">
                                     <Label htmlFor={`isBreak-${index}`} className="text-xs">Break</Label>
                                     <Switch
                                         id={`isBreak-${index}`}
@@ -116,12 +116,14 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                     />
                                 </div>
 
-                                <div className="flex flex-col gap-1 pt-4">
-                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleAddSlot(index)}>
-                                        <Plus className="h-4 w-4" />
+                                <div className="flex flex-col gap-2">
+                                     <Button variant="outline" size="sm" className="h-8" onClick={() => handleAddSlot(index)}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Slot
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveSlot(index)} disabled={localTimeSlots.length <= 1}>
-                                        <Trash2 className="h-4 w-4" />
+                                    <Button variant="destructive" size="sm" className="h-8" onClick={() => handleRemoveSlot(index)} disabled={localTimeSlots.length <= 1}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Remove
                                     </Button>
                                 </div>
                             </div>

@@ -134,9 +134,9 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         armOptions = JUNIOR_SECONDARY_ARMS;
         showArms = true;
       } else if (hasSeniorSecondary && !hasJuniorSecondary) {
-        showArms = false; // Hide separate arms for senior secondary, as it's in the options box
+        showArms = false; 
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
-        showArms = true; // Show for junior
+        showArms = true; 
         armOptions = JUNIOR_SECONDARY_ARMS;
       } else {
         showArms = false;
@@ -181,9 +181,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     useEffect(() => {
         if (!showArms) {
-            // Only clear arms if they are not part of an optional senior secondary assignment
-            const isOptionalSenior = hasSeniorSecondary && getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional';
-            if (!isOptionalSenior) {
+            const isOptionalOrCoreSenior = hasSeniorSecondary && (getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional' || getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'core');
+            if (!isOptionalOrCoreSenior) {
                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
             }
         }
@@ -202,11 +201,13 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`, type);
         if (type !== 'optional') {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
+        }
+        if (type !== 'optional' && type !== 'core') {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         } else {
              const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
              const hasJunior = currentGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
-             if (!hasJunior) {
+             if (!hasJunior && type === 'optional') {
                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
              }
         }
@@ -390,7 +391,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                               {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
-                         {subjectType === 'optional' && (
+                         {(subjectType === 'optional' || subjectType === 'core') && (
                          <FormField
                             control={control}
                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -668,20 +669,18 @@ export default function TeacherEditor() {
                 optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
             };
 
-            if (formAssignment.optionGroup) {
-                // For optional subjects, keep grades and arms together in one assignment
+            if (formAssignment.subjectType === 'optional' || formAssignment.subjectType === 'core') {
                 expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,
                     arms: formAssignment.arms || [],
                 });
             } else {
-                 // For core subjects, create separate assignments for each grade
                 formAssignment.grades.forEach(grade => {
                     expandedAssignments.push({
                         ...assignmentBase,
                         grades: [grade],
-                        arms: formAssignment.arms || [], // arms are handled at generation for core subjects
+                        arms: formAssignment.arms || [], 
                     });
                 });
             }
@@ -880,7 +879,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    
-
-    

@@ -31,7 +31,7 @@ import { Input } from "./ui/input";
 import { useState, useMemo } from "react";
 import type { ViewMode, TimetableSession, Teacher } from "@/lib/types";
 import SystemSettings from "./system-settings";
-import { formatTime } from "@/lib/utils";
+import { to12Hour } from "@/lib/utils";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
@@ -178,6 +178,13 @@ export default function Header() {
 
         return `${gradePart}${armPart}`;
     };
+    
+    const formatTimeForPdf = (timeStr: string) => {
+        const { time, ampm } = to12Hour(timeStr);
+        const [hours, minutes] = time.split(':');
+        const h = parseInt(hours, 10);
+        return `${h}:${minutes} ${ampm.toUpperCase()}`;
+    };
 
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
@@ -212,12 +219,11 @@ export default function Header() {
         const gridY = MARGIN + 90;
         const gridWidth = PAGE_WIDTH - (MARGIN * 2);
         const dayHeaderHeight = 30;
-        const timeColWidth = 70;
+        const timeColWidth = 80;
         const dayColWidth = (gridWidth - timeColWidth) / days.length;
         
         const periodSlots = timeSlots.filter(slot => !slot.isBreak);
         
-        // Calculate dynamic heights
         const totalTeachingPeriods = timeSlots.filter(ts => !ts.isBreak).length;
         const totalBreaks = timeSlots.filter(ts => ts.isBreak).length;
         const availableGridHeight = PAGE_HEIGHT - gridY - MARGIN;
@@ -241,12 +247,12 @@ export default function Header() {
         timeSlots.forEach((slot) => {
             const rowHeight = slot.isBreak ? breakCellHeight : normalCellHeight;
             const [start, end] = slot.time.split('-');
-            const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+            const formattedTime = `${formatTimeForPdf(start)} - ${formatTimeForPdf(end)}`;
 
-            doc.setFontSize(12);
+            doc.setFontSize(11);
             doc.setFont(FONT_FAMILY, "bold");
             doc.setTextColor(255, 255, 255);
-            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 5, { align: 'right' });
+            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 4, { align: 'right' });
 
 
             days.forEach((day, dayIndex) => {

@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
-import { Download, Printer, View, Plus, Trash2, Edit, Zap } from "lucide-react";
+import { Download, Printer, View, Plus, Trash2, Edit, Zap, Settings } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import {
@@ -30,6 +30,7 @@ import {
 import { Input } from "./ui/input";
 import { useState, useMemo } from "react";
 import type { ViewMode, TimetableSession, Teacher } from "@/lib/types";
+import SystemSettings from "./system-settings";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
@@ -48,6 +49,7 @@ export default function Header() {
   } = useTimetable();
   
   const [dialogOpen, setDialogOpen] = useState<DialogState>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [timetableName, setTimetableName] = useState("");
   const [timetableToEdit, setTimetableToEdit] = useState<string | null>(null);
 
@@ -237,13 +239,14 @@ export default function Header() {
         timeSlots.forEach((slot) => {
             const rowHeight = slot.isBreak ? breakCellHeight : normalCellHeight;
 
-            if (slot.isBreak) {
+            if (slot.isBreak || slot.isLocked) {
+                const label = slot.label || '';
                 doc.setFillColor(240, 240, 240);
                 roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
                 doc.setFontSize(18);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
-                doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
+                doc.text(label.replace('-', ' '), PAGE_WIDTH / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
             } else {
                 doc.setFontSize(12);
                 doc.setFont(FONT_FAMILY, "bold");
@@ -398,6 +401,8 @@ export default function Header() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {activeTimetable && <SystemSettings open={settingsOpen} onOpenChange={setSettingsOpen} />}
 
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2">
@@ -443,6 +448,10 @@ export default function Header() {
             <Zap className="mr-2 h-4 w-4" />
             Generate Timetable
         </Button>
+        
+        <Button onClick={() => setSettingsOpen(true)} variant="outline" size="icon" disabled={!activeTimetable}>
+            <Settings className="h-4 w-4" />
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -487,5 +496,7 @@ export default function Header() {
     </>
   );
 }
+
+    
 
     

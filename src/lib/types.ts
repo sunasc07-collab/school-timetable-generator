@@ -54,9 +54,11 @@ export type Conflict = {
 };
 
 export type TimeSlot = {
+  id: string;
   period: number | null;
   time: string;
   isBreak?: boolean;
+  isLocked?: boolean;
   label?: string;
 };
 
@@ -72,3 +74,5 @@ export type Timetable = {
   timeSlots: TimeSlot[];
   error: string | null;
 };
+
+    

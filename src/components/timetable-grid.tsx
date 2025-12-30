@@ -202,7 +202,7 @@ export default function TimetableGrid() {
                 <TableHead className="w-28">Day</TableHead>
                 <TableHead className="w-32 border-x-0"></TableHead>
                 {timeSlots.map((slot, index) => {
-                  if (slot.isBreak) {
+                  if (slot.isBreak || slot.isLocked) {
                      return (
                       <TableHead key={index} className="w-10 p-0 font-headline text-center align-middle border-x-0">
                         <div className="text-xs font-normal h-full">{slot.time}</div>
@@ -226,21 +226,14 @@ export default function TimetableGrid() {
                 for (let slotIndex = 0; slotIndex < timeSlots.length; slotIndex++) {
                     const slot = timeSlots[slotIndex];
 
-                    if (slot.isBreak) {
-                        let breakText: React.ReactNode = null;
-                        
-                        if (slot.label === 'SHORT-BREAK') {
-                            if (day === 'Tue') breakText = <span className="font-bold text-[22px]">BREAK</span>;
-                            if (day === 'Wed') breakText = <span className="font-bold text-[22px]">SHORT</span>;
-                        } else if (slot.label === 'LUNCH' && day === 'Wed') {
-                            breakText = <span className="text-[35px] font-bold">LUNCH</span>;
-                        }
+                    if (slot.isBreak || slot.isLocked) {
+                        let breakText: React.ReactNode = slot.label || '';
                         
                         rowCells.push(
                             <TableCell key={slotIndex} className="p-0 relative border-x-0">
                                 <div className={cn(
                                         "text-muted-foreground uppercase [writing-mode:vertical-lr] transform rotate-180 tracking-widest flex items-center justify-center gap-4 h-full",
-                                        "absolute inset-0"
+                                        "absolute inset-0 text-2xl font-bold"
                                     )}>
                                     {breakText}
                                 </div>
@@ -263,42 +256,10 @@ export default function TimetableGrid() {
                     periodIndex++;
                 }
 
-                if (day === 'Fri' && isSecondarySchool) {
-                    const sportCell = (
-                        <TableCell colSpan={2} className="p-1 align-middle text-center">
-                            <div className="flex items-center justify-center h-20 w-full text-center font-bold text-lg text-muted-foreground uppercase">
-                                SPORT
-                            </div>
-                        </TableCell>
-                    );
-                    const regularCells = rowCells.slice(0, -2);
-                    return (
-                         <TableRow key={day}>
-                            <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                            <TableCell className="w-32 relative border-x-0">
-                                {day === 'Wed' && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="text-[35px] font-bold text-muted-foreground/80 transform -rotate-90 uppercase">Assembly</span>
-                                    </div>
-                                )}
-                            </TableCell>
-                            {regularCells}
-                            {sportCell}
-                        </TableRow>
-                    )
-
-                }
-
                 return (
                     <TableRow key={day}>
                         <TableCell className="font-medium text-muted-foreground align-top pt-3">{day}</TableCell>
-                        <TableCell className="w-32 relative border-x-0">
-                            {day === 'Wed' && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-[35px] font-bold text-muted-foreground/80 transform -rotate-90 uppercase">Assembly</span>
-                                </div>
-                            )}
-                        </TableCell>
+                        <TableCell className="w-32 relative border-x-0" />
                         {rowCells}
                     </TableRow>
                 );
@@ -372,3 +333,6 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+
+    

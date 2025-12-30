@@ -26,23 +26,25 @@ type TimetableContextType = {
   
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+
+  updateTimeSlots: (newTimeSlots: TimeSlot[]) => void;
 };
 
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const DEFAULT_TIMESLOTS: TimeSlot[] = [
-    { period: 1, time: '8:00-8:40' },
-    { period: 2, time: '8:40-9:20' },
-    { period: 3, time: '9:20-10:00' },
-    { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK' },
-    { period: 4, time: '10:20-11:00' },
-    { period: 5, time: '11:00-11:40' },
-    { period: 6, time: '11:40-12:20' },
-    { period: null, time: '12:20-13:00', isBreak: true, label: 'LUNCH' },
-    { period: 7, time: '13:00-13:40' },
-    { period: 8, time: '13:40-14:20' },
-    { period: 9, time: '14:20-15:00' },
+    { period: 1, time: '8:00-8:40', id: crypto.randomUUID() },
+    { period: 2, time: '8:40-9:20', id: crypto.randomUUID() },
+    { period: 3, time: '9:20-10:00', id: crypto.randomUUID() },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK', id: crypto.randomUUID() },
+    { period: 4, time: '10:20-11:00', id: crypto.randomUUID() },
+    { period: 5, time: '11:00-11:40', id: crypto.randomUUID() },
+    { period: 6, time: '11:40-12:20', id: crypto.randomUUID() },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'LUNCH', id: crypto.randomUUID() },
+    { period: 7, time: '13:00-13:40', id: crypto.randomUUID() },
+    { period: 8, time: '13:40-14:20', id: crypto.randomUUID() },
+    { period: 9, time: '14:20-15:00', id: crypto.randomUUID() },
 ];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
@@ -92,10 +94,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v22", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v22", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v22", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v22', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v23", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v23", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v23", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v23', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -114,7 +116,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     }
     
     const { days, timeSlots } = currentTT;
-    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
+    const periodCount = timeSlots.filter(ts => !ts.isBreak && !ts.isLocked).length;
     const newConflicts: Conflict[] = [];
 
     for (const day of days) {
@@ -263,12 +265,25 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
   }, [allTeachers, setAllTeachers, resetTimetableForSchool]);
 
+  const updateTimeSlots = (newTimeSlots: TimeSlot[]) => {
+    if (!activeTimetable) return;
+    const numberedTimeSlots = newTimeSlots.map((slot, index) => {
+        if (!slot.isBreak && !slot.isLocked) {
+            const periodNumber = newTimeSlots.slice(0, index + 1).filter(s => !s.isBreak && !s.isLocked).length;
+            return { ...slot, period: periodNumber };
+        }
+        return { ...slot, period: null };
+    });
+    updateTimetable(activeTimetable.id, { timeSlots: numberedTimeSlots });
+    resetTimetableForSchool(activeTimetable.id);
+  }
+
   const getConsecutivePeriods = (slots: TimeSlot[]): number[][] => {
     const consecutive: number[][] = [];
     const teachingPeriods: { originalIndex: number, newIndex: number}[] = [];
     let periodCounter = 0;
     slots.forEach((slot, originalIndex) => {
-        if(!slot.isBreak) {
+        if(!slot.isBreak && !slot.isLocked) {
             teachingPeriods.push({ originalIndex: originalIndex, newIndex: periodCounter });
             periodCounter++;
         }
@@ -292,7 +307,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         teacher.assignments.some(a => a.schoolId === activeTimetable.id)
     );
     const { timeSlots, days, name: schoolName, id: schoolId } = activeTimetable;
-    const periodCount = timeSlots.filter(ts => !ts.isBreak).length;
+    const periodCount = timeSlots.filter(ts => !ts.isBreak && !ts.isLocked).length;
     let newConflicts: Conflict[] = [];
 
     const teacherAvailability: { [day: string]: { [period: number]: Set<string> } } = {};
@@ -527,36 +542,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     let finalTimetable = solvedBoard;
 
-    const isSecondary = schoolName.toLowerCase().includes('secondary');
-    if (finalTimetable && isSecondary) {
-      sortedClasses.forEach(className => {
-          if (!className.toLowerCase().includes('a-level')) {
-              const sportsSession1: TimetableSession = {
-                  id: `${crypto.randomUUID()}-sports-${className}`,
-                  subject: 'Sports',
-                  teacher: 'Sports Coach',
-                  className: className,
-                  classes: [className],
-                  isDouble: true,
-                  part: 1,
-              };
-              const sportsSession2: TimetableSession = {
-                  id: sportsSession1.id,
-                  subject: 'Sports',
-                  teacher: 'Sports Coach',
-                  className: className,
-                  classes: [className],
-                  isDouble: true,
-                  part: 2,
-              };
-              if(finalTimetable['Fri']?.[periodCount-2] && finalTimetable['Fri']?.[periodCount-1]) {
-                finalTimetable['Fri'][periodCount - 2].push(sportsSession1);
-                finalTimetable['Fri'][periodCount - 1].push(sportsSession2);
-              }
-          }
-      });
-    }
-
     updateTimetable(activeTimetable.id, { 
         timetable: finalTimetable || {},
         classes: sortedClasses,
@@ -659,6 +644,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         viewMode,
         setViewMode,
         resolveConflicts,
+        updateTimeSlots
       }}
     >
       {children}
@@ -673,3 +659,6 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+
+    

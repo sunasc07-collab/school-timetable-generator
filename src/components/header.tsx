@@ -160,7 +160,7 @@ export default function Header() {
 
     const getClassInitials = (className: string) => {
         if (!className) return '';
-        return className.replace("Grade ", "G").replace("A-Level Year", "Y");
+        return className.charAt(0);
     };
 
     listToIterate.forEach((item, index) => {
@@ -241,9 +241,9 @@ export default function Header() {
                         doc.setFont(undefined, 'bold');
                         doc.text(optionLetter, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 1, { halign: 'center' });
                         
-                        doc.setFontSize(7);
-                        doc.setFont(undefined, 'normal');
-                        doc.text(gradeText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 4, { halign: 'center' });
+                        doc.setFontSize(8);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(gradeText, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 5, { halign: 'center' });
 
                     } else {
                         const subjectText = getSubjectInitials(session.subject);
@@ -431,5 +431,3 @@ export default function Header() {
     </>
   );
 }
-
-    

@@ -144,7 +144,7 @@ export default function TimetableGrid() {
         </div>
       );
     }
-    return null; // Return null instead of a div
+    return null;
   }
 
   if (!activeTimetable) {
@@ -210,64 +210,51 @@ export default function TimetableGrid() {
                 const [start, end] = slot.time.split('-');
                 const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
-                if (slot.isBreak) {
-                    const breakDays = slot.days || [];
-                    return (
-                        <TableRow key={slot.id} className="h-12">
-                            <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
-                                <div className="text-xs">{formattedTime}</div>
-                            </TableCell>
-                            {days.map(day => {
-                                const isBreakOnThisDay = breakDays.includes(day);
-                                if (isBreakOnThisDay) {
-                                    return (
-                                        <TableCell key={day} className="text-center p-0 bg-muted/50">
-                                            <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                                                {slot.label}
-                                            </span>
-                                        </TableCell>
-                                    );
-                                }
-                                // This is a teaching period on this day, so it should be a droppable cell
-                                const teachingPeriod = timeSlots.find(ts => !ts.isBreak && ts.time === slot.time)?.period;
-
-                                return (
-                                    <TableCell 
-                                        key={day} 
-                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[5rem]"
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => teachingPeriod && handleDrop(e, day, teachingPeriod)}
-                                    >
-                                        {teachingPeriod ? renderCellContent(day, teachingPeriod, filterValue) : null}
-                                    </TableCell>
-                                );
-                            })}
-                        </TableRow>
-                    );
-                }
-
-                // For teaching periods, check if it's overridden by a break on any day
-                const isOverriddenByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time);
-                if (isOverriddenByBreak) return null;
-
-                const periodIndex = slot.period;
-                if (periodIndex === null) return null;
-
                 return (
                     <TableRow key={slot.id} className="h-24">
                         <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
-                        {days.map((day) => (
-                            <TableCell
-                                key={day}
-                                className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => handleDrop(e, day, periodIndex)}
-                            >
-                                {renderCellContent(day, periodIndex, filterValue)}
-                            </TableCell>
-                        ))}
+                        {days.map((day) => {
+                            const isBreakOnThisDay = slot.isBreak && (slot.days || days).includes(day);
+
+                            if (isBreakOnThisDay) {
+                                return (
+                                    <TableCell key={`${slot.id}-${day}`} className="text-center p-0 bg-muted/50 align-middle">
+                                        <span className="font-semibold text-muted-foreground tracking-widest uppercase text-xs">
+                                            {slot.label}
+                                        </span>
+                                    </TableCell>
+                                );
+                            }
+                            
+                            const periodIndex = slot.period;
+                            if (periodIndex === null) {
+                                // This can happen if a slot is marked as a break but not for this specific day.
+                                // We need to find the teaching period that corresponds to this time.
+                                // This case should be handled by ensuring non-break slots always have a period.
+                                // If we get here, let's render an empty, droppable cell.
+                                 return (
+                                    <TableCell 
+                                        key={`${slot.id}-${day}`} 
+                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
+                                        onDragOver={handleDragOver}
+                                        // A drop here is invalid if we can't determine the period
+                                    />
+                                 );
+                            }
+
+                            return (
+                                <TableCell
+                                    key={`${slot.id}-${day}`}
+                                    className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, day, periodIndex)}
+                                >
+                                    {renderCellContent(day, periodIndex, filterValue)}
+                                </TableCell>
+                            );
+                        })}
                     </TableRow>
                 )
             })}

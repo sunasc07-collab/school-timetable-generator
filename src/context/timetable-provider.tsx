@@ -98,10 +98,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v25", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v25", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v25", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v25', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v26", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v26", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v26", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v26', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -450,7 +450,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     days.forEach(day => {
         newTimetable[day] = [];
         const teachingSlotsForDay = timeSlots.filter(ts => {
-            // A slot is NOT a teaching slot if it's a break that applies to this specific day.
             const isBreakOnThisDay = ts.isBreak && (ts.days || days).includes(day);
             return !isBreakOnThisDay;
         });
@@ -484,15 +483,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const targetSlot = board[currentDay]?.find(slot => slot[0]?.period === p);
             
             if (targetSlot) {
-                // Cannot place if a locked session is already there for any of the target classes
                 if (targetSlot.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.className === 'all'))) {
                      return false;
                 }
                 
-                // Teacher conflict
                 if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
 
-                // Class conflict
                 for (const className of session.classes) {
                   if (targetSlot.some(s => s.classes.includes(className))) return false;
                 }
@@ -574,7 +570,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return;
     }
     
-    // Sort slots by period number
     for (const day in solvedBoard) {
         solvedBoard[day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
     }

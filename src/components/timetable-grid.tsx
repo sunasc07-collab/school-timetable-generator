@@ -214,6 +214,7 @@ export default function TimetableGrid() {
                     <TableRow key={slot.id} className="h-24">
                         <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
                             <div className="text-xs">{formattedTime}</div>
+                            {!slot.isBreak && <div className="text-xs mt-1">Period {slot.period}</div>}
                         </TableCell>
                         {days.map((day) => {
                             const isBreakOnThisDay = slot.isBreak && (slot.days || days).includes(day);
@@ -231,7 +232,6 @@ export default function TimetableGrid() {
                             // This is a teaching period for this day
                             const periodIndex = slot.period;
                             if (periodIndex === null) {
-                                // This should not happen if logic is correct, but as a fallback render an empty cell.
                                  return (
                                     <TableCell 
                                         key={`${slot.id}-${day}`} 

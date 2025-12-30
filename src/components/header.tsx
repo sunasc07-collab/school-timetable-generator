@@ -118,8 +118,6 @@ export default function Header() {
     
     const listToIterate = type === 'class' ? classes : teachers;
     if (listToIterate.length === 0) {
-        console.warn(`No ${type}s to generate PDF for.`);
-        // Optionally, show a toast or alert to the user
         return;
     }
 
@@ -288,35 +286,35 @@ export default function Header() {
                              if (firstSession.optionGroup) {
                                 doc.setFontSize(18);
                                 doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + 15, { align: 'center' });
+                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
                                 
-                                doc.setFontSize(11);
+                                doc.setFontSize(14);
                                 doc.setFont(FONT_FAMILY, "bold");
                                 if (type === 'class') {
                                     const sessionForThisClass = sessionsInBlock.find(s => s.classes.includes(itemName));
                                     if(sessionForThisClass){
-                                        doc.text(sessionForThisClass.actualSubject || '', cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
+                                        doc.text(sessionForThisClass.actualSubject || '', cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
                                     }
                                 } else {
                                      const classNames = [...new Set(sessionsInBlock.map(s => s.classes.map(formatClassName)).flat())].join(', ');
                                      const classText = `Class: ${classNames}`;
-                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
+                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
                                 }
 
                              } else {
-                                doc.setFontSize(14);
+                                doc.setFontSize(16);
                                 doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(subject, cellX + dayColWidth / 2, sessionY + 15, { align: 'center' });
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
 
-                                doc.setFontSize(11);
+                                doc.setFontSize(14);
                                 doc.setFont(FONT_FAMILY, "bold");
                                 if(type === 'class'){
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
                                 } else { // teacher view
                                     const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
                                     const classText = `Class: ${classNames}`;
-                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + 28, { align: 'center' });
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 12, { align: 'center' });
                                 }
                              }
                              sessionIndex++;

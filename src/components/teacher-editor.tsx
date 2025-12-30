@@ -144,7 +144,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         showArms = true;
       }
       else if (hasSeniorSecondary && !hasJuniorSecondary) {
-        showArms = false; 
+        showArms = subjectType === 'core';
+        armOptions = SENIOR_SECONDARY_ARMS;
       } else if (hasSeniorSecondary && hasJuniorSecondary) {
         showArms = true; 
         armOptions = JUNIOR_SECONDARY_ARMS;
@@ -155,8 +156,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     
     const allArmOptions = useMemo(() => {
         const currentArms = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
-        const dynamicArms = currentArms.filter((arm: string) => !armOptions.includes(arm));
-        return [...armOptions, ...[...new Set([...customArms, ...dynamicArms])]];
+        const dynamicArms = currentArms.filter((arm: string) => !armOptions.includes(arm) && !SENIOR_SECONDARY_ARMS.includes(arm));
+        return [...new Set([...armOptions, ...SENIOR_SECONDARY_ARMS, ...customArms, ...dynamicArms])];
     }, [armOptions, customArms, getValues, teacherIndex, assignmentIndex]);
 
     const handleAddArm = () => {
@@ -203,11 +204,9 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }, [setValue, getValues, teacherIndex, assignmentIndex, selectedSchool, gradeOptions]);
 
     useEffect(() => {
-        if (!showArms) {
-            const isOptionalOrCoreSenior = hasSeniorSecondary && (getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional' || getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'core');
-            if (!isOptionalOrCoreSenior) {
-                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-            }
+        const isOptionalOrCoreSenior = hasSeniorSecondary && (getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional' || getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'core');
+        if (!showArms && !isOptionalOrCoreSenior) {
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
         }
     }, [showArms, hasSeniorSecondary, setValue, getValues, teacherIndex, assignmentIndex]);
 
@@ -225,14 +224,12 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         if (type !== 'optional') {
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, null);
         }
-        if (type !== 'optional' && type !== 'core') {
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-        } else {
-             const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
-             const hasJunior = currentGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
-             if (!hasJunior && type === 'optional') {
-                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-             }
+        if (type !== 'core') {
+          const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
+          const hasJunior = currentGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
+           if (type === 'optional' && !hasJunior) {
+              setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+           }
         }
         trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
     }
@@ -241,6 +238,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.optionGroup`, group);
         trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}`);
     }
+    
+    const shouldShowSeniorArms = hasSeniorSecondary && (subjectType === 'core' || subjectType === 'optional');
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -414,7 +413,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                               {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
-                         {(subjectType === 'optional' || subjectType === 'core') && (
+                         {shouldShowSeniorArms && (
                          <FormField
                             control={control}
                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -425,7 +424,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                   <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" size="sm" className="h-6 text-xs px-2">
-                                            <Plus className="mr-1 h-3 w-3" /> Add
+                                            <Plus className="mr-1 h-3 w-3" /> Add Others
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-48 p-2">
@@ -442,7 +441,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                   </Popover>
                                 </div>
                                 <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                    {[...SENIOR_SECONDARY_ARMS, ...customArms].map((arm) => (
+                                    {allArmOptions.filter(arm => SENIOR_SECONDARY_ARMS.includes(arm) || customArms.includes(arm)).map((arm) => (
                                         <FormField
                                             key={arm}
                                             control={control}
@@ -486,7 +485,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                       <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="outline" size="sm" className={cn("h-6 text-xs px-2", assignmentIndex > 0 && "mt-6")}>
-                                                <Plus className="mr-1 h-3 w-3" /> Add
+                                                <Plus className="mr-1 h-3 w-3" /> Add Others
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-48 p-2">
@@ -503,7 +502,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                       </Popover>
                                     </div>
                                     <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                        {allArmOptions.map((arm) => (
+                                        {allArmOptions.filter(arm => armOptions.includes(arm) || customArms.includes(arm)).map((arm) => (
                                             <FormField
                                                 key={arm}
                                                 control={control}

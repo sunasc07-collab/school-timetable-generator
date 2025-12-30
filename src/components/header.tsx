@@ -262,28 +262,31 @@ export default function Header() {
                     
                 } else if (isOptionBlock && type === 'teacher') {
                      const allSessionsInCell = data.cell.raw as TimetableSession[];
-                    const optionGroup = allSessionsInCell[0].optionGroup;
-
-                    const uniqueClassesForTeacher = [...new Set(allSessionsInCell
-                        .filter(s => s.teacher === itemName)
-                        .flatMap(s => s.classes))];
-
+                    
                     doc.setFillColor(...(getSubjectColor(allSessionsInCell[0]) as [number, number, number]));
                     doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     doc.setTextColor(0, 0, 0);
                     
-                    const optionGroupText = `Option ${optionGroup}`;
-                    doc.setFontSize(15);
-                    doc.setFont(undefined, 'bold');
-                    doc.text(optionGroupText, data.cell.x + data.cell.width / 2, data.cell.y + 8, { halign: 'center' });
-
-                    const classDetails = uniqueClassesForTeacher.map(formatClassName).join(', ');
-                    const teacherInitial = getTeacherInitials(itemName);
-                    const details = `${classDetails} - ${teacherInitial}`;
-
+                    const optionGroupText = `Option ${allSessionsInCell[0].optionGroup}`;
                     doc.setFontSize(10);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(optionGroupText, data.cell.x + data.cell.width / 2, data.cell.y + 6, { halign: 'center' });
+
+                    const teacherSessions = allSessionsInCell.filter(s => s.teacher === itemName);
+                    const uniqueSubjects = [...new Set(teacherSessions.map(s => s.actualSubject))];
+                    const uniqueClasses = [...new Set(teacherSessions.flatMap(s => s.classes))];
+                    
+                    const subjectText = getSubjectInitials(uniqueSubjects[0] || '');
+                    const classDetails = uniqueClasses.map(formatClassName).join(', ');
+
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(subjectText, data.cell.x + data.cell.width / 2, data.cell.y + 11, { halign: 'center' });
+                    
+                    doc.setFontSize(7);
                     doc.setFont(undefined, 'normal');
-                    doc.text(details, data.cell.x + data.cell.width / 2, data.cell.y + 14, { halign: 'center' });
+                    doc.text(classDetails, data.cell.x + data.cell.width / 2, data.cell.y + 15, { halign: 'center' });
+
                 } else {
                     const cellHeight = data.cell.height;
                     const sessionHeight = cellHeight / sessions.length;

@@ -449,22 +449,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     days.forEach(day => {
         newTimetable[day] = [];
-        const teachingSlots = timeSlots.filter(ts => {
-            if (ts.isBreak) {
-                // If it's a break slot, it's NOT a teaching slot ONLY IF this day is included in its 'days' array.
-                // If 'days' is undefined, it applies to all days.
-                return !(ts.days || days).includes(day);
-            }
-            // If another slot at the same time IS a break on this day, then this is not a teaching slot.
-            const isOverriddenByBreak = timeSlots.some(otherTs => 
-                otherTs.isBreak && 
-                otherTs.time === ts.time && 
-                (otherTs.days || days).includes(day)
-            );
-            return !isOverriddenByBreak;
+        const teachingSlotsForDay = timeSlots.filter(ts => {
+            // A slot is NOT a teaching slot if it's a break that applies to this specific day.
+            const isBreakOnThisDay = ts.isBreak && (ts.days || days).includes(day);
+            return !isBreakOnThisDay;
         });
-        
-        teachingPeriodsByDay[day] = teachingSlots
+
+        teachingPeriodsByDay[day] = teachingSlotsForDay
             .map(ts => ts.period)
             .filter((p): p is number => p !== null)
             .sort((a, b) => a - b);

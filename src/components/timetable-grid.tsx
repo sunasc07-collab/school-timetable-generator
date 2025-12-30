@@ -228,18 +228,15 @@ export default function TimetableGrid() {
                                 );
                             }
                             
+                            // This is a teaching period for this day
                             const periodIndex = slot.period;
                             if (periodIndex === null) {
-                                // This can happen if a slot is marked as a break but not for this specific day.
-                                // We need to find the teaching period that corresponds to this time.
-                                // This case should be handled by ensuring non-break slots always have a period.
-                                // If we get here, let's render an empty, droppable cell.
+                                // This should not happen if logic is correct, but as a fallback render an empty cell.
                                  return (
                                     <TableCell 
                                         key={`${slot.id}-${day}`} 
                                         className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
                                         onDragOver={handleDragOver}
-                                        // A drop here is invalid if we can't determine the period
                                     />
                                  );
                             }
@@ -327,3 +324,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

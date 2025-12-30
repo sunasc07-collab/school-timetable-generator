@@ -211,63 +211,53 @@ export default function TimetableGrid() {
              {timeSlots.map((slot) => {
                 if (slot.isBreak) {
                   const breakDays = slot.days || days;
-                  if(breakDays.length === days.length) {
+                   if (breakDays.length < days.length) {
                     return (
-                        <TableRow key={slot.id}>
-                            <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
-                                <div className="text-xs">{slot.time}</div>
-                            </TableCell>
-                            <TableCell 
-                                colSpan={days.length} 
-                                className="text-center bg-muted/50"
-                            >
-                                <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                                    {slot.label}
-                                </span>
-                            </TableCell>
-                        </TableRow>
+                      <TableRow key={slot.id}>
+                        <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
+                          <div className="text-xs">{slot.time}</div>
+                        </TableCell>
+                        {days.map(day => (
+                          <TableCell key={day} className={cn("text-center", breakDays.includes(day) ? "bg-muted/50" : "")}>
+                            {breakDays.includes(day) &&
+                              <span className="font-semibold text-muted-foreground tracking-widest uppercase">
+                                {slot.label}
+                              </span>
+                            }
+                          </TableCell>
+                        ))}
+                      </TableRow>
                     );
                   }
+                  // Full week break
+                  return (
+                      <TableRow key={slot.id}>
+                          <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
+                              <div className="text-xs">{slot.time}</div>
+                          </TableCell>
+                          <TableCell 
+                              colSpan={days.length} 
+                              className="text-center bg-muted/50"
+                          >
+                              <span className="font-semibold text-muted-foreground tracking-widest uppercase">
+                                  {slot.label}
+                              </span>
+                          </TableCell>
+                      </TableRow>
+                  );
                 }
 
                 const periodIndex = timeSlots.filter(s => !s.isBreak && s.period! <= slot.period!).length - 1;
+                
+                 if (periodIndex < 0) return null; // Should not happen if data is correct
 
                 return (
                     <TableRow key={slot.id}>
                         <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
-                            {slot.isBreak ? (
-                              <div className="text-xs">{slot.time}</div>
-                            ) : (
-                              <>
-                                <div>Period {slot.period}</div>
-                                <div className="text-xs">{slot.time}</div>
-                              </>
-                            )}
+                            <div>Period {slot.period}</div>
+                            <div className="text-xs">{slot.time}</div>
                         </TableCell>
                         {days.map((day) => {
-                            if (slot.isBreak && !(slot.days || days).includes(day)) {
-                                return (
-                                    <TableCell
-                                        key={day}
-                                        className={cn("p-1 align-top", "hover:bg-muted/50 transition-colors")}
-                                        onDragOver={(e) => handleDragOver(e)}
-                                        onDrop={(e) => handleDrop(e, day, periodIndex)}
-                                    >
-                                        {renderCellContent(day, periodIndex, filterValue)}
-                                    </TableCell>
-                                )
-                            }
-                            if (slot.isBreak) {
-                                return (
-                                    <TableCell key={day} className="text-center bg-muted/50">
-                                      { slot.period === null &&
-                                          <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                                              {slot.label}
-                                          </span>
-                                      }
-                                    </TableCell>
-                                )
-                            }
                             return (
                                 <TableCell
                                     key={day}
@@ -351,3 +341,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

@@ -419,7 +419,7 @@ export default function Header() {
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-xl font-bold tracking-tight font-headline">
-          Timetable Weaver
+          Timetable
         </h1>
       </div>
 

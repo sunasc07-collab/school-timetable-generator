@@ -18,7 +18,7 @@ const fontHeadline = Lexend({
 
 
 export const metadata: Metadata = {
-  title: "Timetable Weaver",
+  title: "Timetable",
   description: "An AI-powered school timetable planner.",
 };
 

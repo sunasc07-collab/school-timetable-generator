@@ -210,11 +210,10 @@ export default function Header() {
         
         const periodSlots = timeSlots.filter(slot => !slot.isBreak);
         const breakSlots = timeSlots.filter(slot => slot.isBreak);
-        const normalCellHeight = (PAGE_HEIGHT - gridY - MARGIN) / (periodSlots.length + 1);
-        const breakCellHeight = normalCellHeight / 2;
-        const totalEffectiveRows = periodSlots.length + breakSlots.length;
+        
         const availableGridHeight = PAGE_HEIGHT - gridY - MARGIN;
-        const cellHeight = availableGridHeight / totalEffectiveRows;
+        const normalCellHeight = availableGridHeight / (periodSlots.length + breakSlots.length * 0.5);
+        const breakCellHeight = normalCellHeight / 2;
 
         days.forEach((day, dayIndex) => {
             const dayX = gridX + timeColWidth + (dayIndex * dayColWidth);
@@ -232,7 +231,7 @@ export default function Header() {
         let periodIdxCounter = 0;
 
         timeSlots.forEach((slot) => {
-            const rowHeight = slot.isBreak ? breakCellHeight : cellHeight;
+            const rowHeight = slot.isBreak ? breakCellHeight : normalCellHeight;
 
             if (slot.isBreak) {
                 doc.setFillColor(240, 240, 240);
@@ -261,7 +260,7 @@ export default function Header() {
                     if (relevantSessions.length > 0) {
                         const uniqueSessionBlocks = new Map<string, TimetableSession[]>();
                         relevantSessions.forEach(session => {
-                            const key = session.optionGroup ? session.id : session.className;
+                            const key = session.optionGroup ? session.id : `${session.className}-${session.subject}`;
                             if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
                             uniqueSessionBlocks.get(key)!.push(session);
                         });
@@ -283,7 +282,7 @@ export default function Header() {
                              doc.setFontSize(9);
                              doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
 
-                             docsetFontSize(8);
+                             doc.setFontSize(8);
                              doc.setFont(FONT_FAMILY, "normal");
                              
                              if(type === 'class'){
@@ -483,5 +482,3 @@ export default function Header() {
     </>
   );
 }
-
-    

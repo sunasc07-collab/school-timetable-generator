@@ -274,19 +274,12 @@ export default function Header() {
                     } else if (type === 'teacher') {
                         const teacherSessions = allSessionsInCell.filter(s => s.teacherId === itemId);
                         if (teacherSessions.length > 0) {
-                            const uniqueSubjects = [...new Set(teacherSessions.map(s => s.actualSubject))];
                             const uniqueClasses = [...new Set(teacherSessions.flatMap(s => s.classes))];
-                            
-                            const subjectText = getSubjectInitials(uniqueSubjects[0] || '');
                             const classDetails = uniqueClasses.map(formatClassName).join(', ');
 
-                            doc.setFontSize(8);
-                            doc.setFont(undefined, 'bold');
-                            doc.text(subjectText, data.cell.x + data.cell.width / 2, data.cell.y + 11, { halign: 'center' });
-                            
                             doc.setFontSize(7);
                             doc.setFont(undefined, 'normal');
-                            doc.text(classDetails, data.cell.x + data.cell.width / 2, data.cell.y + 15, { halign: 'center' });
+                            doc.text(classDetails, data.cell.x + data.cell.width / 2, data.cell.y + 11, { halign: 'center' });
                         }
                     }
                 } else {

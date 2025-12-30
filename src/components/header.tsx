@@ -240,7 +240,7 @@ export default function Header() {
                 const breakY = gridY + dayHeaderHeight + (periodIdxCounter * cellHeight) - (cellHeight / 4);
                 doc.setFillColor(240, 240, 240);
                 roundedRect(gridX, breakY, gridWidth, cellHeight / 2, 5, 'F');
-                doc.setFontSize(10);
+                doc.setFontSize(14);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(100, 100, 100);
                 doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, breakY + cellHeight / 4 + 4, { align: 'center' });
@@ -487,3 +487,5 @@ export default function Header() {
     </>
   );
 }
+
+    

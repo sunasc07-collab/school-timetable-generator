@@ -31,6 +31,7 @@ import { Input } from "./ui/input";
 import { useState, useMemo } from "react";
 import type { ViewMode, TimetableSession, Teacher } from "@/lib/types";
 import SystemSettings from "./system-settings";
+import { formatTime } from "@/lib/utils";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
@@ -251,7 +252,9 @@ export default function Header() {
                 doc.setFontSize(12);
                 doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(255, 255, 255);
-                doc.text(slot.time, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 5, { align: 'right' });
+                const [start, end] = slot.time.split('-');
+                const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+                doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 5, { align: 'right' });
 
                 days.forEach((day, dayIndex) => {
                     const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);

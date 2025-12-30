@@ -19,6 +19,7 @@ import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
+import { formatTime } from "@/lib/utils";
 
 interface SystemSettingsProps {
     open: boolean;
@@ -90,76 +91,82 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto p-1 pr-4">
                     <div className="grid gap-4 py-4">
-                        {localTimeSlots.map((slot, index) => (
-                            <div key={slot.id} className="grid grid-cols-1 items-end gap-3 p-3 border rounded-lg relative group">
-                                <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-end gap-3">
-                                    <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                                    
-                                    <div className="space-y-1">
-                                        <Label htmlFor={`time-${index}`}>Time Range</Label>
-                                        <Input
-                                            id={`time-${index}`}
-                                            value={slot.time}
-                                            onChange={(e) => handleTimeSlotChange(index, 'time', e.target.value)}
-                                            placeholder="e.g., 8:00-8:40"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor={`label-${index}`}>Label</Label>
-                                        <Input
-                                            id={`label-${index}`}
-                                            value={slot.label || ''}
-                                            onChange={(e) => handleTimeSlotChange(index, 'label', e.target.value)}
-                                            placeholder="e.g., Short Break"
-                                            disabled={!slot.isBreak}
-                                        />
-                                    </div>
-                                    <div className="flex flex-col items-center space-y-2">
-                                        <Label htmlFor={`isBreak-${index}`} className="text-xs">Break</Label>
-                                        <Switch
-                                            id={`isBreak-${index}`}
-                                            checked={slot.isBreak}
-                                            onCheckedChange={(checked) => {
-                                                handleTimeSlotChange(index, 'isBreak', checked)
-                                                if (checked) {
-                                                    handleTimeSlotChange(index, 'label', 'Break')
-                                                } else {
-                                                    handleTimeSlotChange(index, 'label', '')
-                                                }
-                                            }}
-                                        />
-                                    </div>
+                        {localTimeSlots.map((slot, index) => {
+                            const [start, end] = slot.time.split('-');
+                            const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
-                                    <div className="flex flex-col gap-2">
-                                        <Button variant="outline" size="sm" className="h-8" onClick={() => handleAddSlot(index)}>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Add Slot
-                                        </Button>
-                                        <Button variant="destructive" size="sm" className="h-8" onClick={() => handleRemoveSlot(index)} disabled={localTimeSlots.length <= 1}>
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Remove
-                                        </Button>
-                                    </div>
-                                </div>
-                                {slot.isBreak && (
-                                    <div className="mt-2 pl-8">
-                                        <Label className="text-xs text-muted-foreground">Apply break to specific days:</Label>
-                                        <div className="flex items-center gap-4 mt-1">
-                                            {activeTimetable.days.map(day => (
-                                                <div key={day} className="flex items-center gap-2">
-                                                    <Checkbox
-                                                        id={`${slot.id}-${day}`}
-                                                        checked={(slot.days || activeTimetable.days).includes(day)}
-                                                        onCheckedChange={() => handleDayToggle(index, day)}
-                                                    />
-                                                    <Label htmlFor={`${slot.id}-${day}`} className="text-sm font-normal">{day}</Label>
-                                                </div>
-                                            ))}
+                            return (
+                                <div key={slot.id} className="grid grid-cols-1 items-end gap-3 p-3 border rounded-lg relative group">
+                                    <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-end gap-3">
+                                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                                        
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`time-${index}`}>Time Range</Label>
+                                            <Input
+                                                id={`time-${index}`}
+                                                value={slot.time}
+                                                onChange={(e) => handleTimeSlotChange(index, 'time', e.target.value)}
+                                                placeholder="e.g., 08:00-08:40"
+                                            />
+                                            <p className="text-xs text-muted-foreground">{formattedTime}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`label-${index}`}>Label</Label>
+                                            <Input
+                                                id={`label-${index}`}
+                                                value={slot.label || ''}
+                                                onChange={(e) => handleTimeSlotChange(index, 'label', e.target.value)}
+                                                placeholder="e.g., Short Break"
+                                                disabled={!slot.isBreak}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col items-center space-y-2">
+                                            <Label htmlFor={`isBreak-${index}`} className="text-xs">Break</Label>
+                                            <Switch
+                                                id={`isBreak-${index}`}
+                                                checked={slot.isBreak}
+                                                onCheckedChange={(checked) => {
+                                                    handleTimeSlotChange(index, 'isBreak', checked)
+                                                    if (checked) {
+                                                        handleTimeSlotChange(index, 'label', 'Break')
+                                                    } else {
+                                                        handleTimeSlotChange(index, 'label', '')
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-2">
+                                            <Button variant="outline" size="sm" className="h-8" onClick={() => handleAddSlot(index)}>
+                                                <Plus className="mr-2 h-4 w-4" />
+                                                Add Slot
+                                            </Button>
+                                            <Button variant="destructive" size="sm" className="h-8" onClick={() => handleRemoveSlot(index)} disabled={localTimeSlots.length <= 1}>
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Remove
+                                            </Button>
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                    {slot.isBreak && (
+                                        <div className="mt-2 pl-8">
+                                            <Label className="text-xs text-muted-foreground">Apply break to specific days:</Label>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                {activeTimetable.days.map(day => (
+                                                    <div key={day} className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            id={`${slot.id}-${day}`}
+                                                            checked={(slot.days || activeTimetable.days).includes(day)}
+                                                            onCheckedChange={() => handleDayToggle(index, day)}
+                                                        />
+                                                        <Label htmlFor={`${slot.id}-${day}`} className="text-sm font-normal">{day}</Label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
 

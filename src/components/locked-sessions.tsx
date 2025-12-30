@@ -12,6 +12,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import type { LockedSession } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
+import { formatTime } from "@/lib/utils";
 
 const lockedSessionSchema = z.object({
     activity: z.string().min(1, "Activity is required"),
@@ -127,7 +128,13 @@ export default function LockedSessions() {
                                             <SelectTrigger><SelectValue placeholder="Select Period..." /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {teachingPeriods.map(p => <SelectItem key={p.id} value={String(p.period)}>{`Period ${p.period} (${p.time})`}</SelectItem>)}
+                                            {teachingPeriods.map(p => {
+                                                const [start, end] = p.time.split('-');
+                                                const formattedTime = `${formatTime(start)}-${formatTime(end)}`;
+                                                return (
+                                                    <SelectItem key={p.id} value={String(p.period)}>{`Period ${p.period} (${formattedTime})`}</SelectItem>
+                                                )
+                                            })}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />

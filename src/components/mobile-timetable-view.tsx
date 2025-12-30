@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Separator } from "./ui/separator";
+import { formatTime } from "@/lib/utils";
 
 interface MobileTimetableViewProps {
     itemsToRender: { title: string; filterValue: string }[];
@@ -49,10 +50,13 @@ export default function MobileTimetableView({ itemsToRender }: MobileTimetableVi
 
                                     if (relevantSessions.length === 0) return null;
 
+                                    const [start, end] = slot.time.split('-');
+                                    const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+
                                     return (
                                         <div key={slot.period} className="mb-2">
                                             <div className="flex items-baseline gap-4 mb-1">
-                                                <p className="text-sm font-semibold text-muted-foreground min-w-[80px]">{slot.time}</p>
+                                                <p className="text-sm font-semibold text-muted-foreground min-w-[80px]">{formattedTime}</p>
                                                 <Separator orientation="vertical" className="h-4" />
                                                 <p className="text-xs text-muted-foreground">Period {slot.period}</p>
                                             </div>

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import TimetableItem from "./timetable-item";
 import type { TimetableDragData, TimetableSession, Teacher } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Trash2, Zap, ZapOff } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -209,13 +209,16 @@ export default function TimetableGrid() {
             </TableHeader>
             <TableBody>
              {timeSlots.map((slot) => {
+                const [start, end] = slot.time.split('-');
+                const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+
                 if (slot.isBreak) {
                   const breakDays = slot.days || days;
                    if (breakDays.length === days.length) {
                     return (
                         <TableRow key={slot.id}>
                             <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
-                                <div className="text-xs">{slot.time}</div>
+                                <div className="text-xs">{formattedTime}</div>
                             </TableCell>
                             <TableCell 
                                 colSpan={days.length} 
@@ -232,7 +235,7 @@ export default function TimetableGrid() {
                   return (
                     <TableRow key={slot.id}>
                       <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
-                        <div className="text-xs">{slot.time}</div>
+                        <div className="text-xs">{formattedTime}</div>
                       </TableCell>
                       {days.map(day => (
                         <TableCell key={day} className={cn("text-center p-0 h-12", breakDays.includes(day) ? "bg-muted/50" : "")}>
@@ -255,7 +258,7 @@ export default function TimetableGrid() {
                     <TableRow key={slot.id}>
                         <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
                             <div>Period {slot.period}</div>
-                            <div className="text-xs">{slot.time}</div>
+                            <div className="text-xs">{formattedTime}</div>
                         </TableCell>
                         {days.map((day) => {
                             return (

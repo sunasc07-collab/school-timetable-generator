@@ -276,14 +276,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const updateTimeSlots = (newTimeSlots: TimeSlot[]) => {
     if (!activeTimetable) return;
-    const numberedTimeSlots = newTimeSlots.map((slot, index) => {
+    let periodCounter = 1;
+    const renumberedTimeSlots = newTimeSlots.map(slot => {
         if (!slot.isBreak) {
-            const periodNumber = newTimeSlots.slice(0, index + 1).filter(s => !s.isBreak).length;
-            return { ...slot, period: periodNumber };
+            return { ...slot, period: periodCounter++ };
         }
         return { ...slot, period: null };
     });
-    updateTimetable(activeTimetable.id, { timeSlots: numberedTimeSlots });
+    updateTimetable(activeTimetable.id, { timeSlots: renumberedTimeSlots });
     resetTimetableForSchool(activeTimetable.id);
   }
 
@@ -495,10 +495,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       } else if ('sessions' in unit) {
           const sessionTeachers = unit.sessions.map(s => s.teacherId).filter(Boolean);
           const sessionClasses = unit.sessions.flatMap(s => s.classes);
-          if(new Set(sessionTeachers).size !== sessionTeachers.length) return false; // Internal clash in unit
-          if(new Set(sessionClasses).size !== sessionClasses.length) return false; // Internal clash in unit
+          if(new Set(sessionTeachers).size < sessionTeachers.length) return false;
+          if(new Set(sessionClasses).size < sessionClasses.length) return false;
 
-          return unit.sessions.every(s => checkSession(s, day, period));
+          for (const s of unit.sessions) {
+            if (!checkSession(s, day, period)) return false;
+          }
+          return true;
+
       } else {
           return checkSession(unit, day, period);
       }

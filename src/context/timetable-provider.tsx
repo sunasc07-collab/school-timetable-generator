@@ -502,10 +502,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
           const sessionTeachers = unit.sessions.map(s => s.teacherId).filter(Boolean);
           const sessionClasses = unit.sessions.flatMap(s => s.classes);
           if(new Set(sessionTeachers).size < sessionTeachers.length) {
-              return false; // This is a conflict in data setup
+              newConflicts.push({ id: unit.id, type: 'teacher', message: `Teacher conflict within option group ${unit.optionGroup}.` });
+              return false;
           }
           if(new Set(sessionClasses).size < sessionClasses.length) {
-              return false; // This is a conflict in data setup
+              newConflicts.push({ id: unit.id, type: 'class', message: `Class conflict within option group ${unit.optionGroup}.` });
+              return false;
           }
           
           for (const s of unit.sessions) {

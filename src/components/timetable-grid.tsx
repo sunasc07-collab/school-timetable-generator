@@ -217,15 +217,28 @@ export default function TimetableGrid() {
                       <TableCell className="font-medium text-muted-foreground align-middle text-center p-1 h-12">
                         <div className="text-xs">{formattedTime}</div>
                       </TableCell>
-                      {days.map(day => (
-                        <TableCell key={day} className={cn("text-center p-0 h-12", breakDays.includes(day) ? "bg-muted/50" : "")}>
-                          {breakDays.includes(day) &&
-                            <span className="font-semibold text-muted-foreground tracking-widest uppercase">
-                              {slot.label}
-                            </span>
-                          }
-                        </TableCell>
-                      ))}
+                      {days.map(day => {
+                        const isBreakOnThisDay = breakDays.includes(day);
+                        return (
+                           <TableCell 
+                                key={day} 
+                                className={cn(
+                                    "text-center p-0 h-12", 
+                                    isBreakOnThisDay ? "bg-muted/50" : "p-1 align-top hover:bg-muted/50 transition-colors"
+                                )}
+                                onDragOver={(e) => !isBreakOnThisDay && handleDragOver(e)}
+                                onDrop={(e) => !isBreakOnThisDay && slot.period && handleDrop(e, day, slot.period)}
+                            >
+                              {isBreakOnThisDay ? (
+                                <span className="font-semibold text-muted-foreground tracking-widest uppercase">
+                                  {slot.label}
+                                </span>
+                              ) : (
+                                slot.period ? renderCellContent(day, slot.period, filterValue) : null
+                              )}
+                           </TableCell>
+                        )
+                      })}
                     </TableRow>
                   );
                 }
@@ -236,19 +249,20 @@ export default function TimetableGrid() {
                 return (
                     <TableRow key={slot.id}>
                         <TableCell className="font-medium text-muted-foreground align-middle text-center p-1">
-                            <div>Period {slot.period}</div>
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
                         {days.map((day) => {
-                           const isBreakOnThisDay = timeSlots.some(ts => ts.isBreak && ts.period === slot.period && (ts.days || days).includes(day));
+                           const isDayUsedByBreak = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && (ts.days || days).includes(day));
+                           if(isDayUsedByBreak) return <TableCell key={day} className="p-1 align-top bg-muted/50" />
+
                             return (
                                 <TableCell
                                     key={day}
-                                    className={cn("p-1 align-top", {"hover:bg-muted/50 transition-colors": !isBreakOnThisDay})}
-                                    onDragOver={(e) => !isBreakOnThisDay && handleDragOver(e)}
-                                    onDrop={(e) => !isBreakOnThisDay && handleDrop(e, day, periodIndex)}
+                                    className={cn("p-1 align-top", {"hover:bg-muted/50 transition-colors": true})}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, day, periodIndex)}
                                 >
-                                    {isBreakOnThisDay ? null : renderCellContent(day, periodIndex, filterValue)}
+                                    {renderCellContent(day, periodIndex, filterValue)}
                                 </TableCell>
                             )
                         })}

@@ -372,5 +372,3 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
-
-    

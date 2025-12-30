@@ -6,7 +6,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
 import { Download, Printer, View, Plus, Trash2, Edit, Zap } from "lucide-react";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import "jspdf-autotable";
 import {
   DropdownMenu,
   DropdownMenuContent,

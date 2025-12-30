@@ -72,5 +72,3 @@ export type Timetable = {
   timeSlots: TimeSlot[];
   error: string | null;
 };
-
-    

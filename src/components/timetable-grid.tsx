@@ -240,7 +240,7 @@ export default function TimetableGrid() {
                             <div className="text-xs">{formattedTime}</div>
                         </TableCell>
                         {days.map((day) => {
-                           const isBreakOnThisDay = timeSlots.some(ts => ts.isBreak && ts.time === slot.time && (ts.days || days).includes(day));
+                           const isBreakOnThisDay = timeSlots.some(ts => ts.isBreak && ts.period === slot.period && (ts.days || days).includes(day));
                             return (
                                 <TableCell
                                     key={day}
@@ -324,3 +324,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

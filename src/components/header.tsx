@@ -179,12 +179,6 @@ export default function Header() {
         return `${gradePart}${armPart}`;
     };
 
-    const getClassInitials = (className: string) => {
-        if (!className) return '';
-        if (className.startsWith("Grade") || className.startsWith("A-Level Year")) return className.charAt(0);
-        return className.charAt(0);
-    };
-
     listToIterate.forEach((item, index) => {
         const itemName = type === 'class' ? item as string : (item as Teacher).name;
         if (index > 0) {
@@ -256,18 +250,24 @@ export default function Header() {
                     doc.setFont(undefined, 'normal');
 
                     if (session.optionGroup) {
+                        const subjectText = session.actualSubject || session.subject;
+                        doc.setFontSize(8);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(subjectText, data.cell.x + data.cell.width / 2, sessionY + 4, { halign: 'center' });
+
+                        const optionGroupText = `Option ${session.optionGroup}`;
+                        doc.setFontSize(15);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(optionGroupText, data.cell.x + data.cell.width / 2, sessionY + 10, { halign: 'center' });
+
                         const className = session.classes[0] || '';
                         const formattedClass = formatClassName(className);
-                        const subjectInitial = getSubjectInitials(session.actualSubject || session.subject);
-                        
-                        doc.setFontSize(10);
-                        doc.setFont(undefined, 'bold');
-                        doc.text(formattedClass, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 - 2, { halign: 'center' });
+                        const teacherInitial = getTeacherInitials(session.teacher);
+                        const details = `${formattedClass} - ${teacherInitial}`;
 
                         doc.setFontSize(8);
                         doc.setFont(undefined, 'normal');
-                         doc.text(subjectInitial, data.cell.x + data.cell.width / 2, sessionY + sessionHeight / 2 + 3, { halign: 'center' });
-
+                        doc.text(details, data.cell.x + data.cell.width / 2, sessionY + 14, { halign: 'center' });
                     } else {
                         const subjectText = getSubjectInitials(session.subject);
                         const details = type === 'class' ? getTeacherInitials(session.teacher) : formatClassName(session.className);
@@ -454,5 +454,3 @@ export default function Header() {
     </>
   );
 }
-
-    

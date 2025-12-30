@@ -399,6 +399,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 teachersInBlock.add(assignment.teacherId);
                 
                 const armsForThisTeacher = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [];
+                
                 const classesForThisTeacher = armsForThisTeacher.map(arm => `${grade} ${arm}`.trim());
 
                 if (classesForThisTeacher.length === 0) {
@@ -676,6 +677,4 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
 
-
-    
     

@@ -242,7 +242,7 @@ export default function Header() {
                 doc.text(slot.label?.replace('-', ' ') || '', PAGE_WIDTH / 2, currentY + rowHeight / 2 + 5, { align: 'center' });
             } else {
                 doc.setFontSize(10);
-                doc.setFont(FONT_FAMILY, "normal");
+                doc.setFont(FONT_FAMILY, "bold");
                 doc.setTextColor(255, 255, 255);
                 doc.text(slot.time, gridX + timeColWidth - 5, currentY + rowHeight / 2 + 4, { align: 'right' });
 
@@ -272,18 +272,17 @@ export default function Header() {
                         uniqueSessionBlocks.forEach((sessionsInBlock) => {
                              const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
                              const firstSession = sessionsInBlock[0];
-                             const subject = firstSession.optionGroup ? firstSession.subject : (firstSession.actualSubject || firstSession.subject);
+                             const subject = firstSession.optionGroup ? `Option ${firstSession.optionGroup}` : (firstSession.actualSubject || firstSession.subject);
                              const [r, g, b] = getSubjectColor(subject);
                              doc.setFillColor(r, g, b);
                              roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 8, 'F');
 
                              doc.setTextColor(50, 50, 50);
                              doc.setFont(FONT_FAMILY, "bold");
-                             doc.setFontSize(9);
+                             doc.setFontSize(10);
                              doc.text(subject, cellX + dayColWidth / 2, sessionY + 12, { align: 'center' });
 
-                             doc.setFontSize(8);
-                             doc.setFont(FONT_FAMILY, "normal");
+                             doc.setFontSize(9);
                              
                              if(type === 'class'){
                                  const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;

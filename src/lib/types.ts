@@ -70,4 +70,7 @@ export type Timetable = {
   conflicts: Conflict[];
   days: string[];
   timeSlots: TimeSlot[];
+  error: string | null;
 };
+
+    

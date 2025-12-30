@@ -486,27 +486,29 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     name: `teachers.${index}.assignments`
   });
 
-  const { activeTimetable, allTeachers } = useTimetable();
+  const { activeTimetable } = useTimetable();
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
   const teacherName = useWatch({ control, name: `teachers.${index}.name`});
 
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
-    if (!activeTimetable || !activeTimetable.timetable) {
-      return 0;
-    }
-    
-    let count = 0;
-    Object.values(activeTimetable.timetable).forEach(day => {
-        Object.values(day).forEach(period => {
-            period.forEach(session => {
-                if (session.teacherId === teacherId) {
-                    count++;
-                }
-            });
-        });
-    });
-    return count;
+      if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
+          return 0;
+      }
+
+      let count = 0;
+      for (const day in activeTimetable.timetable) {
+          const periods = activeTimetable.timetable[day];
+          for (const period of periods) {
+              for (const session of period) {
+                  if (session.teacherId === teacherId) {
+                      count++;
+                  }
+              }
+          }
+      }
+      return count;
   }, [activeTimetable]);
+
 
   const totalGeneratedPeriods = useMemo(() => {
     if (!teacherId) return 0;
@@ -719,21 +721,24 @@ export default function TeacherEditor() {
   }
   
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
-    if (!activeTimetable || !activeTimetable.timetable) {
-      return 0;
+    if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
+        return 0;
     }
+
     let count = 0;
-    Object.values(activeTimetable.timetable).forEach(day => {
-        Object.values(day).forEach(period => {
-            period.forEach(session => {
+    for (const day in activeTimetable.timetable) {
+        const periods = activeTimetable.timetable[day];
+        for (const period of periods) {
+            for (const session of period) {
                 if (session.teacherId === teacherId) {
                     count++;
                 }
-            });
-        });
-    });
+            }
+        }
+    }
     return count;
   }, [activeTimetable]);
+
 
   return (
     <div className="p-2 space-y-4">

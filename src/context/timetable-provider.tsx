@@ -81,6 +81,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         conflicts: [],
         days: DEFAULT_DAYS,
         timeSlots: DEFAULT_TIMESLOTS,
+        error: null,
     };
 }
 
@@ -91,10 +92,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v21", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v21", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v21", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v21', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v22", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v22", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v22", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v22', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -192,6 +193,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                   timetable: {},
                   classes: [],
                   conflicts: [],
+                  error: null,
                 };
             }
             return t;
@@ -523,8 +525,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const [isSolved, solvedBoard] = solve(boardCopy, sessionsToPlace);
     
     if (!isSolved) {
-        newConflicts.push({ id: 'solver-fail', type: 'class', message: `Could not generate a valid timetable. Check for too many constraints or conflicting assignments.` });
-        updateTimetable(activeTimetable.id, { timetable: {}, conflicts: newConflicts, classes: [] });
+        const errorMessage = `Could not generate a valid timetable. This is often due to conflicting teacher assignments or not enough available time slots. Please review teacher assignments for overlaps.`;
+        updateTimetable(activeTimetable.id, { timetable: {}, conflicts: newConflicts, classes: [], error: errorMessage });
         return;
     }
     
@@ -564,6 +566,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         timetable: finalTimetable || {},
         classes: sortedClasses,
         conflicts: newConflicts,
+        error: null,
     });
     findConflicts(finalTimetable, activeTimetable.id);
   }, [updateTimetable, activeTimetable, allTeachers, timetables]);
@@ -571,7 +574,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const clearTimetable = () => {
     if (!activeTimetable) return;
-    updateTimetable(activeTimetable.id, { timetable: {}, classes: [], conflicts: [] });
+    updateTimetable(activeTimetable.id, { timetable: {}, classes: [], conflicts: [], error: null });
   }
   
   const moveSession = (

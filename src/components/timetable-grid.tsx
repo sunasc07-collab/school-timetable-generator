@@ -29,6 +29,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
+import ErrorDisplay from "./error-display";
+
 
 export default function TimetableGrid() {
   const { 
@@ -45,6 +47,7 @@ export default function TimetableGrid() {
   const timeSlots = activeTimetable?.timeSlots || [];
   const classes = activeTimetable?.classes || [];
   const conflicts = activeTimetable?.conflicts || [];
+  const error = activeTimetable?.error || null;
   
   const teachers = useMemo(() => {
     if (!activeTimetable) return [];
@@ -170,14 +173,18 @@ export default function TimetableGrid() {
 
   if (Object.keys(timetable).length === 0) {
      return (
-      <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
-        <div>
-          <h3 className="text-lg font-semibold font-headline">Timetable not generated</h3>
-          <p className="text-muted-foreground mt-2 mb-4">
-            Click the "Generate Timetable" button in the header to create a schedule.
-          </p>
+        <div className="flex flex-col items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
+            {error ? (
+                <ErrorDisplay message={error} />
+            ) : (
+                <div>
+                    <h3 className="text-lg font-semibold font-headline">Timetable not generated</h3>
+                    <p className="text-muted-foreground mt-2 mb-4">
+                        Click the "Generate Timetable" button in the header to create a schedule.
+                    </p>
+                </div>
+            )}
         </div>
-      </div>
     );
   }
 

@@ -457,7 +457,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     // Pre-fill locked sessions
     (lockedSessions || []).filter(ls => ls.day !== 'all_week').forEach(ls => {
-        if (newTimetable[ls.day]) {
+        if (newTimetable[ls.day] && dailyTeachingPeriods[ls.day].includes(ls.period)) {
             const classNames = ls.className === 'all' ? sortedClasses : [ls.className];
             const lockedSlot: TimetableSession[] = [{
                 id: ls.id, subject: ls.activity, className: ls.className, classes: classNames, teacher: '', isLocked: true, isDouble: false, period: ls.period
@@ -477,7 +477,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const targetSlot = board[day]?.find(slot => slot[0]?.period === p);
         
         if (targetSlot) {
-            if (targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
+            if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
             if (targetSlot.some(s => s.isLocked)) return false;
             for (const className of session.classes) {
               if (targetSlot.some(s => s.classes.includes(className))) return false;
@@ -501,8 +501,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       } else if ('sessions' in unit) {
           const sessionTeachers = unit.sessions.map(s => s.teacherId).filter(Boolean);
           const sessionClasses = unit.sessions.flatMap(s => s.classes);
-          if(new Set(sessionTeachers).size < sessionTeachers.length) return false; // This is a conflict in data setup
-          if(new Set(sessionClasses).size < sessionClasses.length) return false; // This is a conflict in data setup
+          if(new Set(sessionTeachers).size < sessionTeachers.length) {
+              return false; // This is a conflict in data setup
+          }
+          if(new Set(sessionClasses).size < sessionClasses.length) {
+              return false; // This is a conflict in data setup
+          }
           
           for (const s of unit.sessions) {
             if (!checkSession(s, day, period)) return false;
@@ -526,7 +530,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                    const newBoard = JSON.parse(JSON.stringify(board));
                    
                    const placeSession = (session: TimetableSession, p: number) => {
-                       let slot = newBoard[day].find(s => s[0]?.period === p);
+                       let slot = newBoard[day].find((s: TimetableSession[]) => s[0]?.period === p);
                        if (slot) {
                            slot.push({ ...session, period: p });
                        } else {
@@ -564,7 +568,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     // Sort slots by period number
     for (const day in solvedBoard) {
-        solvedBoard[day].sort((a, b) => (a[0]?.period || 0) - (b[0]?.period || 0));
+        solvedBoard[day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
     }
 
     updateTimetable(activeTimetable.id, { 
@@ -609,7 +613,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     } else {
         if (!newTimetableData[to.day]) newTimetableData[to.day] = [];
         newTimetableData[to.day].push([{ ...session, period: to.period }]);
-        newTimetableData[to.day].sort((a: TimetableSession[], b: TimetableSession[]) => a[0].period - b[0].period);
+        newTimetableData[to.day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
     }
     
     updateTimetable(activeTimetable.id, { timetable: newTimetableData });
@@ -618,7 +622,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const resolveConflicts = () => {
     if (!activeTimetable) return;
-    // This simply clears the board, prompting the user to re-generate.
     clearTimetable();
   };
 

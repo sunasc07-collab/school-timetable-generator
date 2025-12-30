@@ -258,7 +258,7 @@ export default function Header() {
 
                 days.forEach((day, dayIndex) => {
                     const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);
-                    const allSessionsInSlot = timetable[day]?.[periodIdxCounter] || [];
+                    const allSessionsInSlot = timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                     
                     let relevantSessions: TimetableSession[] = [];
                     if (type === 'class') {
@@ -321,8 +321,6 @@ export default function Header() {
                         roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 5, 'F');
                     }
                 });
-
-                periodIdxCounter++;
             }
             currentY += rowHeight;
         });

@@ -81,5 +81,3 @@ export default function MobileTimetableView({ itemsToRender }: MobileTimetableVi
         </Accordion>
     );
 }
-
-    

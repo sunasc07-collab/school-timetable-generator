@@ -130,7 +130,7 @@ export default function LockedSessions() {
                                         <SelectContent>
                                             {teachingPeriods.map(p => {
                                                 const [start, end] = p.time.split('-');
-                                                const formattedTime = `${formatTime(start)}-${formatTime(end)}`;
+                                                const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
                                                 return (
                                                     <SelectItem key={p.id} value={String(p.period)}>{`Period ${p.period} (${formattedTime})`}</SelectItem>
                                                 )

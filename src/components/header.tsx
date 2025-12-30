@@ -216,10 +216,12 @@ export default function Header() {
         const dayColWidth = (gridWidth - timeColWidth) / days.length;
         
         const periodSlots = timeSlots.filter(slot => !slot.isBreak);
-        const breakSlots = timeSlots.filter(slot => slot.isBreak);
         
+        // Calculate dynamic heights
+        const totalTeachingPeriods = timeSlots.filter(ts => !ts.isBreak).length;
+        const totalBreaks = timeSlots.filter(ts => ts.isBreak).length;
         const availableGridHeight = PAGE_HEIGHT - gridY - MARGIN;
-        const normalCellHeight = availableGridHeight / (periodSlots.length + breakSlots.length * 0.5);
+        const normalCellHeight = availableGridHeight / (totalTeachingPeriods + totalBreaks * 0.5);
         const breakCellHeight = normalCellHeight / 2;
 
         days.forEach((day, dayIndex) => {
@@ -235,29 +237,31 @@ export default function Header() {
         });
 
         let currentY = gridY + dayHeaderHeight;
-        let periodIdxCounter = 0;
-
+        
         timeSlots.forEach((slot) => {
             const rowHeight = slot.isBreak ? breakCellHeight : normalCellHeight;
+            const [start, end] = slot.time.split('-');
+            const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
-            if (slot.isBreak) {
-                const label = slot.label || '';
-                doc.setFillColor(240, 240, 240);
-                roundedRect(gridX, currentY, gridWidth, rowHeight, 5, 'F');
-                doc.setFontSize(18);
-                doc.setFont(FONT_FAMILY, "bold");
-                doc.setTextColor(100, 100, 100);
-                doc.text(label.replace('-', ' '), (gridX + gridWidth) / 2, currentY + rowHeight / 2 + 7, { align: 'center' });
-            } else {
-                doc.setFontSize(12);
-                doc.setFont(FONT_FAMILY, "bold");
-                doc.setTextColor(255, 255, 255);
-                const [start, end] = slot.time.split('-');
-                const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
-                doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 5, { align: 'right' });
+            doc.setFontSize(12);
+            doc.setFont(FONT_FAMILY, "bold");
+            doc.setTextColor(255, 255, 255);
+            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 5, { align: 'right' });
 
-                days.forEach((day, dayIndex) => {
-                    const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);
+
+            days.forEach((day, dayIndex) => {
+                const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);
+                const isBreakOnThisDay = slot.isBreak && (slot.days || days).includes(day);
+
+                if (isBreakOnThisDay) {
+                     const label = slot.label || '';
+                     doc.setFillColor(240, 240, 240);
+                     roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight-4, 5, 'F');
+                     doc.setFontSize(12);
+                     doc.setFont(FONT_FAMILY, "bold");
+                     doc.setTextColor(100, 100, 100);
+                     doc.text(label.replace('-', ' '), cellX + dayColWidth / 2, currentY + rowHeight / 2 + 5, { align: 'center' });
+                } else if (!slot.isBreak) {
                     const allSessionsInSlot = timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                     
                     let relevantSessions: TimetableSession[] = [];
@@ -320,8 +324,11 @@ export default function Header() {
                         doc.setFillColor(255, 255, 255, 0.1);
                         roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 5, 'F');
                     }
-                });
-            }
+                } else {
+                     doc.setFillColor(255, 255, 255, 0.1);
+                     roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 5, 'F');
+                }
+            });
             currentY += rowHeight;
         });
     });
@@ -501,3 +508,5 @@ export default function Header() {
     </>
   );
 }
+
+    

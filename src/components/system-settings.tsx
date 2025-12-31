@@ -48,7 +48,7 @@ const lockedSessionSchema = z.object({
 type LockedSessionFormValues = z.infer<typeof lockedSessionSchema>;
 
 function LockedSessionsTab() {
-    const { activeTimetable, addLockedSession, removeLockedSession } = useTimetable();
+    const { activeTimetable, addLockedSession, removeLockedSession, allSchoolClasses } = useTimetable();
 
     const form = useForm<LockedSessionFormValues>({
         resolver: zodResolver(lockedSessionSchema),
@@ -63,7 +63,7 @@ function LockedSessionsTab() {
 
     if (!activeTimetable) return null;
 
-    const { days, timeSlots, classes, lockedSessions } = activeTimetable;
+    const { days, timeSlots, lockedSessions } = activeTimetable;
     const teachingPeriods = timeSlots.filter(ts => !ts.isBreak);
 
     const onSubmit = (data: LockedSessionFormValues) => {
@@ -80,7 +80,7 @@ function LockedSessionsTab() {
         });
     };
 
-    const classOptions = ["all", ...classes];
+    const classOptions = ["all", ...allSchoolClasses];
 
     return (
         <div className="space-y-4 py-4">
@@ -526,3 +526,5 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
+
+    

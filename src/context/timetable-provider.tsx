@@ -101,10 +101,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v29", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v29", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v29", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v29', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v30", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v30", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v30", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v30', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -499,7 +499,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const remainingUnits = units.slice(1);
         
         const schoolForUnit = timetables.find(t => t.id === (('sessions' in unit) ? unit.sessions[0].schoolId : ('session' in unit ? unit.session.schoolId : unit.schoolId)));
-
         if (!schoolForUnit) return solve(boards, remainingUnits);
 
 
@@ -591,20 +590,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
         };
 
-        if (grades.length > 1 && !school.name.toLowerCase().includes('secondary')) {
-            const classNames = grades.map(g => `${g}`.trim());
-            classNames.forEach(c => allClassSets[schoolId]?.add(c));
-            createUnitsForClass(classNames);
-        } else {
-            grades.forEach(grade => {
-                const effectiveArms = arms && arms.length > 0 ? arms : [""];
-                effectiveArms.forEach(arm => {
-                    const className = `${grade} ${arm}`.trim();
-                    allClassSets[schoolId]?.add(className);
-                    createUnitsForClass([className]);
-                });
+        grades.forEach(grade => {
+            const effectiveArms = arms && arms.length > 0 ? arms : [""];
+            effectiveArms.forEach(arm => {
+                const className = `${grade} ${arm}`.trim();
+                allClassSets[schoolId]?.add(className);
+                createUnitsForClass([className]);
             });
-        }
+        });
     });
 
     // Create OptionBlockUnits from the grouped optional assignments
@@ -804,4 +797,4 @@ export const useTimetable = (): TimetableContextType => {
   return context;
 };
 
-  
+    

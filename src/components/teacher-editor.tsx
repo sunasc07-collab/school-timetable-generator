@@ -82,6 +82,7 @@ const A_LEVEL_GRADES = ["A-Level Year 1", "A-Level Year 2"];
 const JUNIOR_SECONDARY_ARMS = ["A", "Primrose"];
 const SENIOR_SECONDARY_ARMS = ["P", "D", "L", "M"];
 const OPTION_GROUPS = ['A', 'B', 'C', 'D', 'E'] as const;
+const PRIMARY_ARMS = ["A", "B", "C"];
 
 
 const getGradeOptionsForSchool = (schoolName: string) => {
@@ -124,6 +125,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const schoolName = selectedSchool?.name.toLowerCase() || '';
 
     const isSecondary = schoolName.includes('secondary');
+    const isPrimary = schoolName.includes('primary');
     
     const isALevelSchool = schoolName.includes('a-level');
     const isNurserySchool = schoolName.includes('nursery');
@@ -137,6 +139,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     let armOptions: string[] = [];
     let showArms = false;
+
     if (isSecondary && !hasALevel) {
       if (hasJuniorSecondary && !hasSeniorSecondary) {
         armOptions = JUNIOR_SECONDARY_ARMS;
@@ -154,13 +157,17 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
       } else {
         showArms = false;
       }
+    } else if (isPrimary) {
+        armOptions = PRIMARY_ARMS;
+        showArms = true;
     }
     
     const allArmOptions = useMemo(() => {
         const currentArms = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
-        const dynamicArms = currentArms.filter((arm: string) => !armOptions.includes(arm) && !SENIOR_SECONDARY_ARMS.includes(arm));
-        return [...new Set([...armOptions, ...SENIOR_SECONDARY_ARMS, ...customArms, ...dynamicArms])];
-    }, [armOptions, customArms, getValues, teacherIndex, assignmentIndex]);
+        const baseArms = isPrimary ? PRIMARY_ARMS : (isSecondary ? [...JUNIOR_SECONDARY_ARMS, ...SENIOR_SECONDARY_ARMS] : []);
+        const dynamicArms = currentArms.filter((arm: string) => !baseArms.includes(arm));
+        return [...new Set([...baseArms, ...customArms, ...dynamicArms])];
+    }, [isPrimary, isSecondary, customArms, getValues, teacherIndex, assignmentIndex]);
 
     const handleAddArm = () => {
         if (newArm && !allArmOptions.includes(newArm)) {
@@ -218,8 +225,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`);
     };
     
-    // @ts-ignore
-    const assignmentErrors = errors?.teachers?.[teacherIndex]?.assignments?.[assignmentIndex];
+    const assignmentErrors = (errors?.teachers as any)?.[teacherIndex]?.assignments?.[assignmentIndex];
 
     const handleSubjectTypeChange = (type: string) => {
         setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`, type);
@@ -242,6 +248,16 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     }
     
     const shouldShowSeniorArms = hasSeniorSecondary && (subjectType === 'core' || subjectType === 'optional');
+
+    const relevantArmOptions = useMemo(() => {
+        if (isPrimary) return allArmOptions.filter(arm => PRIMARY_ARMS.includes(arm) || customArms.includes(arm));
+        if (isSecondary) {
+            if (hasSeniorSecondary) return allArmOptions.filter(arm => SENIOR_SECONDARY_ARMS.includes(arm) || customArms.includes(arm));
+            if (hasJuniorSecondary) return allArmOptions.filter(arm => JUNIOR_SECONDARY_ARMS.includes(arm) || customArms.includes(arm));
+        }
+        return [];
+    }, [isPrimary, isSecondary, hasSeniorSecondary, hasJuniorSecondary, allArmOptions, customArms]);
+
 
     return (
         <div className="flex items-start gap-2 p-2 border rounded-md relative">
@@ -433,7 +449,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                      )}
                                  />
                              ): null}
-                              {/* @ts-ignore */}
                               {assignmentErrors?.subjectType?.message && <p className="text-sm font-medium text-destructive col-span-2">{assignmentErrors.subjectType.message as string}</p>}
                          </div>
                          {shouldShowSeniorArms && (
@@ -496,70 +511,66 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                         </div>
                     )}
-                     <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || hasSeniorSecondary || !isSecondary) && "hidden")}>
-                        {showArms && (
-                            <FormField
-                                control={control}
-                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                render={() => (
-                                <FormItem>
-                                    <div className="flex items-center justify-between">
-                                      {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" size="sm" className={cn("h-6 text-xs px-2", assignmentIndex > 0 && "mt-6")}>
-                                                <Plus className="mr-1 h-3 w-3" /> Add Others
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-2">
-                                            <div className="grid gap-2">
-                                                <Input
-                                                    placeholder="New arm..."
-                                                    value={newArm}
-                                                    onChange={(e) => setNewArm(e.target.value.toUpperCase())}
-                                                    className="h-8"
-                                                />
-                                                <Button onClick={handleAddArm} size="sm" className="h-8">Add Arm</Button>
-                                            </div>
-                                        </PopoverContent>
-                                      </Popover>
-                                    </div>
-                                    <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                        {allArmOptions.filter(arm => armOptions.includes(arm) || customArms.includes(arm)).map((arm) => (
-                                            <FormField
-                                                key={arm}
-                                                control={control}
-                                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
-                                                render={({ field: checkboxField }) => (
-                                                    <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
-                                                        <FormControl>
-                                                            <Checkbox
-                                                                checked={checkboxField.value?.includes(arm)}
-                                                                onCheckedChange={(checked) => {
-                                                                    const currentValue = checkboxField.value || [];
-                                                                    const newValue = checked
-                                                                        ? [...currentValue, arm]
-                                                                        : currentValue.filter(value => value !== arm);
-                                                                checkboxField.onChange(newValue);
-                                                            }}
-                                                        />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{arm}</FormLabel>
-                                                    </FormItem>
-                                                )}
+                     <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || !showArms) && "hidden")}>
+                        <FormField
+                            control={control}
+                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                            render={() => (
+                            <FormItem>
+                                <div className="flex items-center justify-between">
+                                  {assignmentIndex === 0 && <FormLabel>Arms</FormLabel>}
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className={cn("h-6 text-xs px-2", assignmentIndex > 0 && "mt-6")}>
+                                            <Plus className="mr-1 h-3 w-3" /> Add Others
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-2">
+                                        <div className="grid gap-2">
+                                            <Input
+                                                placeholder="New arm..."
+                                                value={newArm}
+                                                onChange={(e) => setNewArm(e.target.value.toUpperCase())}
+                                                className="h-8"
                                             />
-                                        ))}
+                                            <Button onClick={handleAddArm} size="sm" className="h-8">Add Arm</Button>
+                                        </div>
+                                    </PopoverContent>
+                                  </Popover>
                                 </div>
-                                <FormMessage />
-                                {hasJuniorSecondary && hasSeniorSecondary && (
-                                    <p className="text-xs text-muted-foreground pt-1">Mixed junior/senior selection. Arms must be configured separately.</p>
-                                )}
-                            </FormItem>
+                                <div className="grid grid-cols-4 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                    {relevantArmOptions.map((arm) => (
+                                        <FormField
+                                            key={arm}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
+                                            render={({ field: checkboxField }) => (
+                                                <FormItem key={arm} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkboxField.value?.includes(arm)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = checkboxField.value || [];
+                                                                const newValue = checked
+                                                                    ? [...currentValue, arm]
+                                                                    : currentValue.filter(value => value !== arm);
+                                                            checkboxField.onChange(newValue);
+                                                        }}
+                                                    />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm">{arm}</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                            </div>
+                            <FormMessage />
+                            {isSecondary && hasJuniorSecondary && hasSeniorSecondary && (
+                                <p className="text-xs text-muted-foreground pt-1">Mixed junior/senior selection. Arms must be configured separately.</p>
                             )}
-                        />
+                        </FormItem>
                         )}
                     </div>
-                
             </div>
         </div>
     )
@@ -748,7 +759,7 @@ export default function TeacherEditor() {
         const teacherFormData: TeacherFormValues = {
             id: teacher.id,
             name: teacher.name,
-            assignments: groupAssignmentsForEditing(teacher.assignments.filter(a => a.schoolId === activeTimetable?.id).map(a => ({
+            assignments: groupAssignmentsForEditing(teacher.assignments.map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
@@ -785,19 +796,18 @@ export default function TeacherEditor() {
                 isCore: formAssignment.subjectType === 'core',
                 optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
             };
-            delete (assignmentBase as Partial<typeof assignmentBase>).subjectType;
-
+            
             const school = timetables.find(t => t.id === formAssignment.schoolId);
             const isSecondary = school?.name.toLowerCase().includes('secondary');
 
-            if (!isSecondary) {
-                // For Primary/other schools, create one assignment for all selected grades (consolidated)
-                expandedAssignments.push({
+            if (isSecondary) {
+                // Keep secondary grades grouped by assignment for options
+                 expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,
-                    arms: formAssignment.arms || [],
+                    arms: formAssignment.arms || [], 
                 });
-            } else { // Secondary school logic
+            } else {
                  formAssignment.grades.forEach(grade => {
                     expandedAssignments.push({
                         ...assignmentBase,
@@ -816,7 +826,9 @@ export default function TeacherEditor() {
 
         if (editingTeacher) {
             const otherSchoolAssignments = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId !== activeTimetable?.id) || [];
-            teacherWithId.assignments.push(...otherSchoolAssignments);
+            const currentSchoolAssignmentsToKeep = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId === activeTimetable?.id && !teacherWithId.assignments.some(newA => newA.id === a.id)) || [];
+            
+            teacherWithId.assignments.push(...otherSchoolAssignments, ...currentSchoolAssignmentsToKeep);
             updateTeacher(teacherWithId);
         } else {
             addTeacher(teacherWithId);
@@ -938,7 +950,8 @@ export default function TeacherEditor() {
                       className="h-7 w-7 text-muted-foreground hover:text-primary mr-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenDialog(teacher);
+                        const teacherToEdit = allTeachers.find(t => t.id === teacher.id);
+                        if (teacherToEdit) handleOpenDialog(teacherToEdit);
                       }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -957,7 +970,7 @@ export default function TeacherEditor() {
                   </div>
                   <AccordionContent className="px-2 pb-4">
                     <div className="space-y-3">
-                      {teacher.assignments.map((assignment) => (
+                      {groupAssignmentsForEditing(teacher.assignments).map((assignment) => (
                         <div key={assignment.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
                              <Book className="mr-2 h-4 w-4 text-primary" />
@@ -997,4 +1010,4 @@ export default function TeacherEditor() {
   );
 }
 
-  
+    

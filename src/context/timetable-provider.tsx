@@ -18,7 +18,7 @@ type TimetableContextType = {
   removeTeacher: (teacherId: string) => void;
   updateTeacher: (teacherData: Teacher) => void;
 
-  addLockedSession: (session: Omit<LockedSession, 'id' | 'schoolId'>) => void;
+  addLockedSession: (session: Omit<LockedSession, 'id' | 'schoolId' | 'period'> & { periods: number[] }) => void;
   removeLockedSession: (sessionId: string) => void;
   
   generateTimetable: () => void;
@@ -261,36 +261,42 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     resetAllTimetables();
   }
 
-  const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId'>) => {
+  const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId' | 'period'> & { periods: number[] }) => {
       if (!activeTimetable) return;
 
       const newSessions: LockedSession[] = [];
       const commonId = crypto.randomUUID();
 
-      if (session.day === 'all_week') {
-          activeTimetable.days.forEach(day => {
-              newSessions.push({
-                  ...session,
-                  id: `${commonId}-${day}`,
-                  schoolId: activeTimetable.id,
-                  day: day,
-                  isWeekly: true,
-                  weeklyId: commonId,
-              });
-          });
-          newSessions.push({
-              ...session,
-              id: commonId,
-              schoolId: activeTimetable.id,
-              day: 'all_week', 
-          });
-      } else {
-          newSessions.push({
-              ...session,
-              id: commonId,
-              schoolId: activeTimetable.id,
-          });
-      }
+      session.periods.forEach(period => {
+        if (session.day === 'all_week') {
+            activeTimetable.days.forEach(day => {
+                newSessions.push({
+                    ...session,
+                    id: `${commonId}-${day}-${period}`,
+                    schoolId: activeTimetable.id,
+                    day: day,
+                    period: period,
+                    isWeekly: true,
+                    weeklyId: commonId,
+                });
+            });
+            newSessions.push({
+                ...session,
+                id: `${commonId}-${period}`,
+                schoolId: activeTimetable.id,
+                day: 'all_week',
+                period: period,
+            });
+        } else {
+            newSessions.push({
+                ...session,
+                id: `${commonId}-${session.day}-${period}`,
+                schoolId: activeTimetable.id,
+                day: session.day,
+                period: period,
+            });
+        }
+      });
       
       updateTimetable(activeTimetable.id, { lockedSessions: [...(activeTimetable.lockedSessions || []), ...newSessions] });
       resetAllTimetables();
@@ -316,10 +322,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const generateTimetable = useCallback(() => {
     
-    const allTimetablesToGenerate = timetables.filter(t => 
-        allTeachers.some(teacher => teacher.assignments.some(a => a.schoolId === t.id))
-    );
-
     let allSolvedBoards: { [schoolId: string]: TimetableData } = {};
     
     timetables.forEach(tt => {
@@ -515,7 +517,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const allUnits: PlacementUnit[] = [];
     const allClassSets: {[schoolId: string]: Set<string>} = {};
     
-    allTimetablesToGenerate.forEach(tt => {
+    timetables.forEach(tt => {
         allClassSets[tt.id] = new Set<string>();
     });
     
@@ -548,7 +550,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         });
     });
-
+    
     const optionalGroups = new Map<string, { assignments: (SubjectAssignment & { teacherName: string, teacherId: string })[]; grades: string[], schoolId: string }>();
     
     secondaryOptionalAssignments.forEach(assignment => {

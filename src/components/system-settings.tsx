@@ -15,7 +15,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import { GripVertical, Plus, Trash2, Lock } from "lucide-react";
+import { GripVertical, Plus, Trash2, Lock, XIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot, LockedSession } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
@@ -28,6 +28,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { ScrollArea } from "./ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Badge } from "./ui/badge";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "./ui/command";
 
 
 interface SystemSettingsProps {
@@ -40,7 +43,7 @@ const BREAK_ACTIVITIES = ["Short Break", "Lunch"];
 const lockedSessionSchema = z.object({
     activity: z.string().min(1, "Activity is required"),
     day: z.string().min(1, "Day is required"),
-    period: z.coerce.number().min(1, "Period is required"),
+    periods: z.array(z.coerce.number()).min(1, "At least one period is required"),
     className: z.string().min(1, "Class is required"),
     allWeek: z.boolean().default(false),
 });
@@ -55,7 +58,7 @@ function LockedSessionsTab() {
         defaultValues: {
             activity: "",
             day: "",
-            period: undefined,
+            periods: [],
             className: "",
             allWeek: false,
         }
@@ -74,7 +77,7 @@ function LockedSessionsTab() {
         form.reset({
             activity: "",
             day: "",
-            period: undefined,
+            periods: [],
             className: "",
             allWeek: false,
         });
@@ -139,26 +142,71 @@ function LockedSessionsTab() {
                                 </FormItem>
                             )}
                         />
-                        <FormField
+                       <FormField
                             control={form.control}
-                            name="period"
+                            name="periods"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Period</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value !== undefined ? String(field.value) : ""}>
-                                        <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Select Period..." /></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {teachingPeriods.map(p => {
-                                                const [start, end] = p.time.split('-');
-                                                const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
-                                                return (
-                                                    <SelectItem key={p.id} value={String(p.period)}>{`Period ${p.period} (${formattedTime})`}</SelectItem>
-                                                )
-                                            })}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormLabel>Periods</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal">
+                                                        <span className="truncate">
+                                                        {field.value.length > 0
+                                                          ? teachingPeriods
+                                                              .filter(p => field.value.includes(p.period as number))
+                                                              .map(p => `P${p.period}`)
+                                                              .join(', ')
+                                                          : "Select Periods..."}
+                                                        </span>
+                                                         {field.value.length > 0 && (
+                                                            <XIcon
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              field.onChange([]);
+                                                            }}
+                                                            className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100"
+                                                            />
+                                                        )}
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                               <Command>
+                                                  <CommandInput placeholder="Search periods..." />
+                                                  <CommandEmpty>No periods found.</CommandEmpty>
+                                                  <CommandGroup>
+                                                    <ScrollArea className="h-48">
+                                                    {teachingPeriods.map(p => {
+                                                        const [start, end] = p.time.split('-');
+                                                        const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+                                                        return (
+                                                        <CommandItem
+                                                            key={p.id}
+                                                            value={String(p.period)}
+                                                            onSelect={() => {
+                                                                const currentValue = field.value || [];
+                                                                const isSelected = currentValue.includes(p.period as number);
+                                                                const newValue = isSelected
+                                                                    ? currentValue.filter(val => val !== p.period)
+                                                                    : [...currentValue, p.period as number];
+                                                                field.onChange(newValue);
+                                                            }}
+                                                        >
+                                                            <Checkbox
+                                                                className="mr-2"
+                                                                checked={field.value?.includes(p.period as number)}
+                                                            />
+                                                            {`Period ${p.period} (${formattedTime})`}
+                                                        </CommandItem>
+                                                        )
+                                                    })}
+                                                    </ScrollArea>
+                                                  </CommandGroup>
+                                               </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -526,5 +574,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
+
+    
 
     

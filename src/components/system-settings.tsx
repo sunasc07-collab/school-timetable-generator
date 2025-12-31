@@ -15,11 +15,11 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import { GripVertical, Plus, Trash2, Lock, XIcon } from "lucide-react";
+import { GripVertical, Plus, Trash2, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot, LockedSession } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
-import { to12Hour, to24Hour, formatTime } from "@/lib/utils";
+import { to12Hour, to24Hour } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -28,9 +28,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { ScrollArea } from "./ui/scroll-area";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Badge } from "./ui/badge";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "./ui/command";
 
 
 interface SystemSettingsProps {
@@ -38,12 +35,10 @@ interface SystemSettingsProps {
     onOpenChange: (open: boolean) => void;
 }
 
-const BREAK_ACTIVITIES = ["Short Break", "Lunch"];
-
 const lockedSessionSchema = z.object({
     activity: z.string().min(1, "Activity is required"),
     day: z.string().min(1, "Day is required"),
-    periods: z.array(z.coerce.number()).min(1, "At least one period is required"),
+    period: z.coerce.number({ invalid_type_error: "Period is required" }),
     className: z.string().min(1, "Class is required"),
     allWeek: z.boolean().default(false),
 });
@@ -58,7 +53,6 @@ function LockedSessionsTab() {
         defaultValues: {
             activity: "",
             day: "",
-            periods: [],
             className: "",
             allWeek: false,
         }
@@ -76,13 +70,13 @@ function LockedSessionsTab() {
         form.reset({
             activity: "",
             day: "",
-            periods: [],
             className: "",
             allWeek: false,
         });
     };
 
     const classOptions = ["all", ...classes];
+    const teachingPeriods = timeSlots.filter(p => !p.isBreak);
 
     return (
         <div className="space-y-4 py-4">
@@ -143,72 +137,18 @@ function LockedSessionsTab() {
                         />
                        <FormField
                             control={form.control}
-                            name="periods"
+                            name="period"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Periods</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal">
-                                                        <span className="truncate">
-                                                        {field.value.length > 0
-                                                          ? timeSlots
-                                                              .filter(p => field.value.includes(p.isBreak ? -timeSlots.indexOf(p) : p.period as number))
-                                                              .map(p => p.isBreak ? p.label : `P${p.period}`)
-                                                              .join(', ')
-                                                          : "Select Periods..."}
-                                                        </span>
-                                                         {field.value.length > 0 && (
-                                                            <XIcon
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              field.onChange([]);
-                                                            }}
-                                                            className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100"
-                                                            />
-                                                        )}
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                               <Command>
-                                                  <CommandInput placeholder="Search periods..." />
-                                                  <CommandEmpty>No periods found.</CommandEmpty>
-                                                  <CommandGroup>
-                                                    <ScrollArea className="h-48">
-                                                    {timeSlots.map((p, pIndex) => {
-                                                        const periodIdentifier = p.isBreak ? -pIndex : (p.period as number);
-                                                        const [start, end] = p.time.split('-');
-                                                        const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
-                                                        const label = p.isBreak ? p.label : `Period ${p.period}`;
-                                                        
-                                                        return (
-                                                        <CommandItem
-                                                            key={p.id}
-                                                            value={String(periodIdentifier)}
-                                                            onSelect={() => {
-                                                                const currentValue = field.value || [];
-                                                                const isSelected = currentValue.includes(periodIdentifier as number);
-                                                                const newValue = isSelected
-                                                                    ? currentValue.filter(val => val !== periodIdentifier)
-                                                                    : [...currentValue, periodIdentifier as number];
-                                                                field.onChange(newValue.sort((a,b) => a-b));
-                                                            }}
-                                                        >
-                                                            <Checkbox
-                                                                className="mr-2"
-                                                                checked={field.value?.includes(periodIdentifier as number)}
-                                                            />
-                                                            {`${label} (${formattedTime})`}
-                                                        </CommandItem>
-                                                        )
-                                                    })}
-                                                    </ScrollArea>
-                                                  </CommandGroup>
-                                               </Command>
-                                            </PopoverContent>
-                                        </Popover>
+                                    <FormLabel>Period</FormLabel>
+                                     <Select onValueChange={field.onChange} value={String(field.value)}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select Period..." /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {teachingPeriods.map(p => <SelectItem key={p.id} value={String(p.period)}>{`Period ${p.period}`}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -256,7 +196,7 @@ function LockedSessionsTab() {
                             <div>
                                 <p className="font-semibold">{ls.activity}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {ls.day === 'all_week' ? `All Week, Period(s) ${ls.periods?.join(', ')}` : `${ls.day}, Period(s) ${ls.periods?.join(', ')}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
+                                    {ls.day === 'all_week' ? `All Week, Period ${ls.period}` : `${ls.day}, Period ${ls.period}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
                                 </p>
                             </div>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeLockedSession(ls.id)}>
@@ -570,5 +510,4 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
     )
 }
 
-    
     

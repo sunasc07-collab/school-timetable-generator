@@ -18,7 +18,7 @@ type TimetableContextType = {
   removeTeacher: (teacherId: string) => void;
   updateTeacher: (teacherData: Teacher) => void;
 
-  addLockedSession: (session: Omit<LockedSession, 'id' | 'schoolId' | 'period'> & { periods: number[] }) => void;
+  addLockedSession: (session: Omit<LockedSession, 'id' | 'schoolId'>) => void;
   removeLockedSession: (sessionId: string) => void;
   
   generateTimetable: () => void;
@@ -264,42 +264,22 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     resetAllTimetables();
   }
 
-  const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId' | 'period'> & { periods: number[] }) => {
+  const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId'>) => {
       if (!activeTimetable) return;
 
-      const newSessions: LockedSession[] = [];
-      const commonId = crypto.randomUUID();
-
-      session.periods.forEach(period => {
-        if (session.day === 'all_week') {
-            activeTimetable.days.forEach(day => {
-                newSessions.push({
-                    ...session,
-                    id: `${commonId}-${day}-${period}`,
-                    schoolId: activeTimetable.id,
-                    day: day,
-                    period: period,
-                    isWeekly: true,
-                    weeklyId: commonId,
-                });
-            });
-            newSessions.push({
-                ...session,
-                id: `${commonId}-${period}`,
-                schoolId: activeTimetable.id,
-                day: 'all_week',
-                period: period,
-            });
-        } else {
-            newSessions.push({
-                ...session,
-                id: `${commonId}-${session.day}-${period}`,
-                schoolId: activeTimetable.id,
-                day: session.day,
-                period: period,
-            });
-        }
-      });
+      const id = crypto.randomUUID();
+      let newSessions: LockedSession[] = [];
+      if(session.day === 'all_week') {
+         newSessions = activeTimetable.days.map(day => ({
+             ...session,
+             id: `${id}-${day}`,
+             day: day,
+             schoolId: activeTimetable.id,
+         }));
+         newSessions.push({ ...session, id, schoolId: activeTimetable.id });
+      } else {
+         newSessions.push({ ...session, id, schoolId: activeTimetable.id });
+      }
       
       updateTimetable(activeTimetable.id, { lockedSessions: [...(activeTimetable.lockedSessions || []), ...newSessions] });
       resetAllTimetables();
@@ -308,15 +288,16 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const removeLockedSession = (sessionId: string) => {
       if (!activeTimetable || !activeTimetable.lockedSessions) return;
       const sessionToRemove = activeTimetable.lockedSessions.find(s => s.id === sessionId);
-
+      
       let sessionsToKeep = activeTimetable.lockedSessions;
-
-      if(sessionToRemove?.isWeekly) {
-          sessionsToKeep = sessionsToKeep.filter(s => s.weeklyId !== sessionToRemove.weeklyId);
-      } else if (sessionToRemove?.day === 'all_week') {
-          sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionToRemove.id && s.weeklyId !== sessionToRemove.id);
+      if (sessionToRemove?.day === 'all_week') {
+          sessionsToKeep = sessionsToKeep.filter(s => !s.id.startsWith(sessionId));
       } else {
-          sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionId);
+           sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionId);
+           const weekEntryId = sessionToRemove?.id.substring(0, sessionToRemove.id.lastIndexOf('-'));
+            if(weekEntryId) {
+                sessionsToKeep = sessionsToKeep.filter(s => s.id !== weekEntryId);
+            }
       }
       
       updateTimetable(activeTimetable.id, { lockedSessions: sessionsToKeep });
@@ -693,8 +674,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   
   const filteredLockedSessions = useMemo(() => {
     if (!activeTimetable?.lockedSessions) return [];
-    const weeklyIds = new Set(activeTimetable.lockedSessions.filter(ls => ls.day === 'all_week').map(ls => ls.id));
-    return activeTimetable.lockedSessions.filter(ls => ls.day === 'all_week' || !weeklyIds.has(ls.weeklyId || ''));
+    return activeTimetable.lockedSessions.filter(s => s.day !== 'all_week');
   }, [activeTimetable?.lockedSessions]);
 
   const classes = useMemo(() => activeTimetable?.classes || [], [activeTimetable]);

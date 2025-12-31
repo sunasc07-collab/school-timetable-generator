@@ -72,12 +72,10 @@ export type ViewMode = 'class' | 'teacher' | 'arm';
 export type LockedSession = {
   id:string;
   schoolId: string;
-  day: string; // can be a specific day or 'all_week' for the master record
+  day: string; // can be a specific day or 'all_week'
   period: number;
   activity: string;
   className: string; // can be 'all'
-  isWeekly?: boolean;
-  weeklyId?: string;
 };
 
 export type Timetable = {

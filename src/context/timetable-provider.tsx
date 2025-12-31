@@ -543,40 +543,27 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     const allUnits: PlacementUnit[] = [];
     const allClassSets: {[schoolId: string]: Set<string>} = {};
-    const optionBlocks: { [key: string]: Omit<TimetableSession, 'className' | 'classes'>[] } = {};
+    const optionBlocks: { [key: string]: SubjectAssignment[] } = {};
 
     allTimetablesToGenerate.forEach(tt => {
         allClassSets[tt.id] = new Set<string>();
     });
     
     allCurrentSchoolAssignments.forEach(assignment => {
-        const { schoolId, subject, periods, grades, arms, teacherId, teacherName, optionGroup } = assignment;
+        const { schoolId, grades, arms, optionGroup, teacherId } = assignment;
         const school = timetables.find(t => t.id === schoolId);
         if (!school) return;
 
         const isSecondary = school.name.toLowerCase().includes('secondary');
 
-        if (isSecondary && optionGroup) {
-            grades.forEach(grade => {
-                const classNamesForGroup = (arms && arms.length > 0) ? arms.map(arm => `${grade} ${arm}`.trim()) : [grade];
-                classNamesForGroup.forEach(cn => allClassSets[schoolId]?.add(cn));
-                
+        if (isSecondary && optionGroup && teacherId) {
+             grades.forEach(grade => {
                 const blockKey = `${schoolId}-${grade}-${optionGroup}`;
-                if (!optionBlocks[blockKey]) {
+                 if (!optionBlocks[blockKey]) {
                     optionBlocks[blockKey] = [];
                 }
-                optionBlocks[blockKey].push({
-                    id: crypto.randomUUID(),
-                    subject: `Option ${optionGroup}`,
-                    actualSubject: subject,
-                    teacher: teacherName,
-                    teacherId,
-                    isDouble: false,
-                    period: 0,
-                    schoolId,
-                    optionGroup,
-                });
-            });
+                optionBlocks[blockKey].push(assignment);
+             });
         } else {
             grades.forEach(grade => {
                 const effectiveArms = arms && arms.length > 0 ? arms : [""];
@@ -584,18 +571,18 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     const className = `${grade} ${arm}`.trim();
                     allClassSets[schoolId]?.add(className);
                     
-                    let remainingPeriods = periods;
+                    let remainingPeriods = assignment.periods;
                     while (remainingPeriods >= 2) {
                         const doubleId = crypto.randomUUID();
                         allUnits.push({
-                            session: { id: doubleId, subject, teacher: teacherName, teacherId, className, classes: [className], isDouble: true, part: 1, period: 0, schoolId, actualSubject: subject },
-                            partner: { id: doubleId, subject, teacher: teacherName, teacherId, className, classes: [className], isDouble: true, part: 2, period: 0, schoolId, actualSubject: subject },
+                            session: { id: doubleId, subject: assignment.subject, teacher: assignment.teacherName, teacherId, className, classes: [className], isDouble: true, part: 1, period: 0, schoolId, actualSubject: assignment.subject },
+                            partner: { id: doubleId, subject: assignment.subject, teacher: assignment.teacherName, teacherId, className, classes: [className], isDouble: true, part: 2, period: 0, schoolId, actualSubject: assignment.subject },
                         });
                         remainingPeriods -= 2;
                     }
                     for (let i = 0; i < remainingPeriods; i++) {
                         allUnits.push({
-                            id: crypto.randomUUID(), subject, teacher: teacherName, teacherId, className, classes: [className], isDouble: false, period: 0, schoolId, actualSubject: subject
+                            id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName, teacherId, className, classes: [className], isDouble: false, period: 0, schoolId, actualSubject: assignment.subject
                         });
                     }
                 });
@@ -603,35 +590,38 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    Object.entries(optionBlocks).forEach(([key, sessions]) => {
+    Object.entries(optionBlocks).forEach(([key, assignments]) => {
         const [schoolId, grade, optionGroup] = key.split('-');
-        const assignment = allCurrentSchoolAssignments.find(a => 
-            a.schoolId === schoolId && 
-            a.grades.includes(grade) && 
-            a.optionGroup === optionGroup &&
-            a.teacherId === sessions[0].teacherId
-        );
-        const periods = assignment?.periods || 1;
+        
+        const firstAssignment = assignments[0];
+        if (!firstAssignment) return;
 
-        const classNames = grades.flatMap(grade => {
-            const assignmentForGrade = allCurrentSchoolAssignments.find(a => a.grades.includes(grade) && a.optionGroup === optionGroup);
-            if (!assignmentForGrade) return [];
-            const effectiveArms = assignmentForGrade.arms && assignmentForGrade.arms.length > 0 ? assignmentForGrade.arms : [""];
-            return effectiveArms.map(arm => `${grade} ${arm}`.trim());
-        });
+        const periods = firstAssignment.periods;
+        const allArmsForGroup = [...new Set(assignments.flatMap(a => a.arms || []))];
+        const classNames = allArmsForGroup.length > 0 ? allArmsForGroup.map(arm => `${grade} ${arm}`) : [grade];
+        classNames.forEach(cn => allClassSets[schoolId]?.add(cn));
+        
+        const sessionsForBlock = assignments.map(a => ({
+            id: a.id || crypto.randomUUID(),
+            subject: `Option ${optionGroup}`,
+            actualSubject: a.subject,
+            teacher: a.teacherName!,
+            teacherId: a.teacherId!,
+            isDouble: false,
+            period: 0,
+            schoolId: a.schoolId,
+            optionGroup: a.optionGroup,
+            className: grade,
+            classes: classNames,
+        }));
 
         for (let i = 0; i < periods; i++) {
              const blockId = crypto.randomUUID();
-             const blockSessions = sessions.map(s => ({
-                ...s,
-                id: `${s.id}-${i}`,
-                className: grade, 
-                classes: classNames,
-             }));
-             allUnits.push({ sessions: blockSessions, optionGroup: optionGroup as 'A', id: blockId });
+             const blockSessionsWithUniqueIds = sessionsForBlock.map(s => ({...s, id: `${s.id}-${i}`}))
+             allUnits.push({ sessions: blockSessionsWithUniqueIds, optionGroup: optionGroup as 'A', id: blockId });
         }
     });
-    
+
     const shuffledUnits = allUnits.sort(() => Math.random() - 0.5);
     const sortedAllUnits = shuffledUnits.sort((a, b) => ('sessions' in b ? 1 : 0) - ('sessions' in a ? 1 : 0) || ('partner' in b ? 1 : 0) - ('partner' in a ? 1 : 0));
 
@@ -781,3 +771,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

@@ -584,34 +584,38 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     name: `teachers.${index}.assignments`
   });
 
-  const { activeTimetable } = useTimetable();
+  const { activeTimetable, timetables } = useTimetable();
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
   const teacherName = useWatch({ control, name: `teachers.${index}.name`});
 
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
-      if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
+      if (!timetables || timetables.length === 0) {
           return 0;
       }
 
       let count = 0;
-      for (const day in activeTimetable.timetable) {
-          const daySlots = activeTimetable.timetable[day];
-          for (const slot of daySlots) {
-              for (const session of slot) {
-                  if (session.teacherId === teacherId) {
-                      count++;
-                  }
-              }
-          }
-      }
+      timetables.forEach(tt => {
+        if (tt.timetable && Object.keys(tt.timetable).length > 0) {
+            for (const day in tt.timetable) {
+                const daySlots = tt.timetable[day];
+                for (const slot of daySlots) {
+                    for (const session of slot) {
+                        if (session.teacherId === teacherId) {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+      });
       return count;
-  }, [activeTimetable]);
+  }, [timetables]);
 
 
   const totalGeneratedPeriods = useMemo(() => {
     if (!teacherId) return 0;
     return getGeneratedPeriodsForTeacher(teacherId);
-  }, [activeTimetable, teacherId, getGeneratedPeriodsForTeacher]);
+  }, [teacherId, getGeneratedPeriodsForTeacher]);
   
   const handleAddNewAssignment = () => {
     const newAssignment: SubjectAssignment = { 
@@ -703,11 +707,6 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 export default function TeacherEditor() {
   const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers } = useTimetable();
   
-  const currentTeachers = useMemo(() => {
-    if (!activeTimetable) return [];
-    return allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
-  }, [activeTimetable, allTeachers]);
-  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
@@ -785,8 +784,6 @@ export default function TeacherEditor() {
 
 
   function onSubmit(data: MultiTeacherFormValues) {
-    if (!activeTimetable) return;
-
     data.teachers.forEach(teacherData => {
         const expandedAssignments: SubjectAssignment[] = [];
         
@@ -825,10 +822,6 @@ export default function TeacherEditor() {
         };
 
         if (editingTeacher) {
-            const otherSchoolAssignments = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId !== activeTimetable?.id) || [];
-            const currentSchoolAssignmentsToKeep = allTeachers.find(t => t.id === editingTeacher.id)?.assignments.filter(a => a.schoolId === activeTimetable?.id && !teacherWithId.assignments.some(newA => newA.id === a.id)) || [];
-            
-            teacherWithId.assignments.push(...otherSchoolAssignments, ...currentSchoolAssignmentsToKeep);
             updateTeacher(teacherWithId);
         } else {
             addTeacher(teacherWithId);

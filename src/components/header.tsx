@@ -97,7 +97,8 @@ export default function Header() {
   
   const handleGenerateClick = () => {
     if (!activeTimetable) return;
-    if (Object.keys(activeTimetable.timetable).length > 0) {
+    const hasAnyTimetableData = timetables.some(t => Object.keys(t.timetable).length > 0);
+    if (hasAnyTimetableData) {
       openDialog('regenerate');
     } else {
       generateTimetable();
@@ -111,7 +112,7 @@ export default function Header() {
   };
 
   const generatePdf = async (type: 'class' | 'teacher') => {
-    if (!activeTimetable) return;
+    if (!activeTimetable && type === 'class') return;
 
     const { default: jsPDF } = await import('jspdf');
     await import('jspdf-autotable');
@@ -134,6 +135,8 @@ export default function Header() {
 
         // For merged teacher view, use the first timetable as the structural template
         const templateTimetable = timetablesForView[0];
+        if (!templateTimetable) return;
+        
         const { timeSlots, days, name: timetableName } = templateTimetable;
         
         const FONT_FAMILY = "Helvetica";
@@ -358,8 +361,8 @@ export default function Header() {
     } else if (type === 'teacher') {
         if (allTeachers.length === 0) return;
         allTeachers.forEach(teacher => {
-            const schoolsTaught = [...new Set(teacher.assignments.map(a => a.schoolId))];
-            const timetablesForTeacher = timetables.filter(t => schoolsTaught.includes(t.id) && Object.keys(t.timetable).length > 0);
+            const schoolsTaughtIds = [...new Set(teacher.assignments.map(a => a.schoolId))];
+            const timetablesForTeacher = timetables.filter(t => schoolsTaughtIds.includes(t.id) && Object.keys(t.timetable).length > 0);
 
             if (timetablesForTeacher.length > 0) {
                 const allTeacherSessions: TimetableSession[] = [];
@@ -504,7 +507,7 @@ export default function Header() {
             </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button onClick={handleGenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!activeTimetable || currentTeachers.length === 0}>
+        <Button onClick={handleGenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={allTeachers.length === 0}>
             <Zap className="mr-2 h-4 w-4" />
             Generate Timetable
         </Button>
@@ -537,7 +540,7 @@ export default function Header() {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="default" className="bg-primary hover:bg-primary/90" disabled={!activeTimetable || (Object.keys(activeTimetable.timetable).length === 0 && allTeachers.flatMap(t => t.assignments).length === 0)}>
+            <Button variant="default" className="bg-primary hover:bg-primary/90" disabled={timetables.every(t => Object.keys(t.timetable).length === 0)}>
               <Download className="mr-2 h-4 w-4" />
               Download PDF
             </Button>

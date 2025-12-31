@@ -256,7 +256,7 @@ function LockedSessionsTab() {
                             <div>
                                 <p className="font-semibold">{ls.activity}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {ls.day === 'all_week' ? `All Week, Period(s) ${ls.periods.join(', ')}` : `${ls.day}, Period(s) ${ls.periods.join(', ')}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
+                                    {ls.day === 'all_week' ? `All Week, Period(s) ${ls.periods?.join(', ')}` : `${ls.day}, Period(s) ${ls.periods?.join(', ')}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
                                 </p>
                             </div>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeLockedSession(ls.id)}>
@@ -576,9 +576,3 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
-
-    
-
-    
-
-    

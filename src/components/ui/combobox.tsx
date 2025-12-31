@@ -45,21 +45,6 @@ export function Combobox({
     className 
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  const [search, setSearch] = React.useState('');
-
-  const handleSelect = (currentValue: string) => {
-    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue);
-    setOpen(false);
-    setSearch('');
-  }
-  
-  const filteredOptions = search === '' 
-    ? options 
-    : options.filter(option => 
-        option.label.toLowerCase().includes(search.toLowerCase())
-      );
-
-  const showAddOption = search.length > 0 && !filteredOptions.some(opt => opt.label.toLowerCase() === search.toLowerCase());
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -77,31 +62,29 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder={searchPlaceholder}
-            value={search}
-            onValueChange={setSearch}
-          />
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
-            {filteredOptions.length === 0 && !showAddOption && (
-                <CommandEmpty>{emptyPlaceholder}</CommandEmpty>
-            )}
-            <CommandGroup>
-              {showAddOption && (
+            <CommandEmpty>
                 <CommandItem
-                    onSelect={() => handleSelect(search)}
-                    value={search}
+                    onSelect={() => {
+                        const inputValue = (document.querySelector(`[cmdk-input]` ) as HTMLInputElement)?.value;
+                        onChange(inputValue);
+                        setOpen(false);
+                    }}
                 >
-                  <span className="mr-2 h-4 w-4" />
-                  Add "{search}"
+                    Add "{ (document.querySelector(`[cmdk-input]` ) as HTMLInputElement)?.value }"
                 </CommandItem>
-              )}
-              {filteredOptions.map((option) => (
+            </CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={() => handleSelect(option.value)}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue)
+                    setOpen(false)
+                  }}
                 >
                   <Check
                     className={cn(

@@ -40,6 +40,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { ALL_SUBJECTS } from "@/lib/subjects";
+import { Combobox } from "./ui/combobox";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -84,6 +86,7 @@ const SENIOR_SECONDARY_ARMS = ["P", "D", "L", "M"];
 const OPTION_GROUPS = ['A', 'B', 'C', 'D', 'E'] as const;
 const PRIMARY_ARMS = ["A", "B", "C"];
 
+const subjectOptions = ALL_SUBJECTS.map(subject => ({ value: subject, label: subject }));
 
 const getGradeOptionsForSchool = (schoolName: string) => {
     const lowerCaseSchoolName = schoolName.toLowerCase();
@@ -292,9 +295,14 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                                 {assignmentIndex === 0 && <FormLabel>Subject</FormLabel>}
-                                <FormControl>
-                                     <Input placeholder="Subject name" {...field} />
-                                </FormControl>
+                                <Combobox
+                                    options={subjectOptions}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="Select subject..."
+                                    searchPlaceholder="Search subjects..."
+                                    emptyPlaceholder="No subject found."
+                                />
                                 <FormMessage />
                             </FormItem>
                         )}

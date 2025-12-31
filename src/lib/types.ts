@@ -1,6 +1,7 @@
 
 
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -36,6 +37,7 @@ export type TimetableSession = {
   optionGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   isLocked?: boolean;
   period: number;
+  schoolId: string;
 };
 
 export type TimetableSlot = TimetableSession[];
@@ -96,3 +98,6 @@ export type Timetable = {
 
     
 
+
+
+    

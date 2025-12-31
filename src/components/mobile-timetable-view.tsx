@@ -39,7 +39,7 @@ export default function MobileTimetableView({ itemsToRender }: MobileTimetableVi
                             <div key={day} className="flex flex-col p-4 border-t">
                                 <h3 className="font-bold text-base mb-2">{day}</h3>
                                 {periodSlots.map((slot, periodIndex) => {
-                                    const allSessionsInSlot = timetable[day]?.[periodIndex] || [];
+                                    const allSessionsInSlot = timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                                     
                                     let relevantSessions = [];
                                     if (viewMode === 'class' || viewMode === 'arm') {
@@ -48,7 +48,10 @@ export default function MobileTimetableView({ itemsToRender }: MobileTimetableVi
                                         relevantSessions = allSessionsInSlot.filter(s => s.teacherId === filterValue);
                                     }
 
-                                    if (relevantSessions.length === 0) return null;
+                                    if (relevantSessions.length === 0) {
+                                      const isBreakOnThisDay = timeSlots.find(ts => ts.period === slot.period)?.isBreak;
+                                      if(isBreakOnThisDay) return null;
+                                    }
 
                                     const [start, end] = slot.time.split('-');
                                     const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
@@ -61,13 +64,13 @@ export default function MobileTimetableView({ itemsToRender }: MobileTimetableVi
                                                 <p className="text-xs text-muted-foreground">Period {slot.period}</p>
                                             </div>
                                              <div className="pl-2 border-l-2 ml-4 pl-4 space-y-2">
-                                                {relevantSessions.map((session, sIndex) => (
+                                                {relevantSessions.length > 0 ? relevantSessions.map((session, sIndex) => (
                                                     <TimetableItem 
                                                         key={`${session.id}-${sIndex}`}
                                                         session={session}
-                                                        from={{ day, period: periodIndex }}
+                                                        from={{ day, period: slot.period as number }}
                                                     />
-                                                ))}
+                                                )) : <div className="h-10"></div>}
                                             </div>
                                         </div>
                                     );

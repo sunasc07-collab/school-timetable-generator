@@ -229,6 +229,24 @@ export default function TimetableGrid() {
                                 );
                             }
 
+                            if (slot.isBreak && !isBreakOnThisDay) {
+                                // This is a teaching slot on a break row
+                                const periodIndex = slot.period;
+                                 if (periodIndex === null) {
+                                    return <TableCell key={`${slot.id}-${day}`} />;
+                                }
+                                return (
+                                    <TableCell
+                                        key={`${slot.id}-${day}`}
+                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleDrop(e, day, periodIndex)}
+                                    >
+                                        {renderCellContent(day, periodIndex, filterValue)}
+                                    </TableCell>
+                                );
+                            }
+                            
                             // Regular teaching period (empty or filled)
                             const periodIndex = slot.period;
                             if (periodIndex === null) {

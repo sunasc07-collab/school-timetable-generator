@@ -50,7 +50,13 @@ export default function LockedSessions() {
             ...data,
             day: data.allWeek ? 'all_week' : data.day,
         });
-        form.reset();
+        form.reset({
+            activity: "",
+            day: "",
+            period: undefined,
+            className: "",
+            allWeek: false,
+        });
     };
 
     const classOptions = ["all", ...classes];
@@ -123,7 +129,7 @@ export default function LockedSessions() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Period</FormLabel>
-                                    <Select onValueChange={field.onChange} value={String(field.value)}>
+                                    <Select onValueChange={field.onChange} value={field.value !== undefined ? String(field.value) : ""}>
                                         <FormControl>
                                             <SelectTrigger><SelectValue placeholder="Select Period..." /></SelectTrigger>
                                         </FormControl>
@@ -151,8 +157,9 @@ export default function LockedSessions() {
                                     <Checkbox
                                         checked={field.value}
                                         onCheckedChange={(checked) => {
-                                            field.onChange(checked);
-                                            if (checked) {
+                                            const isChecked = !!checked;
+                                            field.onChange(isChecked);
+                                            if (isChecked) {
                                                 form.setValue('day', 'all_week');
                                                 form.clearErrors('day');
                                             } else {
@@ -197,3 +204,5 @@ export default function LockedSessions() {
         </div>
     );
 }
+
+    

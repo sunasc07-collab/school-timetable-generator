@@ -585,7 +585,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 }
 
 const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, removeTeacher: () => void, isEditing: boolean }) => {
-  const { control } = useFormContext<MultiTeacherFormValues>();
+  const { control, setValue } = useFormContext<MultiTeacherFormValues>();
   const { fields, append, remove } = useFieldArray({
     control: control,
     name: `teachers.${index}.assignments`
@@ -602,9 +602,9 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
       let count = 0;
       for (const day in activeTimetable.timetable) {
-          const periods = activeTimetable.timetable[day];
-          for (const period of periods) {
-              for (const session of period) {
+          const daySlots = activeTimetable.timetable[day];
+          for (const slot of daySlots) {
+              for (const session of slot) {
                   if (session.teacherId === teacherId) {
                       count++;
                   }
@@ -619,6 +619,19 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
     if (!teacherId) return 0;
     return getGeneratedPeriodsForTeacher(teacherId);
   }, [activeTimetable, teacherId, getGeneratedPeriodsForTeacher]);
+  
+  const handleAddNewAssignment = () => {
+    const newAssignment: SubjectAssignment = { 
+        id: crypto.randomUUID(), 
+        grades: [], 
+        subject: "", 
+        arms: [], 
+        periods: 1, 
+        schoolId: activeTimetable?.id || '',
+        days: activeTimetable?.days || []
+    };
+    append(newAssignment);
+  }
 
   return (
     <div className="space-y-6 p-4 border rounded-lg relative">
@@ -677,7 +690,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
           variant="outline"
           size="sm"
           className="mt-2"
-          onClick={() => append({ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' })}
+          onClick={handleAddNewAssignment}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Assignment
@@ -719,21 +732,28 @@ export default function TeacherEditor() {
 
   const getNewTeacherForm = useCallback((): TeacherFormValues => ({
     name: "",
-    assignments: [{ id: crypto.randomUUID(), grades: [], subject: "", arms: [], periods: 1, schoolId: activeTimetable?.id || '' }],
-  }), [activeTimetable?.id]);
+    assignments: [{ 
+        id: crypto.randomUUID(), 
+        grades: [], 
+        subject: "", 
+        arms: [], 
+        periods: 1, 
+        schoolId: activeTimetable?.id || '',
+        days: activeTimetable?.days || []
+    }],
+  }), [activeTimetable?.id, activeTimetable?.days]);
 
   const groupAssignmentsForEditing = (assignments: SubjectAssignment[]): TeacherFormValues['assignments'] => {
       const grouped = new Map<string, SubjectAssignment>();
 
       assignments.forEach(assignment => {
-          const key = `${assignment.schoolId}-${assignment.subject}-${assignment.periods}-${assignment.optionGroup || ''}-${assignment.subjectType || ''}`;
+          const key = `${assignment.schoolId}-${assignment.subject}-${assignment.periods}-${assignment.optionGroup || ''}-${assignment.subjectType || ''}-${(assignment.days || []).join(',')}`;
           
           if (grouped.has(key)) {
               const existing = grouped.get(key)!;
               const newGrades = [...new Set([...existing.grades, ...assignment.grades])].sort();
               const newArms = [...new Set([...existing.arms, ...assignment.arms])].sort();
-              const newDays = assignment.days ? [...new Set([...(existing.days || []), ...assignment.days])] : existing.days;
-              grouped.set(key, { ...existing, grades: newGrades, arms: newArms, days: newDays });
+              grouped.set(key, { ...existing, grades: newGrades, arms: newArms });
           } else {
               grouped.set(key, { ...assignment });
           }
@@ -751,6 +771,7 @@ export default function TeacherEditor() {
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
+                days: a.days || activeTimetable?.days || []
             }))),
         };
         form.reset({ teachers: [teacherFormData] });
@@ -774,13 +795,34 @@ export default function TeacherEditor() {
                 optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
             };
 
-            if (formAssignment.subjectType === 'optional' || formAssignment.subjectType === 'core') {
-                expandedAssignments.push({
+            const isSecondary = timetables.find(t => t.id === formAssignment.schoolId)?.name.toLowerCase().includes('secondary');
+
+            if (isSecondary && (formAssignment.subjectType === 'optional' || formAssignment.subjectType === 'core')) {
+                 expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,
                     arms: formAssignment.arms || [],
                 });
-            } else {
+            } else if (isSecondary) { // Core subjects for Junior secondary are handled like primary
+                 formAssignment.grades.forEach(grade => {
+                    if (JUNIOR_SECONDARY_GRADES.includes(grade) || PRIMARY_GRADES.includes(grade)) {
+                        (formAssignment.arms && formAssignment.arms.length > 0 ? formAssignment.arms : ['']).forEach(arm => {
+                             expandedAssignments.push({
+                                ...assignmentBase,
+                                grades: [grade],
+                                arms: arm ? [arm] : [],
+                            });
+                        });
+                    } else { // Senior secondary without core/optional type, or A-Levels
+                         expandedAssignments.push({
+                            ...assignmentBase,
+                            grades: [grade],
+                            arms: [], 
+                        });
+                    }
+                });
+            }
+            else { // Primary or other school types
                 formAssignment.grades.forEach(grade => {
                     expandedAssignments.push({
                         ...assignmentBase,
@@ -826,9 +868,9 @@ export default function TeacherEditor() {
 
     let count = 0;
     for (const day in activeTimetable.timetable) {
-        const periods = activeTimetable.timetable[day];
-        for (const period of periods) {
-            for (const session of period) {
+        const daySlots = activeTimetable.timetable[day];
+        for (const slot of daySlots) {
+            for (const session of slot) {
                 if (session.teacherId === teacherId) {
                     count++;
                 }
@@ -984,3 +1026,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

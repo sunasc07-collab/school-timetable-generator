@@ -98,10 +98,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v27", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v27", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v27", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v27', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v28", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v28", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v28", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v28', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -460,30 +460,28 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     days.forEach(day => {
         newTimetable[day] = [];
-        const teachingSlotsForDay = timeSlots.filter(ts => {
-            const isBreakOnThisDay = ts.isBreak && (ts.days || days).includes(day);
-            return !isBreakOnThisDay;
-        });
-
-        teachingPeriodsByDay[day] = teachingSlotsForDay
+        teachingPeriodsByDay[day] = timeSlots
+            .filter(ts => !ts.isBreak || !(ts.days || days).includes(day))
             .map(ts => ts.period)
             .filter((p): p is number => p !== null)
             .sort((a, b) => a - b);
     });
     
     (lockedSessions || []).filter(ls => ls.day !== 'all_week').forEach(ls => {
-        const periodForLock = timeSlots.find(ts => ts.period === ls.period);
-        if (newTimetable[ls.day] && periodForLock) {
-            const classNames = ls.className === 'all' ? sortedClasses : [ls.className];
-            const lockedSlot: TimetableSession[] = [{
-                id: ls.id, subject: ls.activity, className: ls.className, classes: classNames, teacher: '', isLocked: true, isDouble: false, period: ls.period
-            }];
-            
-            let slot = newTimetable[ls.day].find(s => s[0]?.period === ls.period);
-            if(slot) {
-                slot.push(...lockedSlot);
-            } else {
-                newTimetable[ls.day].push(lockedSlot);
+        if (days.includes(ls.day)) {
+            const periodForLock = timeSlots.find(ts => ts.period === ls.period);
+            if (newTimetable[ls.day] && periodForLock) {
+                const classNames = ls.className === 'all' ? sortedClasses : [ls.className];
+                const lockedSlot: TimetableSession[] = [{
+                    id: ls.id, subject: ls.activity, className: ls.className, classes: classNames, teacher: '', isLocked: true, isDouble: false, period: ls.period
+                }];
+                
+                let slot = newTimetable[ls.day].find(s => s[0]?.period === ls.period);
+                if(slot) {
+                    slot.push(...lockedSlot);
+                } else {
+                    newTimetable[ls.day].push(lockedSlot);
+                }
             }
         }
     });
@@ -694,3 +692,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

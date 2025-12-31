@@ -564,6 +564,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             }
             optionalGroups.get(key)!.push(assignment);
         } else {
+             // Handle primary schools and core secondary subjects
             assignment.grades.forEach(grade => {
                 const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
                 effectiveArms.forEach(arm => {
@@ -588,42 +589,30 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             });
         }
     });
-    
+
     optionalGroups.forEach((assignmentsInGroup, groupKey) => {
-        const optionGroup = assignmentsInGroup[0]?.optionGroup;
-        if (!optionGroup) return;
+        const [schoolId, optionGroup] = groupKey.split('-');
+        const periods = assignmentsInGroup[0]?.periods || 1;
+        const gradesInGroup = [...new Set(assignmentsInGroup.flatMap(a => a.grades))];
 
-        const schoolId = assignmentsInGroup[0].schoolId;
-
-        const assignmentsByGrade = new Map<string, SubjectAssignment[]>();
-        assignmentsInGroup.forEach(assignment => {
-            assignment.grades.forEach(grade => {
-                if(!assignmentsByGrade.has(grade)) {
-                    assignmentsByGrade.set(grade, []);
-                }
-                assignmentsByGrade.get(grade)!.push(assignment);
-            });
-        });
-
-        assignmentsByGrade.forEach((gradeAssignments, grade) => {
-            const periods = gradeAssignments[0].periods;
+        gradesInGroup.forEach(grade => {
+            const assignmentsForGrade = assignmentsInGroup.filter(a => a.grades.includes(grade));
+            const armsForGrade = [...new Set(assignmentsForGrade.flatMap(a => a.arms || []))];
             
-            const allArmsForThisGradeGroup = [...new Set(gradeAssignments.flatMap(a => a.arms))];
-            const classNamesForThisBlock = allArmsForThisGradeGroup.length > 0 
-                ? allArmsForThisGradeGroup.map(arm => `${grade} ${arm}`.trim())
+            const classNamesForBlock = armsForGrade.length > 0 
+                ? armsForGrade.map(arm => `${grade} ${arm}`.trim())
                 : [`${grade}`.trim()];
 
-            classNamesForThisBlock.forEach(cn => allClassSets[schoolId]?.add(cn));
+            classNamesForBlock.forEach(cn => allClassSets[schoolId]?.add(cn));
             
             for (let i = 0; i < periods; i++) {
                 const blockId = crypto.randomUUID();
                 const optionSessions: TimetableSession[] = [];
-
-                gradeAssignments.forEach(assignment => {
-                    const { teacherId, teacherName, subject, arms } = assignment;
-                     const effectiveArms = arms && arms.length > 0 ? arms : [""];
-                    const classesForThisTeacher = effectiveArms.map(arm => `${grade} ${arm}`.trim());
-
+                
+                assignmentsForGrade.forEach(assignment => {
+                    const { teacherId, teacherName, subject } = assignment;
+                    
+                    // Create one session for the teacher for the whole block
                     optionSessions.push({
                         id: `${blockId}-${teacherId}-${subject}`,
                         subject: `Option ${optionGroup}`,
@@ -634,19 +623,19 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         period: 0,
                         schoolId: schoolId,
                         optionGroup: optionGroup,
-                        className: grade,
-                        classes: classesForThisTeacher,
+                        className: grade, // Represents the grade level of the block
+                        classes: classNamesForBlock, // All classes in this block
                     });
                 });
 
                 if (optionSessions.length > 0) {
-                    allUnits.push({ id: blockId, sessions: optionSessions, optionGroup });
+                    const uniqueTeacherSessions = Array.from(new Map(optionSessions.map(s => [s.teacherId, s])).values());
+                    allUnits.push({ id: blockId, sessions: uniqueTeacherSessions, optionGroup });
                 }
             }
         });
     });
-
-
+    
     const shuffledUnits = allUnits.sort(() => Math.random() - 0.5);
     const sortedAllUnits = shuffledUnits.sort((a, b) => ('sessions' in b ? 1 : 0) - ('sessions' in a ? 1 : 0) || ('partner' in b ? 1 : 0) - ('partner' in a ? 1 : 0));
 
@@ -796,5 +785,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

@@ -275,9 +275,7 @@ export default function Header() {
                     }
 
                     if (relevantSessions.length > 0) {
-                        const sessionsToRender = (viewType === 'teacher')
-                            ? relevantSessions
-                            : Array.from(new Map(relevantSessions.map(s => [s.id + s.className + s.subject, s])).values());
+                         const sessionsToRender = relevantSessions;
                         
                         if (sessionsToRender.length > 0) {
                              const sessionBlockCount = sessionsToRender.length;
@@ -308,9 +306,8 @@ export default function Header() {
                                         const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
                                         doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     } else { // teacher view
-                                        const schoolName = timetables.find(t=>t.id === session.schoolId)?.name || '';
                                         const grades = [...new Set([session.className].map(c => c.match(/^(Grade \d+|A-Level Year \d+)/)?.[0] || c))].join(', ');
-                                        const classText = `Class: ${grades} (${schoolName})`;
+                                        const classText = `Class: ${grades}`;
                                         doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     }
 
@@ -325,9 +322,8 @@ export default function Header() {
                                         const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
                                         doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     } else { // teacher view
-                                        const schoolName = timetables.find(t=>t.id === session.schoolId)?.name || '';
                                         const classNames = formatClassName(session.className);
-                                        const classText = `Class: ${classNames} (${schoolName})`;
+                                        const classText = `Class: ${classNames}`;
                                         doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     }
                                  }

@@ -346,17 +346,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const generateTimetable = useCallback(() => {
     if (!activeTimetable) return;
 
-    // We generate for ALL schools that have teachers assigned.
-    // The main logic will focus on the active school, but the validation
-    // needs to be aware of all other schedules.
     const allTimetablesToGenerate = timetables.filter(t => 
         allTeachers.some(teacher => teacher.assignments.some(a => a.schoolId === t.id))
     );
 
     let allSolvedBoards: { [schoolId: string]: TimetableData } = {};
-    let generationError: string | null = null;
     
-    // Initialize all boards
     timetables.forEach(tt => {
         allSolvedBoards[tt.id] = {};
         tt.days.forEach(day => {
@@ -398,8 +393,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const checkSession = (session: TimetableSession, p: number) => {
             const schoolTimetable = timetables.find(t => t.id === session.schoolId);
             if (!schoolTimetable) return false;
+            
+            // Check day constraint from assignment
+            const assignment = allCurrentSchoolAssignments.find(a => 
+                a.teacherId === session.teacherId && 
+                a.subject === (session.actualSubject || session.subject) &&
+                a.schoolId === session.schoolId
+            );
+            if (assignment && assignment.days && assignment.days.length > 0 && !assignment.days.includes(day)) {
+                return false;
+            }
 
-            // Class clash check
             const targetSlot = boards[session.schoolId][day]?.find(slot => slot[0]?.period === p);
             if (targetSlot) {
                 if (targetSlot.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.className === 'all'))) {
@@ -410,7 +414,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
             
-            // Teacher time-based clash detection across all schools
             if (session.teacherId) {
                 const proposedTimeSlot = schoolTimetable.timeSlots.find(ts => ts.period === p);
                 if (!proposedTimeSlot) return false;
@@ -419,7 +422,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const proposedStart = parseTimeToMinutes(startStr);
                 const proposedEnd = parseTimeToMinutes(endStr);
                 
-                if (proposedStart >= proposedEnd) return false; // Invalid time slot definition
+                if (proposedStart >= proposedEnd) return false; 
 
                 for (const schoolId in boards) {
                     const board = boards[schoolId];
@@ -437,21 +440,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                                 const existingStart = parseTimeToMinutes(existingStartStr);
                                 const existingEnd = parseTimeToMinutes(existingEndStr);
                                 
-                                if (existingStart >= existingEnd) continue; // Invalid existing slot
+                                if (existingStart >= existingEnd) continue;
 
-                                // Check for overlap: !(end1 <= start2 || start1 >= end2)
                                 if (proposedStart < existingEnd && proposedEnd > existingStart) {
-                                    return false; // Overlap detected
+                                    return false; 
                                 }
                             }
                         }
                     }
                 }
-            }
-
-            const assignment = allCurrentSchoolAssignments.find(a => a.teacherId === session.teacherId && a.subject === (session.actualSubject || session.subject));
-            if (assignment && assignment.days && assignment.days.length > 0 && !assignment.days.includes(day)) {
-                return false;
             }
 
             return true;
@@ -543,7 +540,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return [false, boards];
     }
     
-    // Prepare all units from all schools
     const allUnits: PlacementUnit[] = [];
     const allClassSets: {[schoolId: string]: Set<string>} = {};
 
@@ -632,13 +628,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const [isSolved, solvedBoards] = solve(allSolvedBoards, sortedAllUnits);
     
     if (!isSolved) {
-        generationError = `Could not generate a valid timetable for all schools. This is often due to conflicting teacher assignments or not enough available time slots.`;
-        // Only update the active timetable with the error
-        updateTimetable(activeTimetable.id, { error: generationError, timetable: {}, classes: [], conflicts: [] });
+        updateTimetable(activeTimetable.id, { error: "Failed to generate a valid timetable. Check for teacher over-allocation or conflicting constraints.", timetable: {}, classes: [], conflicts: [] });
         return;
     }
 
-    // Update all generated timetables
     for (const schoolId in solvedBoards) {
         const board = solvedBoards[schoolId];
         for (const day in board) {
@@ -749,3 +742,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

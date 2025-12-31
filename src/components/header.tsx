@@ -278,11 +278,14 @@ export default function Header() {
 
                     if (relevantSessions.length > 0) {
                         const uniqueSessionBlocks = new Map<string, TimetableSession[]>();
-                        relevantSessions.forEach(session => {
-                            const key = session.optionGroup ? session.id : `${session.id}-${session.className}-${session.subject}`;
-                            if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
-                            uniqueSessionBlocks.get(key)!.push(session);
-                        });
+                        
+                        if (viewType === 'class') {
+                            relevantSessions.forEach(session => {
+                                const key = session.optionGroup ? session.id : `${session.id}-${session.className}-${session.subject}`;
+                                if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
+                                uniqueSessionBlocks.get(key)!.push(session);
+                            });
+                        }
                         
                         const sessionsToRender = (viewType === 'teacher') ? relevantSessions : Array.from(uniqueSessionBlocks.values()).flat();
 
@@ -563,5 +566,7 @@ export default function Header() {
     </>
   );
 }
+
+    
 
     

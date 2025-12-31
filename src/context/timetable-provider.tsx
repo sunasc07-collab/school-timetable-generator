@@ -493,7 +493,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         const unit = units[0];
         const remainingUnits = units.slice(1);
         
-        const schoolForUnit = timetables.find(t => t.id === (('sessions' in unit) ? unit.sessions[0].schoolId : ('session' in unit' ? unit.session.schoolId : unit.schoolId)));
+        const schoolForUnit = timetables.find(t => t.id === (('sessions' in unit) ? unit.sessions[0].schoolId : ('session' in unit ? unit.session.schoolId : unit.schoolId)));
 
         if (!schoolForUnit) return solve(boards, remainingUnits);
 
@@ -818,5 +818,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

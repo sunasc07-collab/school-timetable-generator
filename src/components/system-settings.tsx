@@ -155,7 +155,7 @@ function LockedSessionsTab() {
                                                         <span className="truncate">
                                                         {field.value.length > 0
                                                           ? timeSlots
-                                                              .filter(p => p.period && field.value.includes(p.period))
+                                                              .filter(p => field.value.includes(p.isBreak ? -timeSlots.indexOf(p) : p.period as number))
                                                               .map(p => p.isBreak ? p.label : `P${p.period}`)
                                                               .join(', ')
                                                           : "Select Periods..."}
@@ -179,7 +179,6 @@ function LockedSessionsTab() {
                                                   <CommandGroup>
                                                     <ScrollArea className="h-48">
                                                     {timeSlots.map(p => {
-                                                        if (p.period === null && !p.isBreak) return null;
                                                         const periodIdentifier = p.isBreak ? -timeSlots.indexOf(p) : p.period as number;
                                                         const [start, end] = p.time.split('-');
                                                         const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
@@ -577,3 +576,5 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
+
+    

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -44,6 +45,16 @@ export function Combobox({
     className 
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [search, setSearch] = React.useState('');
+
+  const handleSelect = (currentValue: string) => {
+    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue);
+    setOpen(false);
+  }
+  
+  const filteredOptions = options.filter(option => 
+    option.label.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -61,24 +72,30 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command
-         filter={(value, search) => {
-            if (value.toLowerCase().includes(search.toLowerCase())) return 1
-            return 0
-          }}
-        >
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={false}>
+          <CommandInput 
+            placeholder={searchPlaceholder}
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
-            <CommandEmpty>{emptyPlaceholder}</CommandEmpty>
+            {filteredOptions.length === 0 && search.length > 0 && (
+                <CommandItem
+                    onSelect={() => handleSelect(search)}
+                    value={search}
+                >
+                    Add "{search}"
+                </CommandItem>
+            )}
+            {filteredOptions.length === 0 && search.length === 0 && (
+                <CommandEmpty>{emptyPlaceholder}</CommandEmpty>
+            )}
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
-                    setOpen(false)
-                  }}
+                  onSelect={() => handleSelect(option.value)}
                 >
                   <Check
                     className={cn(

@@ -229,28 +229,13 @@ export default function TimetableGrid() {
                                 );
                             }
 
-                            if (slot.isBreak) { // Not a break on this day, so it's a teaching slot
-                                const periodIndex = slot.period;
-                                if (periodIndex === null) { // Should not happen for teaching slots, but as a safeguard
-                                     return <TableCell key={`${slot.id}-${day}`} className="p-1 align-top min-h-[6rem] hover:bg-muted/50 transition-colors" onDragOver={handleDragOver}/>
-                                }
-                                return (
-                                    <TableCell
-                                        key={`${slot.id}-${day}`}
-                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDrop(e, day, periodIndex)}
-                                    >
-                                        {renderCellContent(day, periodIndex, filterValue)}
-                                    </TableCell>
-                                );
-                            }
-
-                            // Regular teaching period
+                            // Regular teaching period (empty or filled)
                             const periodIndex = slot.period;
-                             if (periodIndex === null) { // Should not happen, but as a safeguard.
-                                 return <TableCell key={`${slot.id}-${day}`} />;
+                            if (periodIndex === null) {
+                                // This should not happen for a non-break slot, but as a safeguard.
+                                return <TableCell key={`${slot.id}-${day}`} />;
                             }
+                            
                             return (
                                 <TableCell
                                     key={`${slot.id}-${day}`}
@@ -334,3 +319,5 @@ export default function TimetableGrid() {
     </ClientOnly>
   );
 }
+
+    

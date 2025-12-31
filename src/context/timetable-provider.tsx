@@ -40,11 +40,11 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 1, time: '08:00-08:40', id: crypto.randomUUID() },
     { period: 2, time: '08:40-09:20', id: crypto.randomUUID() },
     { period: 3, time: '09:20-10:00', id: crypto.randomUUID() },
-    { period: null, time: '10:00-10:20', isBreak: true, label: 'SHORT-BREAK', id: crypto.randomUUID(), days: DEFAULT_DAYS },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: crypto.randomUUID(), days: DEFAULT_DAYS },
     { period: 4, time: '10:20-11:00', id: crypto.randomUUID() },
     { period: 5, time: '11:00-11:40', id: crypto.randomUUID() },
     { period: 6, time: '11:40-12:20', id: crypto.randomUUID() },
-    { period: null, time: '12:20-13:00', isBreak: true, label: 'LUNCH', id: crypto.randomUUID(), days: DEFAULT_DAYS },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: crypto.randomUUID(), days: DEFAULT_DAYS },
     { period: 7, time: '13:00-13:40', id: crypto.randomUUID() },
     { period: 8, time: '13:40-14:20', id: crypto.randomUUID() },
     { period: 9, time: '14:20-15:00', id: crypto.randomUUID() },
@@ -397,14 +397,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     optionalAssignments.forEach(assignment => {
       const isSeniorSecondary = schoolName.toLowerCase().includes('secondary');
       
-      // For senior secondary, separate groups by grade. For others, group by school and option group.
       if (isSeniorSecondary && assignment.grades.some(g => g.startsWith('Grade 1') || g.startsWith('A-Level'))) {
           assignment.grades.forEach(grade => {
             const groupKey = `${assignment.schoolId}-${grade}-${assignment.optionGroup}`;
             if (!optionalGroups.has(groupKey)) {
               optionalGroups.set(groupKey, []);
             }
-            optionalGroups.get(groupKey)!.push({ ...assignment, teacherId: assignment.teacherId, teacherName: assignment.teacherName, grades: [grade] }); // override grades to single grade for this key
+            optionalGroups.get(groupKey)!.push({ ...assignment, teacherId: assignment.teacherId, teacherName: assignment.teacherName, grades: [grade] });
           });
       } else {
         const groupKey = `${assignment.schoolId}-${assignment.optionGroup}`;
@@ -472,7 +471,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             .sort((a, b) => a - b);
     });
     
-    // Pre-fill locked sessions
     (lockedSessions || []).filter(ls => ls.day !== 'all_week').forEach(ls => {
         const periodForLock = timeSlots.find(ts => ts.period === ls.period);
         if (newTimetable[ls.day] && periodForLock) {
@@ -492,7 +490,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     function isValidPlacement(board: TimetableData, unit: PlacementUnit, day: string, period: number): boolean {
         const checkSession = (session: TimetableSession, currentDay: string, p: number) => {
-            if (!teachingPeriodsByDay[currentDay].includes(p)) return false; // Not a valid teaching period for this day
+            if (!teachingPeriodsByDay[currentDay].includes(p)) return false;
             const targetSlot = board[currentDay]?.find(slot => slot[0]?.period === p);
             
             if (targetSlot) {
@@ -536,7 +534,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
               if (!checkSession(s, day, period)) return false;
             }
             return true;
-        } else { // SingleSessionUnit
+        } else {
             return checkSession(unit, day, period);
         }
     }
@@ -696,5 +694,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

@@ -143,7 +143,7 @@ export default function Header() {
 
     const getSubjectColor = (subject: string) => {
         if (!subject) return [255, 255, 255];
-        if (['SHORT-BREAK', 'LUNCH', 'Sports', 'Assembly', 'Club Activities', 'Guidance'].includes(subject)) return [220, 220, 220];
+        if (['Short Break', 'Lunch', 'Sports', 'Assembly', 'Club Activities', 'Guidance'].includes(subject)) return [220, 220, 220];
         if (!subjectColorMap.has(subject)) {
             subjectColorMap.set(subject, SUBJECT_COLORS[colorIndex % SUBJECT_COLORS.length]);
             colorIndex++;
@@ -252,7 +252,7 @@ export default function Header() {
             doc.setFontSize(11);
             doc.setFont(FONT_FAMILY, "bold");
             doc.setTextColor(255, 255, 255);
-            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2 + 4, { align: 'right', baseline: 'middle' });
+            doc.text(formattedTime, gridX + timeColWidth - 10, currentY + rowHeight / 2, { align: 'right', baseline: 'middle' });
 
 
             days.forEach((day, dayIndex) => {
@@ -514,5 +514,3 @@ export default function Header() {
     </>
   );
 }
-
-    

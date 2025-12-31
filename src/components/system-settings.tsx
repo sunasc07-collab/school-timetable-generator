@@ -27,6 +27,8 @@ interface SystemSettingsProps {
     onOpenChange: (open: boolean) => void;
 }
 
+const BREAK_ACTIVITIES = ["Short Break", "Lunch"];
+
 export default function SystemSettings({ open, onOpenChange }: SystemSettingsProps) {
     const { activeTimetable, updateTimeSlots } = useTimetable();
     const [localTimeSlots, setLocalTimeSlots] = useState<TimeSlot[]>([]);
@@ -204,14 +206,21 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                             </div>
                                         </div>
                                         <div className="space-y-1">
-                                            <Label htmlFor={`label-${index}`}>Label</Label>
-                                            <Input
-                                                id={`label-${index}`}
+                                            <Label htmlFor={`label-${index}`}>Activity</Label>
+                                            <Select
                                                 value={slot.label || ''}
-                                                onChange={(e) => handleTimeSlotChange(index, 'label', e.target.value)}
-                                                placeholder="e.g., Short Break"
+                                                onValueChange={(value) => handleTimeSlotChange(index, 'label', value)}
                                                 disabled={!slot.isBreak}
-                                            />
+                                            >
+                                                <SelectTrigger id={`label-${index}`}>
+                                                    <SelectValue placeholder="Select Activity" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {BREAK_ACTIVITIES.map(act => (
+                                                        <SelectItem key={act} value={act}>{act}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                         <div className="flex flex-col items-center space-y-2">
                                             <Label htmlFor={`isBreak-${index}`} className="text-xs">Break</Label>
@@ -221,7 +230,7 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                                 onCheckedChange={(checked) => {
                                                     handleTimeSlotChange(index, 'isBreak', checked)
                                                     if (checked) {
-                                                        handleTimeSlotChange(index, 'label', 'Break')
+                                                        handleTimeSlotChange(index, 'label', 'Short Break')
                                                         handleTimeSlotChange(index, 'days', activeTimetable?.days || [])
                                                     } else {
                                                         handleTimeSlotChange(index, 'label', '')
@@ -275,7 +284,3 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
-
-    
-
-    

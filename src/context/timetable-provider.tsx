@@ -394,26 +394,30 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const schoolTimetable = timetables.find(t => t.id === session.schoolId);
             if (!schoolTimetable) return false;
             
+            // Check day constraint on assignment
             const assignment = allCurrentSchoolAssignments.find(a => 
-                a.teacherId === session.teacherId && 
-                a.subject === (session.actualSubject || session.subject) &&
+                a.teacherId === session.teacherId &&
                 a.schoolId === session.schoolId &&
-                a.grades.includes(session.className.split(' ')[0])
+                a.subject === (session.actualSubject || session.subject) &&
+                a.grades.some(g => session.classes.some(c => c.startsWith(g)))
             );
             if (assignment && assignment.days && assignment.days.length > 0 && !assignment.days.includes(day)) {
                 return false;
             }
 
-            const targetSlot = boards[session.schoolId][day]?.find(slot => slot[0]?.period === p);
-            if (targetSlot) {
-                if (targetSlot.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.className === 'all'))) {
+            const targetSlotInBoard = boards[session.schoolId][day]?.find(slot => slot[0]?.period === p);
+            if (targetSlotInBoard) {
+                // Check for locked period for the same class
+                if (targetSlotInBoard.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.className === 'all'))) {
                      return false;
                 }
-                if (targetSlot.some(s => s.classes.some(c => session.classes.includes(c)))) {
+                // Check if class is already scheduled in this slot
+                if (targetSlotInBoard.some(s => s.classes.some(c => session.classes.includes(c)))) {
                      return false;
                 }
             }
             
+            // Time-based clash detection for the teacher across all schools
             if (session.teacherId) {
                 const proposedTimeSlot = schoolTimetable.timeSlots.find(ts => ts.period === p);
                 if (!proposedTimeSlot) return false;
@@ -426,14 +430,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                 for (const schoolId in boards) {
                     const board = boards[schoolId];
-                    const schoolConfig = timetables.find(t => t.id === schoolId);
-                    if (!schoolConfig) continue;
+                    const otherSchoolConfig = timetables.find(t => t.id === schoolId);
+                    if (!otherSchoolConfig) continue;
 
                     const daySchedule = board[day] || [];
                     for (const slot of daySchedule) {
                         for (const existingSession of slot) {
                             if (existingSession.teacherId === session.teacherId) {
-                                const existingTimeSlot = schoolConfig.timeSlots.find(ts => ts.period === existingSession.period);
+                                const existingTimeSlot = otherSchoolConfig.timeSlots.find(ts => ts.period === existingSession.period);
                                 if (!existingTimeSlot) continue;
 
                                 const [existingStartStr, existingEndStr] = existingTimeSlot.time.split('-');
@@ -441,7 +445,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                                 const existingEnd = parseTimeToMinutes(existingEndStr);
                                 
                                 if (existingStart >= existingEnd) continue;
-
+                                
+                                // Check for overlap
                                 if (proposedStart < existingEnd && proposedEnd > existingStart) {
                                     return false; 
                                 }
@@ -454,7 +459,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             return true;
         };
 
-        if ('partner' in unit) {
+        if ('partner' in unit) { // Double Period
             const schoolForUnit = timetables.find(t => t.id === unit.session.schoolId);
             if (!schoolForUnit) return false;
             
@@ -467,6 +472,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             
             const nextTeachingPeriod = teachingPeriodsForDay[periodSlotIndex + 1];
 
+            // Ensure periods are consecutive in the main timeslot array
             const periodSlotObj = schoolForUnit.timeSlots.find(p => p.period === period);
             const nextPeriodSlotObj = schoolForUnit.timeSlots.find(p => p.period === nextTeachingPeriod);
             if (!periodSlotObj || !nextPeriodSlotObj) return false;
@@ -477,12 +483,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if(timeSlotIndex + 1 !== nextTimeSlotIndex) return false;
 
             return checkSession(unit.session, period) && checkSession(unit.partner, nextTeachingPeriod);
-        } else if ('sessions' in unit) {
+        } else if ('sessions' in unit) { // Option Block
             for (const s of unit.sessions) {
               if (!checkSession(s, period)) return false;
             }
             return true;
-        } else {
+        } else { // Single Period
             return checkSession(unit, period);
         }
     }
@@ -549,7 +555,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     allTeachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
-            const { schoolId, subject, periods, grades, arms, optionGroup, isCore } = assignment;
+            const { schoolId, subject, periods, grades, arms, optionGroup } = assignment;
             const schoolTimetable = timetables.find(t => t.id === schoolId);
             if (!schoolTimetable) return;
 

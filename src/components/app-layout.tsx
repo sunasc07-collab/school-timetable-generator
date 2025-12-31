@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -37,34 +38,42 @@ export default function AppLayout() {
         templateTimetable: activeTimetable,
       }));
     } else if (viewMode === "teacher") {
+      const consolidatedTimetable: Timetable = {
+        id: 'consolidated',
+        name: 'Consolidated',
+        days: DEFAULT_DAYS,
+        timeSlots: DEFAULT_TIMESLOTS,
+        timetable: {},
+        classes: [],
+        conflicts: [],
+        error: null,
+        lockedSessions: [],
+      };
+
       allTeachers.forEach((teacher) => {
-        const schoolsTaughtIds = [
-          ...new Set(teacher.assignments.map((a) => a.schoolId)),
-        ];
-        const timetablesForTeacher = timetables.filter(
-          (t) =>
-            schoolsTaughtIds.includes(t.id) &&
+        const allTeacherSessions: TimetableSession[] = [];
+        const timetablesForTeacher = timetables.filter(t => 
+            teacher.assignments.some(a => a.schoolId === t.id) &&
             Object.keys(t.timetable).length > 0
         );
 
-        if (timetablesForTeacher.length > 0) {
-          const allTeacherSessions: TimetableSession[] = [];
-          timetablesForTeacher.forEach((tt) => {
-            Object.entries(tt.timetable).forEach(([day, daySlots]) => {
-              daySlots.forEach((slot) => {
-                slot.forEach((session) => {
-                  if (session.teacherId === teacher.id) {
-                    allTeacherSessions.push({ ...session, day: day });
-                  }
-                });
+        timetablesForTeacher.forEach((tt) => {
+          Object.entries(tt.timetable).forEach(([day, daySlots]) => {
+            daySlots.forEach((slot) => {
+              slot.forEach((session) => {
+                if (session.teacherId === teacher.id) {
+                  allTeacherSessions.push({ ...session, day: day });
+                }
               });
             });
           });
+        });
 
+        if (allTeacherSessions.length > 0) {
           items.push({
             title: `${teacher.name}'s Timetable`,
             filterValue: teacher.id,
-            templateTimetable: timetablesForTeacher[0],
+            templateTimetable: consolidatedTimetable,
             allTeacherSessions: allTeacherSessions,
           });
         }
@@ -80,16 +89,18 @@ export default function AppLayout() {
   }, [viewMode, activeTimetable, classes, arms, allTeachers, timetables]);
 
   const mobileItemsToRender = useMemo(() => {
-    if (viewMode === "teacher") {
-      return itemsToRender.map(({ title, filterValue, allTeacherSessions }) => ({
+    if (viewMode === 'teacher') {
+       return itemsToRender.map(({ title, filterValue, allTeacherSessions, templateTimetable }) => ({
         title,
         filterValue,
         allTeacherSessions,
+        templateTimetable
       }));
     }
-    return itemsToRender.map(({ title, filterValue }) => ({
+    return itemsToRender.map(({ title, filterValue, templateTimetable }) => ({
       title,
       filterValue,
+      templateTimetable
     }));
   }, [itemsToRender, viewMode]);
 
@@ -140,3 +151,21 @@ export default function AppLayout() {
     </SidebarProvider>
   );
 }
+
+const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DEFAULT_TIMESLOTS = [
+    { period: 1, time: '08:00-08:40', id: '1' },
+    { period: 2, time: '08:40-09:20', id: '2' },
+    { period: 3, time: '09:20-10:00', id: '3' },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: 'b1', days: DEFAULT_DAYS },
+    { period: 4, time: '10:20-11:00', id: '4' },
+    { period: 5, time: '11:00-11:40', id: '5' },
+    { period: 6, time: '11:40-12:20', id: '6' },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: 'b2', days: DEFAULT_DAYS },
+    { period: 7, time: '13:00-13:40', id: '7' },
+    { period: 8, time: '13:40-14:20', id: '8' },
+    { period: 9, time: '14:20-15:00', id: '9' },
+    { period: 10, time: '15:00-15:40', id: '10' },
+    { period: 11, time: '15:40-16:20', id: '11' },
+    { period: 12, time: '16:20-17:00', id: '12' },
+];

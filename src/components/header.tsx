@@ -96,7 +96,6 @@ export default function Header() {
   };
   
   const handleGenerateClick = () => {
-    if (!activeTimetable) return;
     const hasAnyTimetableData = timetables.some(t => Object.keys(t.timetable).length > 0);
     if (hasAnyTimetableData) {
       openDialog('regenerate');
@@ -274,7 +273,7 @@ export default function Header() {
                         const allSessionsInSlot = templateTimetable.timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
                     } else { // teacher view
-                        relevantSessions = allTeacherSessions.filter(s => s.period === slot.period && s.day === day);
+                        relevantSessions = allTeacherSessions.filter(s => s.day === day && s.period === slot.period);
                     }
 
                     if (relevantSessions.length > 0) {
@@ -315,8 +314,9 @@ export default function Header() {
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
                                     doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                 } else { // teacher view
+                                    const schoolName = timetables.find(t=>t.id === firstSession.schoolId)?.name || '';
                                     const grades = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(c => c.match(/^(Grade \d+|A-Level Year \d+)/)?.[0] || c)))].join(', ');
-                                    const classText = `Class: ${grades}`;
+                                    const classText = `Class: ${grades} (${schoolName})`;
                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                 }
 
@@ -331,8 +331,9 @@ export default function Header() {
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
                                     doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                 } else { // teacher view
+                                    const schoolName = timetables.find(t=>t.id === firstSession.schoolId)?.name || '';
                                     const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
-                                    const classText = `Class: ${classNames}`;
+                                    const classText = `Class: ${classNames} (${schoolName})`;
                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                 }
                              }
@@ -379,7 +380,7 @@ export default function Header() {
                         });
                     });
                 });
-                generatePage(`${teacher.name}'s Timetable`, teacher.id, 'teacher', timetablesForTeacher, allTeacherSessions);
+                generatePage(`${teacher.name}'s Timetable`, teacher.id, 'teacher', timetables, allTeacherSessions);
             }
         });
     } else {
@@ -536,7 +537,7 @@ export default function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button onClick={handlePrint} variant="outline" disabled={!activeTimetable || Object.keys(activeTimetable.timetable).length === 0}>
+        <Button onClick={handlePrint} variant="outline" disabled={timetables.every(t => Object.keys(t.timetable).length === 0)}>
           <Printer className="mr-2 h-4 w-4" />
           Print
         </Button>

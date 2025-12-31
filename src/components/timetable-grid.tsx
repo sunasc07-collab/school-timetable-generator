@@ -55,13 +55,16 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
     classes 
   } = useTimetable();
 
-  const timetable = activeTimetable?.timetable || {};
-  const days = activeTimetable?.days || [];
-  const timeSlots = activeTimetable?.timeSlots || [];
-  const conflicts = activeTimetable?.conflicts || [];
-  const error = activeTimetable?.error || null;
-
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+
+  const conflicts = useMemo(() => {
+    if (viewMode === 'teacher') {
+      return timetables.flatMap(t => t.conflicts);
+    }
+    return activeTimetable?.conflicts || [];
+  }, [activeTimetable, timetables, viewMode]);
+
+  const error = activeTimetable?.error || null;
 
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
@@ -72,29 +75,23 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
     e: React.DragEvent<HTMLTableCellElement>,
     day: string,
     period: number,
-    timetableId: string
   ) => {
     e.preventDefault();
-    if (!activeTimetable) return;
     try {
         const data: TimetableDragData = JSON.parse(
           e.dataTransfer.getData("application/json")
         );
-        if (timetableId === activeTimetable.id) {
-          moveSession(data.session, data.from, { day, period });
-        }
+        moveSession(data.session, data.from, { day, period });
     } catch (error) {
         console.error("Failed to parse drag data:", error);
     }
   };
   
   const handleClearClick = () => {
-     if (!activeTimetable) return;
     setIsClearConfirmOpen(true);
   };
 
   const handleConfirmClear = () => {
-    if (!activeTimetable) return;
     clearTimetable();
     setIsClearConfirmOpen(false);
   }
@@ -141,7 +138,7 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
     return null;
   }
 
-  if (!activeTimetable) {
+  if (viewMode !== 'teacher' && !activeTimetable) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
         <div>
@@ -167,7 +164,9 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
     );
   }
 
-  if (Object.keys(timetable).length === 0 && viewMode !== 'teacher') {
+  const hasAnyTimetableData = timetables.some(t => Object.keys(t.timetable).length > 0);
+
+  if (!hasAnyTimetableData && (viewMode !== 'teacher')) {
      return (
         <div className="flex flex-col items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
             {error ? (
@@ -231,7 +230,7 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
                                     key={`${slot.id}-${day}`}
                                     className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
                                     onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, day, slot.period as number, templateTimetable.id)}
+                                    onDrop={(e) => handleDrop(e, day, slot.period as number)}
                                 >
                                     {renderCellContent(day, slot.period as number, filterValue, templateTimetable, allTeacherSessions)}
                                 </TableCell>
@@ -296,7 +295,7 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
                     Resolve Conflicts
                   </Button>
                 )}
-                <Button onClick={handleClearClick} variant="destructive" disabled={Object.keys(timetable).length === 0}>
+                <Button onClick={handleClearClick} variant="destructive" disabled={!hasAnyTimetableData}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Clear Timetable
                 </Button>

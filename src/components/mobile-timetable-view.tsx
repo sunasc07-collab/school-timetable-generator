@@ -11,42 +11,24 @@ import {
 } from "@/components/ui/accordion";
 import { Separator } from "./ui/separator";
 import { formatTime } from "@/lib/utils";
-import type { TimetableSession } from "@/lib/types";
+import type { Timetable, TimetableSession } from "@/lib/types";
 
 interface MobileTimetableViewProps {
     itemsToRender: { 
         title: string; 
         filterValue: string;
-        // For teacher view, these will be consolidated sessions from multiple schools
+        templateTimetable: Timetable;
         allTeacherSessions?: TimetableSession[];
     }[];
 }
 
 export default function MobileTimetableView({ itemsToRender }: MobileTimetableViewProps) {
-    const { activeTimetable, viewMode, timetables } = useTimetable();
+    const { viewMode } = useTimetable();
 
-    if (!activeTimetable) return null;
-
-    // For class/arm view, we use the active timetable.
-    // For teacher view, the structure comes from the first relevant timetable.
-    const getTemplateTimetable = (filterValue: string) => {
-        if (viewMode === 'class' || viewMode === 'arm') {
-            return activeTimetable;
-        }
-        if (viewMode === 'teacher') {
-            const firstTimetableForTeacher = timetables.find(t => 
-                t.timetable && Object.keys(t.timetable).length > 0 &&
-                Object.values(t.timetable).flat().flat().some(s => s.teacherId === filterValue)
-            );
-            return firstTimetableForTeacher || activeTimetable;
-        }
-        return activeTimetable;
-    }
 
     return (
         <Accordion type="multiple" className="w-full space-y-4">
-        {itemsToRender.map(({ title, filterValue, allTeacherSessions }) => {
-            const templateTimetable = getTemplateTimetable(filterValue);
+        {itemsToRender.map(({ title, filterValue, allTeacherSessions, templateTimetable }) => {
             if (!templateTimetable) return null;
 
             const { timetable, days, timeSlots } = templateTimetable;

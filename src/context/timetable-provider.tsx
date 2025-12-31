@@ -118,14 +118,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       setTimetables(prev => prev.map(t => t.id === timetableId ? { ...t, ...updates } : t));
   }, [setTimetables]);
 
-  const findConflicts = useCallback((timetableData: TimetableData, timetableId: string) => {
+  const findConflicts = useCallback((timetableId: string) => {
     const currentTT = timetables.find(t => t.id === timetableId);
-    if (!currentTT || !timetableData || Object.keys(timetableData).length === 0) {
+    if (!currentTT || !currentTT.timetable || Object.keys(currentTT.timetable).length === 0) {
         if(currentTT) updateTimetable(timetableId, { conflicts: [] });
         return;
     }
     
-    const { days } = currentTT;
+    const { days, timetable: timetableData } = currentTT;
     const newConflicts: Conflict[] = [];
 
     days.forEach(day => {
@@ -617,14 +617,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             conflicts: [],
             error: null,
         });
-        findConflicts(board, schoolId);
+        findConflicts(schoolId);
     }
 
   }, [updateTimetable, allTeachers, findConflicts, timetables]);
 
 
   const clearTimetable = () => {
-    if (!activeTimetable) return;
     resetAllTimetables();
   }
   
@@ -633,9 +632,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     from: { day: string; period: number },
     to: { day: string; period: number }
   ) => {
-    if (!activeTimetable?.timetable) return;
+    const schoolTimetable = timetables.find(t => t.id === session.schoolId);
+    if (!schoolTimetable?.timetable) return;
 
-    const newTimetableData = JSON.parse(JSON.stringify(activeTimetable.timetable));
+    const newTimetableData = JSON.parse(JSON.stringify(schoolTimetable.timetable));
     
     const fromSlotArr = newTimetableData[from.day];
     const fromSlotIndex = fromSlotArr.findIndex((s: TimetableSession[]) => s[0]?.period === from.period);
@@ -658,8 +658,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         newTimetableData[to.day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
     }
     
-    updateTimetable(activeTimetable.id, { timetable: newTimetableData });
-    findConflicts(newTimetableData, activeTimetable.id);
+    updateTimetable(session.schoolId, { timetable: newTimetableData });
+    findConflicts(session.schoolId);
   }
 
   const resolveConflicts = () => {
@@ -744,5 +744,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

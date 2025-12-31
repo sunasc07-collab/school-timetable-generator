@@ -310,54 +310,35 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                     <FormField
                         control={control}
                         name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
-                        render={({ field }) => (
+                        render={() => (
                             <FormItem>
                                 {assignmentIndex === 0 && <FormLabel>Grade(s)</FormLabel>}
-                                {isSecondary ? (
-                                    <div className="grid grid-cols-3 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
-                                        {[...SECONDARY_GRADES, ...A_LEVEL_GRADES].map(grade => (
-                                            <FormField
-                                                key={grade}
-                                                control={control}
-                                                name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
-                                                render={({ field: checkboxField }) => (
-                                                    <FormItem key={grade} className="flex flex-row items-center space-x-2 space-y-0">
-                                                        <FormControl>
-                                                            <Checkbox
-                                                                checked={checkboxField.value?.includes(grade)}
-                                                                onCheckedChange={(checked) => {
-                                                                    const currentValue = checkboxField.value || [];
-                                                                    const newValue = checked
-                                                                        ? [...currentValue, grade]
-                                                                        : currentValue.filter(value => value !== grade);
-                                                                    checkboxField.onChange(newValue);
-                                                                }}
-                                                            />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal text-sm">{grade.replace("Grade ", "").replace("A-Level Year", "Year")}</FormLabel>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <Select 
-                                        onValueChange={(value) => field.onChange(value ? [value] : [])} 
-                                        value={Array.isArray(field.value) && field.value.length > 0 ? field.value[0] : ""} 
-                                        disabled={!schoolId}
-                                    >
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Grade" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <ScrollArea className="h-72">
-                                            {gradeOptions.map((grade) => ( <SelectItem key={grade} value={grade}>{grade}</SelectItem> ))}
-                                            </ScrollArea>
-                                        </SelectContent>
-                                    </Select>
-                                )}
+                                <div className="grid grid-cols-3 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                    {gradeOptions.map(grade => (
+                                        <FormField
+                                            key={grade}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`}
+                                            render={({ field: checkboxField }) => (
+                                                <FormItem key={grade} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkboxField.value?.includes(grade)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = checkboxField.value || [];
+                                                                const newValue = checked
+                                                                    ? [...currentValue, grade]
+                                                                    : currentValue.filter(value => value !== grade);
+                                                                checkboxField.onChange(newValue);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm">{isSecondary ? grade.replace("Grade ", "").replace("A-Level Year", "Year") : grade}</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -559,7 +540,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                                                                     const newValue = checked
                                                                         ? [...currentValue, arm]
                                                                         : currentValue.filter(value => value !== arm);
-                                                                    checkboxField.onChange(newValue);
+                                                                checkboxField.onChange(newValue);
                                                             }}
                                                         />
                                                         </FormControl>
@@ -805,9 +786,17 @@ export default function TeacherEditor() {
                 optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
             };
 
-            const isSecondary = timetables.find(t => t.id === formAssignment.schoolId)?.name.toLowerCase().includes('secondary');
+            const school = timetables.find(t => t.id === formAssignment.schoolId);
+            const isSecondary = school?.name.toLowerCase().includes('secondary');
 
-            if (isSecondary && (formAssignment.subjectType === 'optional' || formAssignment.subjectType === 'core')) {
+            if (!isSecondary) {
+                // For Primary/other schools, create one assignment for all selected grades (consolidated)
+                expandedAssignments.push({
+                    ...assignmentBase,
+                    grades: formAssignment.grades,
+                    arms: formAssignment.arms || [],
+                });
+            } else if (isSecondary && (formAssignment.subjectType === 'optional' || formAssignment.subjectType === 'core')) {
                  expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,
@@ -832,7 +821,7 @@ export default function TeacherEditor() {
                     }
                 });
             }
-            else { // Primary or other school types
+            else { // Fallback for any other cases
                 formAssignment.grades.forEach(grade => {
                     expandedAssignments.push({
                         ...assignmentBase,
@@ -1036,3 +1025,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

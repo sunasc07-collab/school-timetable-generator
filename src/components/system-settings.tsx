@@ -179,26 +179,27 @@ function LockedSessionsTab() {
                                                   <CommandGroup>
                                                     <ScrollArea className="h-48">
                                                     {timeSlots.map(p => {
-                                                        if (p.period === null) return null;
+                                                        if (p.period === null && !p.isBreak) return null;
+                                                        const periodIdentifier = p.isBreak ? -timeSlots.indexOf(p) : p.period as number;
                                                         const [start, end] = p.time.split('-');
                                                         const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
                                                         const label = p.isBreak ? p.label : `Period ${p.period}`;
                                                         return (
                                                         <CommandItem
                                                             key={p.id}
-                                                            value={String(p.period)}
+                                                            value={String(periodIdentifier)}
                                                             onSelect={() => {
                                                                 const currentValue = field.value || [];
-                                                                const isSelected = currentValue.includes(p.period as number);
+                                                                const isSelected = currentValue.includes(periodIdentifier as number);
                                                                 const newValue = isSelected
-                                                                    ? currentValue.filter(val => val !== p.period)
-                                                                    : [...currentValue, p.period as number];
+                                                                    ? currentValue.filter(val => val !== periodIdentifier)
+                                                                    : [...currentValue, periodIdentifier as number];
                                                                 field.onChange(newValue.sort((a,b) => a-b));
                                                             }}
                                                         >
                                                             <Checkbox
                                                                 className="mr-2"
-                                                                checked={field.value?.includes(p.period as number)}
+                                                                checked={field.value?.includes(periodIdentifier as number)}
                                                             />
                                                             {`${label} (${formattedTime})`}
                                                         </CommandItem>

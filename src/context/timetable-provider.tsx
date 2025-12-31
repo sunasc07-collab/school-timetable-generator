@@ -556,8 +556,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     allTeachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             const { schoolId, subject, periods, grades, arms, optionGroup } = assignment;
-            const schoolTimetable = timetables.find(t => t.id === schoolId);
-            if (!schoolTimetable) return;
+            if (!schoolId || !timetables.some(t => t.id === schoolId)) return;
 
             if (optionGroup) {
                 // Optional subjects are handled in groups later
@@ -568,7 +567,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const effectiveArms = arms && arms.length > 0 ? arms : [""];
                 effectiveArms.forEach(arm => {
                     const className = `${grade} ${arm}`.trim();
-                    allClassSets[schoolId].add(className);
+                    if(allClassSets[schoolId]) {
+                        allClassSets[schoolId].add(className);
+                    }
 
                     let remainingPeriods = periods;
 
@@ -639,7 +640,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
                         effectiveArms.forEach(arm => {
                             const className = `${grade} ${arm}`.trim();
-                            allClassSets[schoolId].add(className);
+                            if(allClassSets[schoolId]) {
+                                allClassSets[schoolId].add(className);
+                            }
 
                             blockSessions.push({
                                 id: blockId,

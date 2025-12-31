@@ -439,6 +439,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                                 const [existingStartStr, existingEndStr] = existingTimeSlot.time.split('-');
                                 const existingStart = parseTimeToMinutes(existingStartStr);
+
                                 const existingEnd = parseTimeToMinutes(existingEndStr);
                                 
                                 if (existingStart >= existingEnd) continue;
@@ -548,10 +549,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         allClassSets[tt.id] = new Set<string>();
     });
     
-    const optionalGroups = new Map<string, SubjectAssignment[]>();
+    const optionalGroups = new Map<string, { assignments: SubjectAssignment[]; grades: Set<string> }>();
 
     allCurrentSchoolAssignments.forEach(assignment => {
-        const { schoolId, subjectType, optionGroup } = assignment;
+        const { schoolId, subjectType, optionGroup, grades } = assignment;
         const school = timetables.find(t => t.id === schoolId);
         if (!school) return;
         
@@ -560,11 +561,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         if (isSecondary && subjectType === 'optional' && optionGroup) {
             const key = `${schoolId}-${optionGroup}`;
             if (!optionalGroups.has(key)) {
-                optionalGroups.set(key, []);
+                optionalGroups.set(key, { assignments: [], grades: new Set() });
             }
-            optionalGroups.get(key)!.push(assignment);
+            optionalGroups.get(key)!.assignments.push(assignment);
+            grades.forEach(g => optionalGroups.get(key)!.grades.add(g));
         } else {
-             // Handle primary schools and core secondary subjects
             assignment.grades.forEach(grade => {
                 const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
                 effectiveArms.forEach(arm => {
@@ -590,13 +591,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    optionalGroups.forEach((assignmentsInGroup, groupKey) => {
+    optionalGroups.forEach(({ assignments, grades }, groupKey) => {
         const [schoolId, optionGroup] = groupKey.split('-');
-        const periods = assignmentsInGroup[0]?.periods || 1;
-        const gradesInGroup = [...new Set(assignmentsInGroup.flatMap(a => a.grades))];
 
-        gradesInGroup.forEach(grade => {
-            const assignmentsForGrade = assignmentsInGroup.filter(a => a.grades.includes(grade));
+        grades.forEach(grade => {
+            const assignmentsForGrade = assignments.filter(a => a.grades.includes(grade));
+            const periods = assignmentsForGrade[0]?.periods || 1;
             const armsForGrade = [...new Set(assignmentsForGrade.flatMap(a => a.arms || []))];
             
             const classNamesForBlock = armsForGrade.length > 0 
@@ -611,8 +611,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 
                 assignmentsForGrade.forEach(assignment => {
                     const { teacherId, teacherName, subject } = assignment;
-                    
-                    // Create one session for the teacher for the whole block
                     optionSessions.push({
                         id: `${blockId}-${teacherId}-${subject}`,
                         subject: `Option ${optionGroup}`,
@@ -622,15 +620,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                         isDouble: false,
                         period: 0,
                         schoolId: schoolId,
-                        optionGroup: optionGroup,
-                        className: grade, // Represents the grade level of the block
-                        classes: classNamesForBlock, // All classes in this block
+                        optionGroup: optionGroup as any,
+                        className: grade,
+                        classes: classNamesForBlock,
                     });
                 });
 
                 if (optionSessions.length > 0) {
                     const uniqueTeacherSessions = Array.from(new Map(optionSessions.map(s => [s.teacherId, s])).values());
-                    allUnits.push({ id: blockId, sessions: uniqueTeacherSessions, optionGroup });
+                    allUnits.push({ id: blockId, sessions: uniqueTeacherSessions, optionGroup: optionGroup as any });
                 }
             }
         });

@@ -358,7 +358,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const optionBlocks: OptionBlockUnit[] = [];
     const classSet = new Set<string>();
 
-    const allCurrentSchoolAssignments = activeTeachers.flatMap(teacher => 
+    const allCurrentSchoolAssignments = allTeachers.flatMap(teacher => 
         teacher.assignments
             .map(a => ({ ...a, teacherId: teacher.id, teacherName: teacher.name }))
     );
@@ -505,7 +505,14 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                      return false;
                 }
                 
-                if (session.teacherId && targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
+                // Cross-school check for teacher
+                if (session.teacherId) {
+                    for(const tt of timetables) {
+                        const otherSchoolSlot = tt.timetable[currentDay]?.find(slot => slot[0]?.period === p);
+                        if(otherSchoolSlot?.some(s => s.teacherId === session.teacherId)) return false;
+                    }
+                    if (targetSlot.some(s => s.teacherId && s.teacherId === session.teacherId)) return false;
+                }
 
                 for (const className of session.classes) {
                   if (targetSlot.some(s => s.classes.includes(className))) return false;
@@ -729,7 +736,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    

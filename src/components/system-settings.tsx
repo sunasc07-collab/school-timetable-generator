@@ -19,7 +19,7 @@ import { GripVertical, Plus, Trash2, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TimeSlot, LockedSession } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
-import { to12Hour, to24Hour } from "@/lib/utils";
+import { to12Hour, to24Hour, formatTime } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -146,7 +146,15 @@ function LockedSessionsTab() {
                                             <SelectTrigger><SelectValue placeholder="Select Period..." /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {teachingPeriods.map(p => <SelectItem key={p.id} value={String(p.period)}>{`Period ${p.period}`}</SelectItem>)}
+                                            {teachingPeriods.map(p => {
+                                                if (!p.time || !p.period) return null;
+                                                const [start, end] = p.time.split('-');
+                                                return (
+                                                    <SelectItem key={p.id} value={String(p.period)}>
+                                                        {`Period ${p.period} (${formatTime(start)}-${formatTime(end)})`}
+                                                    </SelectItem>
+                                                )
+                                            })}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />

@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "./ui/input";
 import { useState, useMemo } from "react";
-import type { ViewMode, TimetableSession, Teacher } from "@/lib/types";
+import type { ViewMode, TimetableSession, Teacher, Timetable } from "@/lib/types";
 import SystemSettings from "./system-settings";
 import { to12Hour } from "@/lib/utils";
 
@@ -54,12 +54,7 @@ export default function Header() {
   const [timetableName, setTimetableName] = useState("");
   const [timetableToEdit, setTimetableToEdit] = useState<string | null>(null);
 
-  const currentTimetable = activeTimetable;
-  const classes = currentTimetable?.classes || [];
-  const timetable = currentTimetable?.timetable || {};
-  const timeSlots = currentTimetable?.timeSlots || [];
-  const days = currentTimetable?.days || [];
-  const teachers: Teacher[] = useMemo(() => {
+  const currentTeachers = useMemo(() => {
     if (!activeTimetable) return [];
     return allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
   }, [activeTimetable, allTeachers]);
@@ -103,7 +98,7 @@ export default function Header() {
   
   const handleGenerateClick = () => {
     if (!activeTimetable) return;
-    if (Object.keys(timetable).length > 0) {
+    if (Object.keys(activeTimetable.timetable).length > 0) {
       openDialog('regenerate');
     } else {
       generateTimetable();
@@ -117,82 +112,79 @@ export default function Header() {
   };
 
   const generatePdf = (type: 'class' | 'teacher') => {
-    if (!currentTimetable) return;
+    if (!activeTimetable) return;
     
-    const listToIterate = type === 'class' ? classes : teachers;
-    if (listToIterate.length === 0) {
-        return;
-    }
-
     const doc = new jsPDF({ orientation: "landscape", unit: 'pt', format: 'a4' });
+    let pageCounter = 0;
 
-    const FONT_FAMILY = "Helvetica";
-    const DAY_HEADER_COLORS = [
-        [255, 107, 107], [255, 184, 107], [255, 235, 107], [107, 222, 122], [107, 175, 255]
-    ];
-    const SUBJECT_COLORS = [
-        [255, 204, 204], [255, 229, 204], [255, 245, 204], [204, 245, 209],
-        [204, 224, 255], [229, 204, 255], [255, 204, 229], [224, 224, 224]
-    ];
-    const subjectColorMap = new Map<string, number[]>();
-    let colorIndex = 0;
-
-    const roundedRect = (x: number, y: number, w: number, h: number, r: number, style: 'F' | 'S' | 'FD') => {
-        doc.roundedRect(x, y, w, h, r, r, style);
-    };
-
-    const getSubjectColor = (subject: string) => {
-        if (!subject) return [255, 255, 255];
-        if (['Short Break', 'Lunch', 'Sports', 'Assembly', 'Club Activities', 'Guidance'].includes(subject)) return [220, 220, 220];
-        if (!subjectColorMap.has(subject)) {
-            subjectColorMap.set(subject, SUBJECT_COLORS[colorIndex % SUBJECT_COLORS.length]);
-            colorIndex++;
-        }
-        return subjectColorMap.get(subject)!;
-    };
-
-    const getTeacherInitials = (teacherName: string) => {
-        if (!teacherName) return '';
-        return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
-    };
-
-    const formatClassName = (className: string) => {
-        if (!className) return '';
-        const gradeMatch = className.match(/Grade (\d+)/);
-        const alevelMatch = className.match(/A-Level Year (\d+)/);
-        
-        let gradePart = '';
-        if (gradeMatch) {
-            gradePart = `G${gradeMatch[1]}`;
-        } else if (alevelMatch) {
-            gradePart = `A${alevelMatch[1]}`;
-        } else {
-             gradePart = className.split(' ')[0] || '';
-        }
-
-        const armMatch = className.match(/(?:Grade \d+|A-Level Year \d+|[^\s]+)\s+(.+)/);
-        let armPart = '';
-        if (armMatch && armMatch[1]) {
-            armPart = armMatch[1].charAt(0).toUpperCase();
-        }
-
-        return `${gradePart}${armPart}`;
-    };
-    
-    const formatTimeForPdf = (timeStr: string) => {
-        const { time, ampm } = to12Hour(timeStr);
-        const [hours, minutes] = time.split(':');
-        const h = parseInt(hours, 10);
-        return `${h}:${minutes} ${ampm.toUpperCase()}`;
-    };
-
-    listToIterate.forEach((item, index) => {
-        const itemName = type === 'class' ? item as string : (item as Teacher).name;
-        const itemId = type === 'class' ? '' : (item as Teacher).id;
-        
-        if (index > 0) {
+    const generatePage = (timetable: Timetable, title: string, filterValue: string, viewType: 'class' | 'teacher') => {
+        if (pageCounter > 0) {
             doc.addPage();
         }
+        pageCounter++;
+        
+        const { timetable: ttData, classes, timeSlots, days, name: timetableName } = timetable;
+        const teachersForSchool = allTeachers.filter(t => t.assignments.some(a => a.schoolId === timetable.id));
+
+        const FONT_FAMILY = "Helvetica";
+        const DAY_HEADER_COLORS = [
+            [255, 107, 107], [255, 184, 107], [255, 235, 107], [107, 222, 122], [107, 175, 255]
+        ];
+        const SUBJECT_COLORS = [
+            [255, 204, 204], [255, 229, 204], [255, 245, 204], [204, 245, 209],
+            [204, 224, 255], [229, 204, 255], [255, 204, 229], [224, 224, 224]
+        ];
+        const subjectColorMap = new Map<string, number[]>();
+        let colorIndex = 0;
+
+        const roundedRect = (x: number, y: number, w: number, h: number, r: number, style: 'F' | 'S' | 'FD') => {
+            doc.roundedRect(x, y, w, h, r, r, style);
+        };
+
+        const getSubjectColor = (subject: string) => {
+            if (!subject) return [255, 255, 255];
+            if (['Short Break', 'Lunch', 'Sports', 'Assembly', 'Club Activities', 'Guidance'].includes(subject)) return [220, 220, 220];
+            if (!subjectColorMap.has(subject)) {
+                subjectColorMap.set(subject, SUBJECT_COLORS[colorIndex % SUBJECT_COLORS.length]);
+                colorIndex++;
+            }
+            return subjectColorMap.get(subject)!;
+        };
+
+        const getTeacherInitials = (teacherName: string) => {
+            if (!teacherName) return '';
+            return teacherName.split(' ').map(name => name[0]).join('').toUpperCase();
+        };
+
+        const formatClassName = (className: string) => {
+            if (!className) return '';
+            const gradeMatch = className.match(/Grade (\d+)/);
+            const alevelMatch = className.match(/A-Level Year (\d+)/);
+            
+            let gradePart = '';
+            if (gradeMatch) {
+                gradePart = `G${gradeMatch[1]}`;
+            } else if (alevelMatch) {
+                gradePart = `A${alevelMatch[1]}`;
+            } else {
+                 gradePart = className.split(' ')[0] || '';
+            }
+
+            const armMatch = className.match(/(?:Grade \d+|A-Level Year \d+|[^\s]+)\s+(.+)/);
+            let armPart = '';
+            if (armMatch && armMatch[1]) {
+                armPart = armMatch[1].charAt(0).toUpperCase();
+            }
+
+            return `${gradePart}${armPart}`;
+        };
+        
+        const formatTimeForPdf = (timeStr: string) => {
+            const { time, ampm } = to12Hour(timeStr);
+            const [hours, minutes] = time.split(':');
+            const h = parseInt(hours, 10);
+            return `${h}:${minutes} ${ampm.toUpperCase()}`;
+        };
 
         const PAGE_WIDTH = doc.internal.pageSize.getWidth();
         const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
@@ -207,13 +199,12 @@ export default function Header() {
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(18);
         doc.text("SCHOOL TIMETABLE", PAGE_WIDTH / 2, MARGIN + 26, { align: 'center' });
+        
+        doc.setFontSize(14);
+        doc.text(title, MARGIN, MARGIN + 70);
+        
         doc.setFontSize(12);
-        doc.text(currentTimetable.name, PAGE_WIDTH / 2, MARGIN + 40, { align: 'center' });
-
-        const itemTitle = type === 'class' ? `${itemName} Class Timetable` : `${itemName}'s Timetable`;
-        doc.setFontSize(22);
-        doc.setFont(FONT_FAMILY, "bold");
-        doc.text(itemTitle, MARGIN, MARGIN + 70);
+        doc.text(timetableName, PAGE_WIDTH - MARGIN, MARGIN + 70, { align: 'right' });
 
         const gridX = MARGIN;
         const gridY = MARGIN + 85;
@@ -221,8 +212,6 @@ export default function Header() {
         const dayHeaderHeight = 25;
         const timeColWidth = 70;
         const dayColWidth = (gridWidth - timeColWidth) / days.length;
-        
-        const periodSlots = timeSlots.filter(slot => !slot.isBreak);
         
         const totalTeachingPeriods = timeSlots.filter(ts => !ts.isBreak).length;
         const totalBreaks = timeSlots.filter(ts => ts.isBreak).length;
@@ -268,13 +257,13 @@ export default function Header() {
                      doc.setTextColor(100, 100, 100);
                      doc.text(label.replace('-', ' '), cellX + dayColWidth / 2, currentY + rowHeight / 2 + 3, { align: 'center', baseline: 'middle' });
                 } else if (!slot.isBreak) {
-                    const allSessionsInSlot = timetable[day]?.find(s => s[0]?.period === slot.period) || [];
+                    const allSessionsInSlot = ttData[day]?.find(s => s[0]?.period === slot.period) || [];
                     
                     let relevantSessions: TimetableSession[] = [];
-                    if (type === 'class') {
-                        relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(itemName));
+                    if (viewType === 'class') {
+                        relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
                     } else { // type === 'teacher'
-                        relevantSessions = allSessionsInSlot.filter(s => s.teacherId === itemId);
+                        relevantSessions = allSessionsInSlot.filter(s => s.teacherId === filterValue);
                     }
 
                     if (relevantSessions.length > 0) {
@@ -314,7 +303,7 @@ export default function Header() {
 
                                 doc.setFontSize(9);
                                 doc.setFont(FONT_FAMILY, "bold");
-                                if(type === 'class'){
+                                if(viewType === 'class'){
                                     const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
                                     doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                 } else { // teacher view
@@ -337,9 +326,29 @@ export default function Header() {
             });
             currentY += rowHeight;
         });
-    });
+    }
 
-    doc.save(`${currentTimetable.name}-${type}-timetables.pdf`);
+    if (type === 'class' && activeTimetable) {
+        if (activeTimetable.classes.length === 0) return;
+        activeTimetable.classes.forEach(className => {
+            generatePage(activeTimetable, `${className} Class Timetable`, className, 'class');
+        });
+    } else if (type === 'teacher') {
+        if (allTeachers.length === 0) return;
+        allTeachers.forEach(teacher => {
+            const schoolsTaught = [...new Set(teacher.assignments.map(a => a.schoolId))];
+            schoolsTaught.forEach(schoolId => {
+                const timetable = timetables.find(t => t.id === schoolId);
+                if (timetable && Object.keys(timetable.timetable).length > 0) {
+                     generatePage(timetable, `${teacher.name}'s Timetable`, teacher.id, 'teacher');
+                }
+            });
+        });
+    } else {
+        return;
+    }
+
+    doc.save(`timetables.pdf`);
   };
 
   return (
@@ -462,7 +471,7 @@ export default function Header() {
             </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button onClick={handleGenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!activeTimetable || teachers.length === 0}>
+        <Button onClick={handleGenerateClick} className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={!activeTimetable || currentTeachers.length === 0}>
             <Zap className="mr-2 h-4 w-4" />
             Generate Timetable
         </Button>
@@ -489,22 +498,22 @@ export default function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button onClick={handlePrint} variant="outline" disabled={!currentTimetable || Object.keys(timetable).length === 0}>
+        <Button onClick={handlePrint} variant="outline" disabled={!activeTimetable || Object.keys(activeTimetable.timetable).length === 0}>
           <Printer className="mr-2 h-4 w-4" />
           Print
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="default" className="bg-primary hover:bg-primary/90" disabled={!currentTimetable || Object.keys(timetable).length === 0}>
+            <Button variant="default" className="bg-primary hover:bg-primary/90" disabled={!activeTimetable || (Object.keys(activeTimetable.timetable).length === 0 && allTeachers.flatMap(t => t.assignments).length === 0)}>
               <Download className="mr-2 h-4 w-4" />
               Download PDF
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => generatePdf('class')}>
+            <DropdownMenuItem onClick={() => generatePdf('class')} disabled={!activeTimetable || activeTimetable.classes.length === 0}>
               Class Timetables
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => generatePdf('teacher')}>
+            <DropdownMenuItem onClick={() => generatePdf('teacher')} disabled={allTeachers.length === 0}>
               Teacher Timetables
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -514,5 +523,3 @@ export default function Header() {
     </>
   );
 }
-
-    

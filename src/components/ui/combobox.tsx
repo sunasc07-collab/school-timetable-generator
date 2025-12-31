@@ -50,11 +50,14 @@ export function Combobox({
   const handleSelect = (currentValue: string) => {
     onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue);
     setOpen(false);
+    setSearch('');
   }
   
-  const filteredOptions = options.filter(option => 
-    option.label.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOptions = search === '' 
+    ? options 
+    : options.filter(option => 
+        option.label.toLowerCase().includes(search.toLowerCase())
+      );
 
   const showAddOption = search.length > 0 && !filteredOptions.some(opt => opt.label.toLowerCase() === search.toLowerCase());
 

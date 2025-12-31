@@ -12,6 +12,7 @@ export type SubjectAssignment = {
   subjectType?: 'core' | 'optional';
   teacherId?: string; // For internal processing
   teacherName?: string; // For internal processing
+  days?: string[]; // New field for teaching days
 };
 
 export type Teacher = {

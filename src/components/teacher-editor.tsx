@@ -51,6 +51,7 @@ const assignmentSchema = z.object({
   subjectType: z.string().optional(),
   isCore: z.boolean().optional(),
   optionGroup: z.enum(['A', 'B', 'C', 'D', 'E']).nullable().optional(),
+  days: z.array(z.string()).optional(),
 }).refine(data => !(data.subjectType === 'core' && data.optionGroup), {
     message: "A subject cannot be both a Core Subject and an Option.",
     path: ["subjectType"],
@@ -361,6 +362,46 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             </FormItem>
                         )}
                     />
+                    </div>
+                     <div className="grid grid-cols-1 gap-y-2">
+                        <FormField
+                            control={control}
+                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.days`}
+                            render={() => (
+                            <FormItem>
+                                <div className="flex items-center justify-between">
+                                  {assignmentIndex === 0 && <FormLabel>Teaching Days</FormLabel>}
+                                </div>
+                                <div className="grid grid-cols-5 gap-x-2 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                    {(selectedSchool?.days || activeTimetable?.days || []).map((day) => (
+                                        <FormField
+                                            key={day}
+                                            control={control}
+                                            name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.days`}
+                                            render={({ field: checkboxField }) => (
+                                                <FormItem key={day} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkboxField.value?.includes(day)}
+                                                            onCheckedChange={(checked) => {
+                                                                const currentValue = checkboxField.value || [];
+                                                                const newValue = checked
+                                                                    ? [...currentValue, day]
+                                                                    : currentValue.filter(value => value !== day);
+                                                                checkboxField.onChange(newValue);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal text-sm">{day}</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
                     </div>
                     {hasSeniorSecondary && (
                         <div className="grid grid-cols-1 gap-4 rounded-md border p-2">
@@ -691,7 +732,8 @@ export default function TeacherEditor() {
               const existing = grouped.get(key)!;
               const newGrades = [...new Set([...existing.grades, ...assignment.grades])].sort();
               const newArms = [...new Set([...existing.arms, ...assignment.arms])].sort();
-              grouped.set(key, { ...existing, grades: newGrades, arms: newArms });
+              const newDays = assignment.days ? [...new Set([...(existing.days || []), ...assignment.days])] : existing.days;
+              grouped.set(key, { ...existing, grades: newGrades, arms: newArms, days: newDays });
           } else {
               grouped.set(key, { ...assignment });
           }
@@ -915,8 +957,8 @@ export default function TeacherEditor() {
                                         {assignment.arms.length > 0 && ` - Arms: ${assignment.arms.join(', ')}`}
                                     </span>
                                 </div>
-                                <div className="flex items-center text-xs">
-                                     <Building className="mr-2 h-3 w-3 text-primary/80" />
+                                 <div className="flex items-center text-xs">
+                                    <Building className="mr-2 h-3 w-3 text-primary/80" />
                                      <span>School: {timetables.find(t => t.id === assignment.schoolId)?.name || 'Unknown'}</span>
                                 </div>
                            </div>

@@ -98,10 +98,10 @@ type OptionBlockUnit = { sessions: TimetableSession[]; optionGroup: string, id: 
 type PlacementUnit = SingleSessionUnit | DoubleSessionUnit | OptionBlockUnit;
 
 export function TimetableProvider({ children }: { children: ReactNode }) {
-  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v26", []);
-  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v26", []);
-  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v26", null);
-  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v26', 'class');
+  const [timetables, setTimetables] = usePersistentState<Timetable[]>("timetables_data_v27", []);
+  const [allTeachers, setAllTeachers] = usePersistentState<Teacher[]>("all_teachers_v27", []);
+  const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v27", null);
+  const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v27', 'class');
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -494,6 +494,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                   if (targetSlot.some(s => s.classes.includes(className))) return false;
                 }
             }
+
+            const assignment = allCurrentSchoolAssignments.find(a => a.teacherId === session.teacherId && a.subject === (session.actualSubject || session.subject));
+            if (assignment && assignment.days && assignment.days.length > 0 && !assignment.days.includes(currentDay)) {
+                return false;
+            }
+
             return true;
         };
 

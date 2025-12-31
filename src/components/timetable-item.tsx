@@ -46,12 +46,6 @@ export default function TimetableItem({
               <Lock className="h-4 w-4 text-muted-foreground/80 shrink-0"/>
               <span className="truncate">{session.subject}</span>
             </div>
-            {session.classes.length > 0 && session.classes[0] !== 'all' && (
-              <div className={cn("flex items-center justify-center gap-1.5 text-muted-foreground/80")}>
-                <GraduationCap className="h-3 w-3 shrink-0"/>
-                <span className="break-words">{session.classes.join(', ')}</span>
-              </div>
-            )}
         </CardContent>
        </Card>
      )

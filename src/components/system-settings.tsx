@@ -67,7 +67,6 @@ function LockedSessionsTab() {
     if (!activeTimetable) return null;
 
     const { days, timeSlots, lockedSessions } = activeTimetable;
-    const teachingPeriods = timeSlots.filter(ts => !ts.isBreak);
 
     const onSubmit = (data: LockedSessionFormValues) => {
         addLockedSession({
@@ -178,11 +177,12 @@ function LockedSessionsTab() {
                                                   <CommandEmpty>No periods found.</CommandEmpty>
                                                   <CommandGroup>
                                                     <ScrollArea className="h-48">
-                                                    {timeSlots.map(p => {
-                                                        const periodIdentifier = p.isBreak ? -timeSlots.indexOf(p) : p.period as number;
+                                                    {timeSlots.map((p, pIndex) => {
+                                                        const periodIdentifier = p.isBreak ? -pIndex : (p.period as number);
                                                         const [start, end] = p.time.split('-');
                                                         const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
                                                         const label = p.isBreak ? p.label : `Period ${p.period}`;
+                                                        
                                                         return (
                                                         <CommandItem
                                                             key={p.id}
@@ -442,22 +442,15 @@ function TimeSlotsTab({ onSaveChanges }: { onSaveChanges: () => void }) {
                               </div>
                           </div>
                           <div className="space-y-1">
-                              <Label htmlFor={`label-${index}`}>Activity</Label>
-                              <Select
-                                  value={slot.label || ''}
-                                  onValueChange={(value) => handleTimeSlotChange(index, 'label', value)}
-                                  disabled={!slot.isBreak}
-                              >
-                                  <SelectTrigger id={`label-${index}`}>
-                                      <SelectValue placeholder="Select Activity" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                      {BREAK_ACTIVITIES.map(act => (
-                                          <SelectItem key={act} value={act}>{act}</SelectItem>
-                                      ))}
-                                  </SelectContent>
-                              </Select>
-                          </div>
+                                <Label htmlFor={`label-${index}`}>Activity</Label>
+                                <Input
+                                    id={`label-${index}`}
+                                    value={slot.label || ''}
+                                    onChange={(e) => handleTimeSlotChange(index, 'label', e.target.value)}
+                                    disabled={!slot.isBreak}
+                                    placeholder="Break Activity"
+                                />
+                            </div>
                           <div className="flex flex-col items-center space-y-2">
                               <Label htmlFor={`isBreak-${index}`} className="text-xs">Break</Label>
                               <Switch
@@ -577,4 +570,5 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
     )
 }
 
+    
     

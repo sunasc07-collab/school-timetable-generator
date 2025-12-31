@@ -1,5 +1,6 @@
 
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -94,3 +95,4 @@ export type Timetable = {
     
 
     
+

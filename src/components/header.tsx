@@ -122,16 +122,14 @@ export default function Header() {
         title: string, 
         filterValue: string, 
         viewType: 'class' | 'teacher',
-        // For teacher view, these will be arrays of data from multiple schools
         timetablesForView: Timetable[],
-        allTeacherSessions: TimetableSession[]
+        allTeacherSessionsForView: TimetableSession[]
     ) => {
         if (pageCounter > 0) {
             doc.addPage();
         }
         pageCounter++;
 
-        // For merged teacher view, use the first timetable as the structural template
         const templateTimetable = timetablesForView[0];
         if (!templateTimetable) return;
         
@@ -273,22 +271,14 @@ export default function Header() {
                         const allSessionsInSlot = templateTimetable.timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
                     } else { // teacher view
-                        relevantSessions = allTeacherSessions.filter(s => s.day === day && s.period === slot.period);
+                        relevantSessions = allTeacherSessionsForView.filter(s => s.day === day && s.period === slot.period);
                     }
 
                     if (relevantSessions.length > 0) {
-                        const uniqueSessionBlocks = new Map<string, TimetableSession[]>();
+                        const sessionsToRender = (viewType === 'teacher')
+                            ? relevantSessions
+                            : Array.from(new Map(relevantSessions.map(s => [s.id + s.className + s.subject, s])).values());
                         
-                        if (viewType === 'class') {
-                            relevantSessions.forEach(session => {
-                                const key = session.optionGroup ? session.id : `${session.id}-${session.className}-${session.subject}`;
-                                if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
-                                uniqueSessionBlocks.get(key)!.push(session);
-                            });
-                        }
-                        
-                        const sessionsToRender = (viewType === 'teacher') ? relevantSessions : Array.from(uniqueSessionBlocks.values()).flat();
-
                         if (sessionsToRender.length > 0) {
                              const sessionBlockCount = sessionsToRender.length;
                              const sessionHeight = (rowHeight - 4) / sessionBlockCount;

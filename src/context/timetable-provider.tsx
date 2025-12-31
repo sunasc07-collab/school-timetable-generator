@@ -33,7 +33,6 @@ type TimetableContextType = {
   updateTimeSlots: (newTimeSlots: TimeSlot[]) => void;
   // Exposing these for the view components
   classes: string[];
-  allSchoolClasses: string[];
   arms: string[];
 };
 
@@ -695,14 +694,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const classes = useMemo(() => activeTimetable?.classes || [], [activeTimetable]);
   
-  const allSchoolClasses = useMemo(() => {
-    const classSet = new Set<string>();
-    timetables.forEach(t => {
-      t.classes.forEach(c => classSet.add(c));
-    });
-    return Array.from(classSet).sort();
-  }, [timetables]);
-
   const arms = useMemo(() => {
     if (!activeTimetable) return [];
 
@@ -753,7 +744,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         resolveConflicts,
         updateTimeSlots,
         classes,
-        allSchoolClasses,
         arms
       }}
     >

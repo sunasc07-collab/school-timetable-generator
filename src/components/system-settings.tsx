@@ -48,7 +48,7 @@ const lockedSessionSchema = z.object({
 type LockedSessionFormValues = z.infer<typeof lockedSessionSchema>;
 
 function LockedSessionsTab() {
-    const { activeTimetable, addLockedSession, removeLockedSession, allSchoolClasses } = useTimetable();
+    const { activeTimetable, addLockedSession, removeLockedSession, classes } = useTimetable();
 
     const form = useForm<LockedSessionFormValues>({
         resolver: zodResolver(lockedSessionSchema),
@@ -80,7 +80,7 @@ function LockedSessionsTab() {
         });
     };
 
-    const classOptions = ["all", ...allSchoolClasses];
+    const classOptions = ["all", ...classes];
 
     return (
         <div className="space-y-4 py-4">

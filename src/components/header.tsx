@@ -302,7 +302,20 @@ export default function Header() {
                              } else if (firstSession.optionGroup) {
                                 doc.setFontSize(12);
                                 doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(`Option ${firstSession.optionGroup}`, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 4, { align: 'center' });
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
+                                
+                                doc.setFontSize(9);
+                                doc.setFont(FONT_FAMILY, "bold");
+
+                                if(viewType === 'class'){
+                                    const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                } else { // teacher view
+                                    const grades = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(c => c.match(/^(Grade \d+|A-Level Year \d+)/)?.[0] || c)))].join(', ');
+                                    const classText = `Class: ${grades}`;
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                }
+
                              } else {
                                 doc.setFontSize(11);
                                 doc.setFont(FONT_FAMILY, "bold");
@@ -541,3 +554,5 @@ export default function Header() {
     </>
   );
 }
+
+    

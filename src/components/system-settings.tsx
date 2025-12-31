@@ -154,9 +154,9 @@ function LockedSessionsTab() {
                                                     <Button variant="outline" role="combobox" className="w-full justify-between h-10 font-normal">
                                                         <span className="truncate">
                                                         {field.value.length > 0
-                                                          ? teachingPeriods
-                                                              .filter(p => field.value.includes(p.period as number))
-                                                              .map(p => `P${p.period}`)
+                                                          ? timeSlots
+                                                              .filter(p => p.period && field.value.includes(p.period))
+                                                              .map(p => p.isBreak ? p.label : `P${p.period}`)
                                                               .join(', ')
                                                           : "Select Periods..."}
                                                         </span>
@@ -178,9 +178,11 @@ function LockedSessionsTab() {
                                                   <CommandEmpty>No periods found.</CommandEmpty>
                                                   <CommandGroup>
                                                     <ScrollArea className="h-48">
-                                                    {teachingPeriods.map(p => {
+                                                    {timeSlots.map(p => {
+                                                        if (p.period === null) return null;
                                                         const [start, end] = p.time.split('-');
                                                         const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
+                                                        const label = p.isBreak ? p.label : `Period ${p.period}`;
                                                         return (
                                                         <CommandItem
                                                             key={p.id}
@@ -191,14 +193,14 @@ function LockedSessionsTab() {
                                                                 const newValue = isSelected
                                                                     ? currentValue.filter(val => val !== p.period)
                                                                     : [...currentValue, p.period as number];
-                                                                field.onChange(newValue);
+                                                                field.onChange(newValue.sort((a,b) => a-b));
                                                             }}
                                                         >
                                                             <Checkbox
                                                                 className="mr-2"
                                                                 checked={field.value?.includes(p.period as number)}
                                                             />
-                                                            {`Period ${p.period} (${formattedTime})`}
+                                                            {`${label} (${formattedTime})`}
                                                         </CommandItem>
                                                         )
                                                     })}
@@ -254,7 +256,7 @@ function LockedSessionsTab() {
                             <div>
                                 <p className="font-semibold">{ls.activity}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {ls.day === 'all_week' ? `All Week, Period ${ls.period}` : `${ls.day}, Period ${ls.period}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
+                                    {ls.day === 'all_week' ? `All Week, Period(s) ${ls.periods.join(', ')}` : `${ls.day}, Period(s) ${ls.periods.join(', ')}`} ({ls.className === 'all' ? 'All Classes' : ls.className})
                                 </p>
                             </div>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeLockedSession(ls.id)}>
@@ -574,6 +576,8 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
+
+    
 
     
 

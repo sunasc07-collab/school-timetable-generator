@@ -106,7 +106,6 @@ export default function Header() {
   };
 
   const handleConfirmRegenerate = () => {
-    if (!activeTimetable) return;
     generateTimetable();
     closeDialog();
   };
@@ -356,7 +355,10 @@ export default function Header() {
     if (type === 'class' && activeTimetable) {
         if (activeTimetable.classes.length === 0) return;
         activeTimetable.classes.forEach(className => {
-            generatePage(`${className} Class Timetable`, className, 'class', [activeTimetable], []);
+            const pageTitle = className.includes("Grade")
+                ? `Class Timetable: ${className}`
+                : `${className} Class Timetable`;
+            generatePage(pageTitle, className, 'class', [activeTimetable], []);
         });
     } else if (type === 'teacher') {
         if (allTeachers.length === 0) return;
@@ -559,3 +561,5 @@ export default function Header() {
     </>
   );
 }
+
+    

@@ -57,23 +57,21 @@ export default function TimetableItem({
      )
   }
   
-  if (isOptionGroup && viewMode === 'teacher') {
-    // In teacher view, merge all parts of an option block for this teacher into one item
-    const teacherSessionsInBlock = allSessionsInSlot.filter(
-      s => s.id === session.id && s.teacherId === session.teacherId
+  if (isOptionGroup) {
+    const sessionsInBlock = allSessionsInSlot.filter(
+      s => s.optionGroup === session.optionGroup
     );
     
-    // Only render one card for the entire block for this teacher
-    if (teacherSessionsInBlock.length === 0 || teacherSessionsInBlock[0].className !== session.className) {
+    // Only render one card for the entire block
+    if (sessionsInBlock.length === 0 || sessionsInBlock[0].id !== session.id) {
       return null;
     }
 
-    const firstSession = teacherSessionsInBlock[0];
-    const subjectName = firstSession.actualSubject;
-    const teacherName = firstSession.teacher;
-    const teacherBlockClasses = [...new Set(teacherSessionsInBlock.map(s => s.className))].sort();
-
-    const title = `Subject: ${subjectName}\nTeacher: ${teacherName}\nClasses: ${teacherBlockClasses.join(', ')}`;
+    const subjectName = session.subject; // e.g., "Option A"
+    const displayClassName = session.className; // e.g., "Grade 10"
+    const allTeachers = [...new Set(sessionsInBlock.map(s => s.teacher))].join(', ');
+    
+    const title = `${subjectName}\nClass: ${displayClassName}\nTeachers: ${allTeachers}`;
     const hasConflict = isConflict(session.id);
 
     return (
@@ -94,16 +92,16 @@ export default function TimetableItem({
           </div>
 
           <div className={cn("flex flex-col items-center justify-center gap-1 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
-            <div className="flex items-start justify-center gap-1.5">
-              <User className="h-3 w-3 shrink-0 mt-0.5" />
+             <div className="flex items-start justify-center gap-1.5">
+              <GraduationCap className="h-3 w-3 shrink-0 mt-0.5" />
               <div className="text-center">
-                <span className="truncate">{teacherName}</span>
+                <span className="break-words">{displayClassName}</span>
               </div>
             </div>
             <div className="flex items-start justify-center gap-1.5">
-              <GraduationCap className="h-3 w-3 shrink-0 mt-0.5" />
+              <Users className="h-3 w-3 shrink-0 mt-0.5" />
               <div className="text-center">
-                <span className="break-words">{teacherBlockClasses.join(', ')}</span>
+                <span className="truncate">{allTeachers}</span>
               </div>
             </div>
           </div>

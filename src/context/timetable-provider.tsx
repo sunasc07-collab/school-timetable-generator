@@ -415,7 +415,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 }
             }
             
-            // Time-based clash detection for the teacher across ALL schools
             if (session.teacherId) {
                 const proposedTimeSlot = schoolTimetable.timeSlots.find(ts => ts.period === p);
                 if (!proposedTimeSlot) return false;
@@ -426,7 +425,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 
                 if (proposedStart >= proposedEnd) return false; 
 
-                // Iterate through all schools the teacher might be in
                 for (const schoolId in boards) {
                     const board = boards[schoolId];
                     const otherSchoolConfig = timetables.find(t => t.id === schoolId);
@@ -435,7 +433,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     const daySchedule = board[day] || [];
                     for (const slot of daySchedule) {
                         for (const existingSession of slot) {
-                            // Check if it's the same teacher
                             if (existingSession.teacherId === session.teacherId) {
                                 const existingTimeSlot = otherSchoolConfig.timeSlots.find(ts => ts.period === existingSession.period);
                                 if (!existingTimeSlot) continue;
@@ -446,9 +443,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                                 
                                 if (existingStart >= existingEnd) continue;
                                 
-                                // Check for time overlap
                                 if (proposedStart < existingEnd && proposedEnd > existingStart) {
-                                    return false; // Clash detected
+                                    return false; 
                                 }
                             }
                         }
@@ -547,64 +543,95 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     
     const allUnits: PlacementUnit[] = [];
     const allClassSets: {[schoolId: string]: Set<string>} = {};
+    const optionBlocks: { [key: string]: Omit<TimetableSession, 'className' | 'classes'>[] } = {};
 
     allTimetablesToGenerate.forEach(tt => {
         allClassSets[tt.id] = new Set<string>();
     });
     
     allCurrentSchoolAssignments.forEach(assignment => {
-        const { schoolId, subject, periods, grades, arms, teacherId, teacherName, optionGroup, isCore, subjectType } = assignment;
+        const { schoolId, subject, periods, grades, arms, teacherId, teacherName, optionGroup } = assignment;
         const school = timetables.find(t => t.id === schoolId);
         if (!school) return;
 
-        const createUnitsForClass = (classNames: string[]) => {
-            let remainingPeriods = periods;
-            while (remainingPeriods >= 2) {
-                const doubleId = crypto.randomUUID();
-                allUnits.push({
-                    session: { id: doubleId, subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: true, part: 1, period: 0, schoolId, isCore, optionGroup, actualSubject: subject },
-                    partner: { id: doubleId, subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: true, part: 2, period: 0, schoolId, isCore, optionGroup, actualSubject: subject },
-                });
-                remainingPeriods -= 2;
-            }
-            for (let i = 0; i < remainingPeriods; i++) {
-                allUnits.push({
-                    id: crypto.randomUUID(), subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: false, period: 0, schoolId, isCore, optionGroup, actualSubject: subject
-                });
-            }
-        };
+        const isSecondary = school.name.toLowerCase().includes('secondary');
 
-        if (optionGroup) {
+        if (isSecondary && optionGroup) {
+            grades.forEach(grade => {
+                const classNamesForGroup = (arms && arms.length > 0) ? arms.map(arm => `${grade} ${arm}`.trim()) : [grade];
+                classNamesForGroup.forEach(cn => allClassSets[schoolId]?.add(cn));
+                
+                const blockKey = `${schoolId}-${grade}-${optionGroup}`;
+                if (!optionBlocks[blockKey]) {
+                    optionBlocks[blockKey] = [];
+                }
+                optionBlocks[blockKey].push({
+                    id: crypto.randomUUID(),
+                    subject: `Option ${optionGroup}`,
+                    actualSubject: subject,
+                    teacher: teacherName,
+                    teacherId,
+                    isDouble: false,
+                    period: 0,
+                    schoolId,
+                    optionGroup,
+                });
+            });
+        } else {
             grades.forEach(grade => {
                 const effectiveArms = arms && arms.length > 0 ? arms : [""];
                 effectiveArms.forEach(arm => {
                     const className = `${grade} ${arm}`.trim();
                     allClassSets[schoolId]?.add(className);
-                    createUnitsForClass([className]);
+                    
+                    let remainingPeriods = periods;
+                    while (remainingPeriods >= 2) {
+                        const doubleId = crypto.randomUUID();
+                        allUnits.push({
+                            session: { id: doubleId, subject, teacher: teacherName, teacherId, className, classes: [className], isDouble: true, part: 1, period: 0, schoolId, actualSubject: subject },
+                            partner: { id: doubleId, subject, teacher: teacherName, teacherId, className, classes: [className], isDouble: true, part: 2, period: 0, schoolId, actualSubject: subject },
+                        });
+                        remainingPeriods -= 2;
+                    }
+                    for (let i = 0; i < remainingPeriods; i++) {
+                        allUnits.push({
+                            id: crypto.randomUUID(), subject, teacher: teacherName, teacherId, className, classes: [className], isDouble: false, period: 0, schoolId, actualSubject: subject
+                        });
+                    }
                 });
             });
-        } else if (!school.name.toLowerCase().includes('secondary')) {
-             grades.forEach(grade => {
-                const effectiveArms = arms && arms.length > 0 ? arms : [""];
-                effectiveArms.forEach(arm => {
-                    const className = `${grade} ${arm}`.trim();
-                    allClassSets[schoolId]?.add(className);
-                    createUnitsForClass([className]);
-                });
-            });
-        }
-        else { // Secondary (non-optional) and others
-             const classNames = grades.flatMap(grade => {
-                const effectiveArms = arms && arms.length > 0 ? arms : [""];
-                return effectiveArms.map(arm => `${grade} ${arm}`.trim());
-            });
-             classNames.forEach(cn => allClassSets[schoolId]?.add(cn));
-             if(classNames.length > 0) createUnitsForClass(classNames);
         }
     });
 
+    Object.entries(optionBlocks).forEach(([key, sessions]) => {
+        const [schoolId, grade, optionGroup] = key.split('-');
+        const assignment = allCurrentSchoolAssignments.find(a => 
+            a.schoolId === schoolId && 
+            a.grades.includes(grade) && 
+            a.optionGroup === optionGroup &&
+            a.teacherId === sessions[0].teacherId
+        );
+        const periods = assignment?.periods || 1;
+
+        const classNames = grades.flatMap(grade => {
+            const assignmentForGrade = allCurrentSchoolAssignments.find(a => a.grades.includes(grade) && a.optionGroup === optionGroup);
+            if (!assignmentForGrade) return [];
+            const effectiveArms = assignmentForGrade.arms && assignmentForGrade.arms.length > 0 ? assignmentForGrade.arms : [""];
+            return effectiveArms.map(arm => `${grade} ${arm}`.trim());
+        });
+
+        for (let i = 0; i < periods; i++) {
+             const blockId = crypto.randomUUID();
+             const blockSessions = sessions.map(s => ({
+                ...s,
+                id: `${s.id}-${i}`,
+                className: grade, 
+                classes: classNames,
+             }));
+             allUnits.push({ sessions: blockSessions, optionGroup: optionGroup as 'A', id: blockId });
+        }
+    });
     
-    // Shuffle units to avoid getting stuck in local optima
     const shuffledUnits = allUnits.sort(() => Math.random() - 0.5);
     const sortedAllUnits = shuffledUnits.sort((a, b) => ('sessions' in b ? 1 : 0) - ('sessions' in a ? 1 : 0) || ('partner' in b ? 1 : 0) - ('partner' in a ? 1 : 0));
 
@@ -754,5 +781,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

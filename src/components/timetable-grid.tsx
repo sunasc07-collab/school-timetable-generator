@@ -115,11 +115,10 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
      }
      
      if (relevantSessions.length > 0) {
-      // Deduplicate option groups for class/arm view
       if (viewMode === 'class' || viewMode === 'arm') {
         const uniqueSessions = new Map<string, TimetableSession>();
         relevantSessions.forEach(session => {
-          const key = session.optionGroup ? `${session.day}-${session.period}-${session.optionGroup}` : session.id + session.className + session.subject;
+          const key = session.optionGroup ? `${session.day}-${session.period}-${session.optionGroup}-${session.actualSubject}` : session.id + session.className + session.subject;
           if (!uniqueSessions.has(key)) {
             uniqueSessions.set(key, session);
           }
@@ -129,9 +128,9 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
 
       return (
         <div className="space-y-1">
-        {relevantSessions.map(session => (
+        {relevantSessions.map((session, index) => (
             <TimetableItem
-              key={`${session.id}-${session.subject}-${session.teacher}-${session.className}-${session.part || ''}`}
+              key={`${session.id}-${session.actualSubject || session.subject}-${index}`}
               session={session}
               from={{ day, period }}
             />
@@ -309,4 +308,4 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
   );
 }
 
-  
+    

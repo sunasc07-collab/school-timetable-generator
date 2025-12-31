@@ -51,6 +51,9 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 7, time: '13:00-13:40', id: crypto.randomUUID() },
     { period: 8, time: '13:40-14:20', id: crypto.randomUUID() },
     { period: 9, time: '14:20-15:00', id: crypto.randomUUID() },
+    { period: 10, time: '15:00-15:40', id: crypto.randomUUID() },
+    { period: 11, time: '15:40-16:20', id: crypto.randomUUID() },
+    { period: 12, time: '16:20-17:00', id: crypto.randomUUID() },
 ];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {

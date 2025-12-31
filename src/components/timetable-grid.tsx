@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TimetableItem from "./timetable-item";
-import type { TimetableDragData, TimetableSession, Teacher } from "@/lib/types";
+import type { TimetableDragData, TimetableSession, Teacher, Timetable } from "@/lib/types";
 import { cn, formatTime } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Trash2, ZapOff } from "lucide-react";
@@ -41,7 +41,8 @@ export default function TimetableGrid() {
     moveSession, 
     viewMode, 
     clearTimetable, 
-    resolveConflicts 
+    resolveConflicts,
+    timetables, 
   } = useTimetable();
 
   const isMobile = useIsMobile();
@@ -93,7 +94,8 @@ export default function TimetableGrid() {
   const handleDrop = (
     e: React.DragEvent<HTMLTableCellElement>,
     day: string,
-    period: number
+    period: number,
+    timetableId: string
   ) => {
     e.preventDefault();
     if (!activeTimetable) return;
@@ -101,7 +103,10 @@ export default function TimetableGrid() {
         const data: TimetableDragData = JSON.parse(
           e.dataTransfer.getData("application/json")
         );
-        moveSession(data.session, data.from, { day, period });
+        // We can only drag/drop within the same timetable
+        if (timetableId === activeTimetable.id) {
+          moveSession(data.session, data.from, { day, period });
+        }
     } catch (error) {
         console.error("Failed to parse drag data:", error);
     }
@@ -119,8 +124,8 @@ export default function TimetableGrid() {
   }
 
 
-  const renderCellContent = (day: string, period: number, filterValue: string) => {
-     const allSessionsInSlot = timetable[day]?.find(slot => slot[0]?.period === period) || [];
+  const renderCellContent = (day: string, period: number, filterValue: string, timetableData: Timetable) => {
+     const allSessionsInSlot = timetableData.timetable[day]?.find(slot => slot[0]?.period === period) || [];
      
      let relevantSessions: TimetableSession[] = [];
      if (viewMode === 'class' || viewMode === 'arm') {
@@ -160,7 +165,7 @@ export default function TimetableGrid() {
     );
   }
   
-  if (teachers.length === 0) {
+  if (allTeachers.length === 0) {
     return (
       <div className="flex items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
         <div>
@@ -173,7 +178,7 @@ export default function TimetableGrid() {
     );
   }
 
-  if (Object.keys(timetable).length === 0) {
+  if (Object.keys(timetable).length === 0 && viewMode !== 'teacher') {
      return (
         <div className="flex flex-col items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
             {error ? (
@@ -190,15 +195,16 @@ export default function TimetableGrid() {
     );
   }
 
-  const renderTimetableFor = (title: string, filterValue: string) => (
-    <div key={filterValue}>
-        <h2 className="text-2xl font-bold font-headline mb-4">{title}</h2>
+  const renderTimetableFor = (title: string, filterValue: string, timetableData: Timetable) => (
+    <div key={`${filterValue}-${timetableData.id}`}>
+        <h2 className="text-2xl font-bold font-headline mb-2">{title}</h2>
+        {viewMode === 'teacher' && <p className="text-muted-foreground mb-4">{timetableData.name}</p>}
         <div className="rounded-lg border w-full">
         <Table>
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Time</TableHead>
-                {days.map((day) => (
+                {timetableData.days.map((day) => (
                   <TableHead key={day} className="font-headline text-center align-middle">
                     {day}
                   </TableHead>
@@ -206,7 +212,7 @@ export default function TimetableGrid() {
             </TableRow>
             </TableHeader>
             <TableBody>
-             {timeSlots.map((slot) => {
+             {timetableData.timeSlots.map((slot) => {
                 const [start, end] = slot.time.split('-');
                 const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
@@ -216,8 +222,8 @@ export default function TimetableGrid() {
                             <div className="text-xs">{formattedTime}</div>
                             {!slot.isBreak && <div className="text-xs mt-1">Period {slot.period}</div>}
                         </TableCell>
-                        {days.map((day) => {
-                            const isBreakOnThisDay = slot.isBreak && (slot.days || days).includes(day);
+                        {timetableData.days.map((day) => {
+                            const isBreakOnThisDay = slot.isBreak && (slot.days || timetableData.days).includes(day);
 
                             if (isBreakOnThisDay) {
                                 return (
@@ -229,39 +235,16 @@ export default function TimetableGrid() {
                                 );
                             }
 
-                            if (slot.isBreak && !isBreakOnThisDay) {
-                                // This is a teaching slot on a break row
-                                const periodIndex = slot.period;
-                                 if (periodIndex === null) {
-                                    return <TableCell key={`${slot.id}-${day}`} />;
-                                }
-                                return (
-                                    <TableCell
-                                        key={`${slot.id}-${day}`}
-                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDrop(e, day, periodIndex)}
-                                    >
-                                        {renderCellContent(day, periodIndex, filterValue)}
-                                    </TableCell>
-                                );
-                            }
-                            
-                            // Regular teaching period (empty or filled)
-                            const periodIndex = slot.period;
-                            if (periodIndex === null) {
-                                // This should not happen for a non-break slot, but as a safeguard.
-                                return <TableCell key={`${slot.id}-${day}`} />;
-                            }
-                            
+                            if (slot.period === null) return <TableCell key={`${slot.id}-${day}`} />;
+
                             return (
                                 <TableCell
                                     key={`${slot.id}-${day}`}
                                     className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
                                     onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, day, periodIndex)}
+                                    onDrop={(e) => handleDrop(e, day, slot.period as number, timetableData.id)}
                                 >
-                                    {renderCellContent(day, periodIndex, filterValue)}
+                                    {renderCellContent(day, slot.period as number, filterValue, timetableData)}
                                 </TableCell>
                             );
                         })}
@@ -274,13 +257,37 @@ export default function TimetableGrid() {
     </div>
   );
   
-  let itemsToRender: { title: string, filterValue: string }[] = [];
-  if (viewMode === 'class') {
-    itemsToRender = classes.map(className => ({ title: `${className} Timetable`, filterValue: className }));
+  let itemsToRender: { title: string, filterValue: string, timetableData: Timetable }[] = [];
+
+  if (viewMode === 'class' && activeTimetable) {
+    itemsToRender = classes.map(className => ({ title: `${className} Timetable`, filterValue: className, timetableData: activeTimetable }));
   } else if (viewMode === 'teacher') {
-    itemsToRender = teachers.map(teacher => ({ title: `${teacher.name}'s Timetable`, filterValue: teacher.id }));
-  } else if (viewMode === 'arm') {
-    itemsToRender = arms.map(armName => ({ title: `${armName} Timetable`, filterValue: armName }));
+    allTeachers.forEach(teacher => {
+        const schoolsTaught = [...new Set(teacher.assignments.map(a => a.schoolId))];
+        schoolsTaught.forEach(schoolId => {
+            const schoolTimetable = timetables.find(t => t.id === schoolId);
+            if (schoolTimetable && Object.keys(schoolTimetable.timetable).length > 0) {
+                itemsToRender.push({
+                    title: `${teacher.name}'s Timetable`,
+                    filterValue: teacher.id,
+                    timetableData: schoolTimetable
+                });
+            }
+        });
+    });
+  } else if (viewMode === 'arm' && activeTimetable) {
+    itemsToRender = arms.map(armName => ({ title: `${armName} Timetable`, filterValue: armName, timetableData: activeTimetable }));
+  }
+  
+  if (viewMode === 'teacher' && itemsToRender.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
+        <h3 className="text-lg font-semibold font-headline">No Timetables Generated for Teachers</h3>
+        <p className="text-muted-foreground mt-2 mb-4">
+          Generate timetables for the schools to see the teacher schedules.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -329,13 +336,11 @@ export default function TimetableGrid() {
             </div>
         </div>
           {isMobile ? (
-              <MobileTimetableView itemsToRender={itemsToRender} />
+              <MobileTimetableView itemsToRender={itemsToRender.map(({ title, filterValue }) => ({ title, filterValue }))} />
           ) : (
-             itemsToRender.map(({ title, filterValue }) => renderTimetableFor(title, filterValue))
+             itemsToRender.map(({ title, filterValue, timetableData }) => renderTimetableFor(title, filterValue, timetableData))
           )}
       </div>
     </ClientOnly>
   );
 }
-
-    

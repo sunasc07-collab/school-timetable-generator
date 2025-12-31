@@ -58,20 +58,7 @@ export default function TimetableItem({
   }
   
   if (isOptionGroup) {
-    const sessionsInBlock = allSessionsInSlot.filter(
-      s => s.optionGroup === session.optionGroup
-    );
-    
-    // Only render one card for the entire block
-    if (sessionsInBlock.length === 0 || sessionsInBlock[0].id !== session.id) {
-      return null;
-    }
-
-    const subjectName = session.subject; // e.g., "Option A"
-    const displayClassName = session.className; // e.g., "Grade 10"
-    const allTeachers = [...new Set(sessionsInBlock.map(s => s.teacher))].join(', ');
-    
-    const title = `${subjectName}\nClass: ${displayClassName}\nTeachers: ${allTeachers}`;
+    const title = `${session.actualSubject}\nClass: ${session.className}\nTeacher: ${session.teacher}`;
     const hasConflict = isConflict(session.id);
 
     return (
@@ -88,20 +75,20 @@ export default function TimetableItem({
           <div className={cn("flex items-center justify-center gap-1.5 font-bold", hasConflict ? "text-destructive-foreground" : "text-foreground")}>
             {hasConflict && <AlertCircle className="h-4 w-4" />}
             <BookOpen className="h-4 w-4 text-primary shrink-0" />
-            <span className="truncate">{subjectName}</span>
+            <span className="truncate">{session.actualSubject}</span>
           </div>
 
           <div className={cn("flex flex-col items-center justify-center gap-1 text-xs", hasConflict ? "text-destructive-foreground/80" : "text-muted-foreground")}>
              <div className="flex items-start justify-center gap-1.5">
               <GraduationCap className="h-3 w-3 shrink-0 mt-0.5" />
               <div className="text-center">
-                <span className="break-words">{displayClassName}</span>
+                <span className="break-words">{session.className}</span>
               </div>
             </div>
             <div className="flex items-start justify-center gap-1.5">
               <Users className="h-3 w-3 shrink-0 mt-0.5" />
               <div className="text-center">
-                <span className="truncate">{allTeachers}</span>
+                <span className="truncate">{session.teacher}</span>
               </div>
             </div>
           </div>

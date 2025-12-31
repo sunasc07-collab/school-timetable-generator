@@ -229,22 +229,9 @@ export default function TimetableGrid() {
                                 );
                             }
                             
-                            if (slot.isBreak) { // If it's a break slot but not for this day, render an active cell
-                                 return (
-                                    <TableCell
-                                        key={`${slot.id}-${day}`}
-                                        className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => slot.period && handleDrop(e, day, slot.period)}
-                                    >
-                                        {slot.period ? renderCellContent(day, slot.period, filterValue) : null}
-                                    </TableCell>
-                                );
-                            }
-
                             const periodIndex = slot.period;
                             if (periodIndex === null) {
-                                return <TableCell key={`${slot.id}-${day}`} className="p-1 align-top min-h-[6rem]" />;
+                                return <TableCell key={`${slot.id}-${day}`} className="p-1 align-top min-h-[6rem] hover:bg-muted/50 transition-colors" />;
                             }
 
                             return (

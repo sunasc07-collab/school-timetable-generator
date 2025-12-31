@@ -397,7 +397,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const assignment = allCurrentSchoolAssignments.find(a => 
                 a.teacherId === session.teacherId && 
                 a.subject === (session.actualSubject || session.subject) &&
-                a.schoolId === session.schoolId
+                a.schoolId === session.schoolId &&
+                a.grades.includes(session.className.split(' ')[0])
             );
             if (assignment && assignment.days && assignment.days.length > 0 && !assignment.days.includes(day)) {
                 return false;
@@ -543,83 +544,118 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const allClassSets: {[schoolId: string]: Set<string>} = {};
 
     allTimetablesToGenerate.forEach(tt => {
-        const { id: schoolId, name: schoolName } = tt;
-        const schoolAssignments = allCurrentSchoolAssignments.filter(a => a.schoolId === schoolId);
-        const singleSessions: SingleSessionUnit[] = [];
-        const doubleSessions: DoubleSessionUnit[] = [];
-        const optionBlocks: OptionBlockUnit[] = [];
-        const classSet = new Set<string>();
+        allClassSets[tt.id] = new Set<string>();
+    });
 
-        const coreAssignments = schoolAssignments.filter(a => !a.optionGroup);
-        const optionalAssignments = schoolAssignments.filter(a => a.optionGroup);
-        
-        coreAssignments.forEach(assignment => {
-            assignment.grades.forEach(grade => {
-                const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
-                arms.forEach(arm => {
+    allTeachers.forEach(teacher => {
+        teacher.assignments.forEach(assignment => {
+            const { schoolId, subject, periods, grades, arms, optionGroup, isCore } = assignment;
+            const schoolTimetable = timetables.find(t => t.id === schoolId);
+            if (!schoolTimetable) return;
+
+            if (optionGroup) {
+                // Optional subjects are handled in groups later
+                return;
+            }
+
+            grades.forEach(grade => {
+                const effectiveArms = arms && arms.length > 0 ? arms : [""];
+                effectiveArms.forEach(arm => {
                     const className = `${grade} ${arm}`.trim();
-                    classSet.add(className);
-                    let remainingPeriods = assignment.periods;
+                    allClassSets[schoolId].add(className);
+
+                    let remainingPeriods = periods;
+
+                    // Greedily create double periods
                     while (remainingPeriods >= 2) {
                         const doubleId = crypto.randomUUID();
-                        doubleSessions.push({
-                            session: { id: doubleId, subject: assignment.subject, teacher: assignment.teacherName, teacherId: assignment.teacherId, className, classes: [className], isDouble: true, part: 1, period: 0, schoolId },
-                            partner: { id: doubleId, subject: assignment.subject, teacher: assignment.teacherName, teacherId: assignment.teacherId, className, classes: [className], isDouble: true, part: 2, period: 0, schoolId },
+                        allUnits.push({
+                            session: { id: doubleId, subject, teacher: teacher.name, teacherId: teacher.id, className, classes: [className], isDouble: true, part: 1, period: 0, schoolId },
+                            partner: { id: doubleId, subject, teacher: teacher.name, teacherId: teacher.id, className, classes: [className], isDouble: true, part: 2, period: 0, schoolId },
                         });
                         remainingPeriods -= 2;
                     }
+
+                    // Create single periods for the remainder
                     for (let i = 0; i < remainingPeriods; i++) {
-                        singleSessions.push({ id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName, teacherId: assignment.teacherId, className, classes: [className], isDouble: false, period: 0, schoolId });
+                        allUnits.push({
+                            id: crypto.randomUUID(), subject, teacher: teacher.name, teacherId: teacher.id, className, classes: [className], isDouble: false, period: 0, schoolId
+                        });
                     }
                 });
             });
         });
+    });
 
-        const optionalGroups = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
-        optionalAssignments.forEach(assignment => {
-            const isSeniorSecondary = schoolName.toLowerCase().includes('secondary');
-            if (isSeniorSecondary && assignment.grades.some(g => g.startsWith('Grade 1') || g.startsWith('A-Level'))) {
-                assignment.grades.forEach(grade => {
-                    const groupKey = `${schoolId}-${grade}-${assignment.optionGroup}`;
-                    if (!optionalGroups.has(groupKey)) optionalGroups.set(groupKey, []);
-                    optionalGroups.get(groupKey)!.push({ ...assignment, grades: [grade] });
+    // Group optional assignments by school and option group
+    const optionalGroups = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
+    allCurrentSchoolAssignments.forEach(assignment => {
+        if (assignment.optionGroup) {
+            const schoolTimetable = timetables.find(t => t.id === assignment.schoolId);
+            if (!schoolTimetable) return;
+
+            const isSeniorSecondary = schoolTimetable.name.toLowerCase().includes('secondary');
+
+            if (isSeniorSecondary) { // Group by grade for secondary
+                 assignment.grades.forEach(grade => {
+                    const key = `${assignment.schoolId}-${grade}-${assignment.optionGroup}`;
+                    if (!optionalGroups.has(key)) optionalGroups.set(key, []);
+                    optionalGroups.get(key)!.push({ ...assignment, grades: [grade] });
                 });
-            } else {
-                const groupKey = `${schoolId}-${assignment.optionGroup}`;
-                if (!optionalGroups.has(groupKey)) optionalGroups.set(groupKey, []);
-                optionalGroups.get(groupKey)!.push(assignment);
+            } else { // Group only by option group for others
+                const key = `${assignment.schoolId}-${assignment.optionGroup}`;
+                if (!optionalGroups.has(key)) optionalGroups.set(key, []);
+                optionalGroups.get(key)!.push(assignment);
             }
-        });
+        }
+    });
 
-        optionalGroups.forEach((assignmentsInGroup) => {
-            const firstAssignment = assignmentsInGroup[0];
-            const optionGroupName = firstAssignment.optionGroup!;
-            const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
-            for (let i = 0; i < maxPeriods; i++) {
-                const blockId = crypto.randomUUID();
-                const blockSessions: TimetableSession[] = [];
-                const teachersInBlock = new Set<string>();
-                assignmentsInGroup.filter(a => i < a.periods).forEach(assignment => {
-                    if (teachersInBlock.has(assignment.teacherId)) return;
+    // Create OptionBlockUnits from the grouped optional assignments
+    optionalGroups.forEach(assignmentsInGroup => {
+        const firstAssignment = assignmentsInGroup[0];
+        const { optionGroup, schoolId } = firstAssignment;
+        if (!optionGroup) return;
+
+        const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
+        
+        for (let i = 0; i < maxPeriods; i++) {
+            const blockId = crypto.randomUUID();
+            const blockSessions: TimetableSession[] = [];
+            const teachersInBlock = new Set<string>();
+
+            assignmentsInGroup
+                .filter(a => i < a.periods)
+                .forEach(assignment => {
+                    if (teachersInBlock.has(assignment.teacherId)) return; // One teacher per block
                     teachersInBlock.add(assignment.teacherId);
+                    
                     assignment.grades.forEach(grade => {
-                        const arms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
-                        arms.forEach(arm => {
+                        const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
+                        effectiveArms.forEach(arm => {
                             const className = `${grade} ${arm}`.trim();
-                            classSet.add(className);
+                            allClassSets[schoolId].add(className);
+
                             blockSessions.push({
-                                id: blockId, subject: `Option ${optionGroupName}`, actualSubject: assignment.subject, teacher: assignment.teacherName,
-                                teacherId: assignment.teacherId, className, classes: [className], isDouble: false, optionGroup: optionGroupName, period: 0, schoolId
+                                id: blockId,
+                                subject: `Option ${optionGroup}`,
+                                actualSubject: assignment.subject,
+                                teacher: assignment.teacherName,
+                                teacherId: assignment.teacherId,
+                                className,
+                                classes: [className],
+                                isDouble: false,
+                                optionGroup,
+                                period: 0,
+                                schoolId
                             });
                         });
                     });
                 });
-                if (blockSessions.length > 0) optionBlocks.push({ id: blockId, sessions: blockSessions, optionGroup: optionGroupName });
+            
+            if (blockSessions.length > 0) {
+                allUnits.push({ id: blockId, sessions: blockSessions, optionGroup });
             }
-        });
-
-        allClassSets[schoolId] = classSet;
-        allUnits.push(...singleSessions, ...doubleSessions, ...optionBlocks);
+        }
     });
 
     const sortedAllUnits = allUnits.sort((a, b) => ('sessions' in b ? 1 : 0) - ('sessions' in a ? 1 : 0) || ('partner' in b ? 1 : 0) - ('partner' in a ? 1 : 0));

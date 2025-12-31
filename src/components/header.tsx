@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
 import { Download, Printer, View, Plus, Trash2, Edit, Zap, Settings } from "lucide-react";
-import jsPDF from "jspdf";
 import "jspdf-autotable";
 import {
   DropdownMenu,
@@ -111,8 +110,11 @@ export default function Header() {
     closeDialog();
   };
 
-  const generatePdf = (type: 'class' | 'teacher') => {
+  const generatePdf = async (type: 'class' | 'teacher') => {
     if (!activeTimetable) return;
+
+    const { default: jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     
     const doc = new jsPDF({ orientation: "landscape", unit: 'pt', format: 'a4' });
     let pageCounter = 0;
@@ -146,7 +148,7 @@ export default function Header() {
         let colorIndex = 0;
 
         const roundedRect = (x: number, y: number, w: number, h: number, r: number, style: 'F' | 'S' | 'FD') => {
-            doc.roundedRect(x, y, w, h, r, r, style);
+            (doc as any).roundedRect(x, y, w, h, r, r, style);
         };
 
         const getSubjectColor = (subject: string) => {
@@ -554,5 +556,3 @@ export default function Header() {
     </>
   );
 }
-
-    

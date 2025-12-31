@@ -117,15 +117,23 @@ export default function Header() {
     const doc = new jsPDF({ orientation: "landscape", unit: 'pt', format: 'a4' });
     let pageCounter = 0;
 
-    const generatePage = (timetable: Timetable, title: string, filterValue: string, viewType: 'class' | 'teacher') => {
+    const generatePage = (
+        title: string, 
+        filterValue: string, 
+        viewType: 'class' | 'teacher',
+        // For teacher view, these will be arrays of data from multiple schools
+        timetablesForView: Timetable[],
+        allTeacherSessions: TimetableSession[]
+    ) => {
         if (pageCounter > 0) {
             doc.addPage();
         }
         pageCounter++;
-        
-        const { timetable: ttData, classes, timeSlots, days, name: timetableName } = timetable;
-        const teachersForSchool = allTeachers.filter(t => t.assignments.some(a => a.schoolId === timetable.id));
 
+        // For merged teacher view, use the first timetable as the structural template
+        const templateTimetable = timetablesForView[0];
+        const { timeSlots, days, name: timetableName } = templateTimetable;
+        
         const FONT_FAMILY = "Helvetica";
         const DAY_HEADER_COLORS = [
             [255, 107, 107], [255, 184, 107], [255, 235, 107], [107, 222, 122], [107, 175, 255]
@@ -204,7 +212,7 @@ export default function Header() {
         doc.text(title, MARGIN, MARGIN + 70);
         
         doc.setFontSize(12);
-        doc.text(timetableName, PAGE_WIDTH - MARGIN, MARGIN + 70, { align: 'right' });
+        doc.text(viewType === 'teacher' ? 'Consolidated Schedule' : timetableName, PAGE_WIDTH - MARGIN, MARGIN + 70, { align: 'right' });
 
         const gridX = MARGIN;
         const gridY = MARGIN + 85;
@@ -243,7 +251,6 @@ export default function Header() {
             doc.setTextColor(255, 255, 255);
             doc.text(formattedTime, gridX + timeColWidth - 8, currentY + rowHeight / 2 + 3, { align: 'right', baseline: 'middle' });
 
-
             days.forEach((day, dayIndex) => {
                 const cellX = gridX + timeColWidth + (dayIndex * dayColWidth);
                 const isBreakOnThisDay = slot.isBreak && (slot.days || days).includes(day);
@@ -257,13 +264,13 @@ export default function Header() {
                      doc.setTextColor(100, 100, 100);
                      doc.text(label.replace('-', ' '), cellX + dayColWidth / 2, currentY + rowHeight / 2 + 3, { align: 'center', baseline: 'middle' });
                 } else if (!slot.isBreak) {
-                    const allSessionsInSlot = ttData[day]?.find(s => s[0]?.period === slot.period) || [];
                     
                     let relevantSessions: TimetableSession[] = [];
                     if (viewType === 'class') {
+                        const allSessionsInSlot = templateTimetable.timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
-                    } else { // type === 'teacher'
-                        relevantSessions = allSessionsInSlot.filter(s => s.teacherId === filterValue);
+                    } else { // teacher view
+                        relevantSessions = allTeacherSessions.filter(s => s.period === slot.period && s.day === day);
                     }
 
                     if (relevantSessions.length > 0) {
@@ -331,18 +338,29 @@ export default function Header() {
     if (type === 'class' && activeTimetable) {
         if (activeTimetable.classes.length === 0) return;
         activeTimetable.classes.forEach(className => {
-            generatePage(activeTimetable, `${className} Class Timetable`, className, 'class');
+            generatePage(`${className} Class Timetable`, className, 'class', [activeTimetable], []);
         });
     } else if (type === 'teacher') {
         if (allTeachers.length === 0) return;
         allTeachers.forEach(teacher => {
             const schoolsTaught = [...new Set(teacher.assignments.map(a => a.schoolId))];
-            schoolsTaught.forEach(schoolId => {
-                const timetable = timetables.find(t => t.id === schoolId);
-                if (timetable && Object.keys(timetable.timetable).length > 0) {
-                     generatePage(timetable, `${teacher.name}'s Timetable`, teacher.id, 'teacher');
-                }
-            });
+            const timetablesForTeacher = timetables.filter(t => schoolsTaught.includes(t.id) && Object.keys(t.timetable).length > 0);
+
+            if (timetablesForTeacher.length > 0) {
+                const allTeacherSessions: TimetableSession[] = [];
+                timetablesForTeacher.forEach(tt => {
+                    Object.entries(tt.timetable).forEach(([day, daySlots]) => {
+                        daySlots.forEach(slot => {
+                            slot.forEach(session => {
+                                if (session.teacherId === teacher.id) {
+                                    allTeacherSessions.push({ ...session, day });
+                                }
+                            });
+                        });
+                    });
+                });
+                generatePage(`${teacher.name}'s Timetable`, teacher.id, 'teacher', timetablesForTeacher, allTeacherSessions);
+            }
         });
     } else {
         return;

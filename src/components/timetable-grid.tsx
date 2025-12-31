@@ -66,7 +66,7 @@ export default function TimetableGrid() {
 
     const armSet = new Set<string>();
     
-    teachers.forEach(teacher => {
+    allTeachers.forEach(teacher => {
         teacher.assignments.forEach(assignment => {
             if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
             
@@ -84,7 +84,7 @@ export default function TimetableGrid() {
 
     // Fallback for schools without defined arms but with classes.
     return classes.sort();
-  }, [activeTimetable, viewMode, classes, teachers]);
+  }, [activeTimetable, viewMode, classes, allTeachers]);
 
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
@@ -124,17 +124,19 @@ export default function TimetableGrid() {
   }
 
 
-  const renderCellContent = (day: string, period: number, filterValue: string, timetableData: Timetable) => {
-     const allSessionsInSlot = timetableData.timetable[day]?.find(slot => slot[0]?.period === period) || [];
-     
+  const renderCellContent = (day: string, period: number, filterValue: string, allTeacherSessions: TimetableSession[] = []) => {
      let relevantSessions: TimetableSession[] = [];
-     if (viewMode === 'class' || viewMode === 'arm') {
-        relevantSessions = allSessionsInSlot.filter(s => {
-            return s.classes.includes(filterValue);
-        });
-    } else if (viewMode === 'teacher') {
-        relevantSessions = allSessionsInSlot.filter(s => s.teacherId === filterValue);
-    }
+
+     if (viewMode === 'teacher') {
+        relevantSessions = allTeacherSessions.filter(s => s.day === day && s.period === period);
+     } else {
+        const allSessionsInSlot = activeTimetable?.timetable[day]?.find(slot => slot[0]?.period === period) || [];
+        if (viewMode === 'class' || viewMode === 'arm') {
+            relevantSessions = allSessionsInSlot.filter(s => {
+                return s.classes.includes(filterValue);
+            });
+        }
+     }
      
      if (relevantSessions.length > 0) {
       return (
@@ -195,16 +197,16 @@ export default function TimetableGrid() {
     );
   }
 
-  const renderTimetableFor = (title: string, filterValue: string, timetableData: Timetable) => (
-    <div key={`${filterValue}-${timetableData.id}`}>
+  const renderTimetableFor = (title: string, filterValue: string, templateTimetable: Timetable, allTeacherSessions: TimetableSession[] = []) => (
+    <div key={`${filterValue}-${templateTimetable.id}`}>
         <h2 className="text-2xl font-bold font-headline mb-2">{title}</h2>
-        {viewMode === 'teacher' && <p className="text-muted-foreground mb-4">{timetableData.name}</p>}
+        {viewMode === 'teacher' && <p className="text-muted-foreground mb-4">Consolidated Schedule</p>}
         <div className="rounded-lg border w-full">
         <Table>
             <TableHeader>
             <TableRow>
                 <TableHead className="w-28">Time</TableHead>
-                {timetableData.days.map((day) => (
+                {templateTimetable.days.map((day) => (
                   <TableHead key={day} className="font-headline text-center align-middle">
                     {day}
                   </TableHead>
@@ -212,7 +214,7 @@ export default function TimetableGrid() {
             </TableRow>
             </TableHeader>
             <TableBody>
-             {timetableData.timeSlots.map((slot) => {
+             {templateTimetable.timeSlots.map((slot) => {
                 const [start, end] = slot.time.split('-');
                 const formattedTime = `${formatTime(start)} - ${formatTime(end)}`;
 
@@ -222,8 +224,8 @@ export default function TimetableGrid() {
                             <div className="text-xs">{formattedTime}</div>
                             {!slot.isBreak && <div className="text-xs mt-1">Period {slot.period}</div>}
                         </TableCell>
-                        {timetableData.days.map((day) => {
-                            const isBreakOnThisDay = slot.isBreak && (slot.days || timetableData.days).includes(day);
+                        {templateTimetable.days.map((day) => {
+                            const isBreakOnThisDay = slot.isBreak && (slot.days || templateTimetable.days).includes(day);
 
                             if (isBreakOnThisDay) {
                                 return (
@@ -242,9 +244,9 @@ export default function TimetableGrid() {
                                     key={`${slot.id}-${day}`}
                                     className="p-1 align-top hover:bg-muted/50 transition-colors min-h-[6rem]"
                                     onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, day, slot.period as number, timetableData.id)}
+                                    onDrop={(e) => handleDrop(e, day, slot.period as number, templateTimetable.id)}
                                 >
-                                    {renderCellContent(day, slot.period as number, filterValue, timetableData)}
+                                    {renderCellContent(day, slot.period as number, filterValue, allTeacherSessions)}
                                 </TableCell>
                             );
                         })}
@@ -257,26 +259,44 @@ export default function TimetableGrid() {
     </div>
   );
   
-  let itemsToRender: { title: string, filterValue: string, timetableData: Timetable }[] = [];
+  let itemsToRender: { 
+      title: string; 
+      filterValue: string; 
+      templateTimetable: Timetable; 
+      allTeacherSessions?: TimetableSession[];
+  }[] = [];
 
   if (viewMode === 'class' && activeTimetable) {
-    itemsToRender = classes.map(className => ({ title: `${className} Timetable`, filterValue: className, timetableData: activeTimetable }));
+    itemsToRender = classes.map(className => ({ title: `${className} Timetable`, filterValue: className, templateTimetable: activeTimetable }));
   } else if (viewMode === 'teacher') {
     allTeachers.forEach(teacher => {
-        const schoolsTaught = [...new Set(teacher.assignments.map(a => a.schoolId))];
-        schoolsTaught.forEach(schoolId => {
-            const schoolTimetable = timetables.find(t => t.id === schoolId);
-            if (schoolTimetable && Object.keys(schoolTimetable.timetable).length > 0) {
-                itemsToRender.push({
-                    title: `${teacher.name}'s Timetable`,
-                    filterValue: teacher.id,
-                    timetableData: schoolTimetable
+        const schoolsTaughtIds = [...new Set(teacher.assignments.map(a => a.schoolId))];
+        const timetablesForTeacher = timetables.filter(t => schoolsTaughtIds.includes(t.id) && Object.keys(t.timetable).length > 0);
+
+        if (timetablesForTeacher.length > 0) {
+            const allTeacherSessions: TimetableSession[] = [];
+            timetablesForTeacher.forEach(tt => {
+                Object.entries(tt.timetable).forEach(([day, daySlots]) => {
+                    daySlots.forEach(slot => {
+                        slot.forEach(session => {
+                            if (session.teacherId === teacher.id) {
+                                allTeacherSessions.push({ ...session, day: day }); // Add day to session for filtering
+                            }
+                        });
+                    });
                 });
-            }
-        });
+            });
+
+            itemsToRender.push({
+                title: `${teacher.name}'s Timetable`,
+                filterValue: teacher.id,
+                templateTimetable: timetablesForTeacher[0], // Use first school's structure as template
+                allTeacherSessions: allTeacherSessions
+            });
+        }
     });
   } else if (viewMode === 'arm' && activeTimetable) {
-    itemsToRender = arms.map(armName => ({ title: `${armName} Timetable`, filterValue: armName, timetableData: activeTimetable }));
+    itemsToRender = arms.map(armName => ({ title: `${armName} Timetable`, filterValue: armName, templateTimetable: activeTimetable }));
   }
   
   if (viewMode === 'teacher' && itemsToRender.length === 0) {
@@ -289,6 +309,14 @@ export default function TimetableGrid() {
       </div>
     );
   }
+  
+  const mobileItemsToRender = useMemo(() => {
+    if (viewMode === 'teacher') {
+      return itemsToRender.map(({ title, filterValue, allTeacherSessions }) => ({ title, filterValue, allTeacherSessions }));
+    }
+    return itemsToRender.map(({ title, filterValue }) => ({ title, filterValue }));
+  }, [itemsToRender, viewMode]);
+
 
   return (
     <ClientOnly>
@@ -336,9 +364,9 @@ export default function TimetableGrid() {
             </div>
         </div>
           {isMobile ? (
-              <MobileTimetableView itemsToRender={itemsToRender.map(({ title, filterValue }) => ({ title, filterValue }))} />
+              <MobileTimetableView itemsToRender={mobileItemsToRender} />
           ) : (
-             itemsToRender.map(({ title, filterValue, timetableData }) => renderTimetableFor(title, filterValue, timetableData))
+             itemsToRender.map(({ title, filterValue, templateTimetable, allTeacherSessions }) => renderTimetableFor(title, filterValue, templateTimetable, allTeacherSessions))
           )}
       </div>
     </ClientOnly>

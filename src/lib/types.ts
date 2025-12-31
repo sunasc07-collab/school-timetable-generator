@@ -2,6 +2,7 @@
 
 
 
+
 export type SubjectAssignment = {
   id: string;
   grades: string[];
@@ -38,6 +39,7 @@ export type TimetableSession = {
   isLocked?: boolean;
   period: number;
   schoolId: string;
+  day?: string; // For multi-school teacher view
 };
 
 export type TimetableSlot = TimetableSession[];

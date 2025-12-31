@@ -6,14 +6,93 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import Header from "@/components/header";
 import TeacherEditor from "@/components/teacher-editor";
 import ClientOnly from "./client-only";
 import TimetableGrid from "./timetable-grid";
+import { useIsMobile } from "@/hooks/use-mobile";
+import MobileTimetableView from "./mobile-timetable-view";
+import { useTimetable } from "@/context/timetable-provider";
+import { useMemo } from "react";
+import type { Timetable, TimetableSession } from "@/lib/types";
 
 export default function AppLayout() {
+  const isMobile = useIsMobile();
+  const { activeTimetable, allTeachers, viewMode, timetables, classes, arms } =
+    useTimetable();
+
+  const itemsToRender = useMemo(() => {
+    let items: {
+      title: string;
+      filterValue: string;
+      templateTimetable: Timetable;
+      allTeacherSessions?: TimetableSession[];
+    }[] = [];
+
+    if (viewMode === "class" && activeTimetable) {
+      items = classes.map((className) => ({
+        title: `${className} Timetable`,
+        filterValue: className,
+        templateTimetable: activeTimetable,
+      }));
+    } else if (viewMode === "teacher") {
+      allTeachers.forEach((teacher) => {
+        const schoolsTaughtIds = [
+          ...new Set(teacher.assignments.map((a) => a.schoolId)),
+        ];
+        const timetablesForTeacher = timetables.filter(
+          (t) =>
+            schoolsTaughtIds.includes(t.id) &&
+            Object.keys(t.timetable).length > 0
+        );
+
+        if (timetablesForTeacher.length > 0) {
+          const allTeacherSessions: TimetableSession[] = [];
+          timetablesForTeacher.forEach((tt) => {
+            Object.entries(tt.timetable).forEach(([day, daySlots]) => {
+              daySlots.forEach((slot) => {
+                slot.forEach((session) => {
+                  if (session.teacherId === teacher.id) {
+                    allTeacherSessions.push({ ...session, day: day });
+                  }
+                });
+              });
+            });
+          });
+
+          items.push({
+            title: `${teacher.name}'s Timetable`,
+            filterValue: teacher.id,
+            templateTimetable: timetablesForTeacher[0],
+            allTeacherSessions: allTeacherSessions,
+          });
+        }
+      });
+    } else if (viewMode === "arm" && activeTimetable) {
+      items = arms.map((armName) => ({
+        title: `${armName} Timetable`,
+        filterValue: armName,
+        templateTimetable: activeTimetable,
+      }));
+    }
+    return items;
+  }, [viewMode, activeTimetable, classes, arms, allTeachers, timetables]);
+
+  const mobileItemsToRender = useMemo(() => {
+    if (viewMode === "teacher") {
+      return itemsToRender.map(({ title, filterValue, allTeacherSessions }) => ({
+        title,
+        filterValue,
+        allTeacherSessions,
+      }));
+    }
+    return itemsToRender.map(({ title, filterValue }) => ({
+      title,
+      filterValue,
+    }));
+  }, [itemsToRender, viewMode]);
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -50,7 +129,11 @@ export default function AppLayout() {
         </ClientOnly>
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
           <ClientOnly>
-            <TimetableGrid />
+            {isMobile ? (
+              <MobileTimetableView itemsToRender={mobileItemsToRender} />
+            ) : (
+              <TimetableGrid itemsToRender={itemsToRender} />
+            )}
           </ClientOnly>
         </main>
       </SidebarInset>

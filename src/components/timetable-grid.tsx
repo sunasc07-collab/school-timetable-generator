@@ -30,11 +30,19 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Terminal } from "lucide-react";
 import ClientOnly from "./client-only";
 import ErrorDisplay from "./error-display";
-import { useIsMobile } from "@/hooks/use-mobile";
-import MobileTimetableView from "./mobile-timetable-view";
 
 
-export default function TimetableGrid() {
+interface TimetableGridProps {
+    itemsToRender: { 
+      title: string; 
+      filterValue: string; 
+      templateTimetable: Timetable; 
+      allTeacherSessions?: TimetableSession[];
+  }[];
+}
+
+
+export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
   const { 
     activeTimetable,
     allTeachers,
@@ -42,49 +50,18 @@ export default function TimetableGrid() {
     viewMode, 
     clearTimetable, 
     resolveConflicts,
-    timetables, 
+    timetables,
+    arms,
+    classes 
   } = useTimetable();
-
-  const isMobile = useIsMobile();
 
   const timetable = activeTimetable?.timetable || {};
   const days = activeTimetable?.days || [];
   const timeSlots = activeTimetable?.timeSlots || [];
-  const classes = activeTimetable?.classes || [];
   const conflicts = activeTimetable?.conflicts || [];
   const error = activeTimetable?.error || null;
-  
-  const teachers = useMemo(() => {
-    if (!activeTimetable) return [];
-    return allTeachers.filter(t => t.assignments.some(a => a.schoolId === activeTimetable.id));
-  }, [activeTimetable, allTeachers]);
 
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
-
-  const arms = useMemo(() => {
-    if (!activeTimetable || viewMode !== 'arm') return [];
-
-    const armSet = new Set<string>();
-    
-    allTeachers.forEach(teacher => {
-        teacher.assignments.forEach(assignment => {
-            if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
-            
-            assignment.grades.forEach(grade => {
-                assignment.arms.forEach(arm => {
-                    const fullClassName = `${grade} ${arm}`;
-                    armSet.add(fullClassName);
-                });
-            });
-        });
-    });
-
-    const sortedArms = Array.from(armSet).sort();
-    if (sortedArms.length > 0) return sortedArms;
-
-    // Fallback for schools without defined arms but with classes.
-    return classes.sort();
-  }, [activeTimetable, viewMode, classes, allTeachers]);
 
 
   const handleDragOver = (e: React.DragEvent<HTMLTableCellElement>) => {
@@ -103,7 +80,6 @@ export default function TimetableGrid() {
         const data: TimetableDragData = JSON.parse(
           e.dataTransfer.getData("application/json")
         );
-        // We can only drag/drop within the same timetable
         if (timetableId === activeTimetable.id) {
           moveSession(data.session, data.from, { day, period });
         }
@@ -259,46 +235,6 @@ export default function TimetableGrid() {
     </div>
   );
   
-  let itemsToRender: { 
-      title: string; 
-      filterValue: string; 
-      templateTimetable: Timetable; 
-      allTeacherSessions?: TimetableSession[];
-  }[] = [];
-
-  if (viewMode === 'class' && activeTimetable) {
-    itemsToRender = classes.map(className => ({ title: `${className} Timetable`, filterValue: className, templateTimetable: activeTimetable }));
-  } else if (viewMode === 'teacher') {
-    allTeachers.forEach(teacher => {
-        const schoolsTaughtIds = [...new Set(teacher.assignments.map(a => a.schoolId))];
-        const timetablesForTeacher = timetables.filter(t => schoolsTaughtIds.includes(t.id) && Object.keys(t.timetable).length > 0);
-
-        if (timetablesForTeacher.length > 0) {
-            const allTeacherSessions: TimetableSession[] = [];
-            timetablesForTeacher.forEach(tt => {
-                Object.entries(tt.timetable).forEach(([day, daySlots]) => {
-                    daySlots.forEach(slot => {
-                        slot.forEach(session => {
-                            if (session.teacherId === teacher.id) {
-                                allTeacherSessions.push({ ...session, day: day }); // Add day to session for filtering
-                            }
-                        });
-                    });
-                });
-            });
-
-            itemsToRender.push({
-                title: `${teacher.name}'s Timetable`,
-                filterValue: teacher.id,
-                templateTimetable: timetablesForTeacher[0], // Use first school's structure as template
-                allTeacherSessions: allTeacherSessions
-            });
-        }
-    });
-  } else if (viewMode === 'arm' && activeTimetable) {
-    itemsToRender = arms.map(armName => ({ title: `${armName} Timetable`, filterValue: armName, templateTimetable: activeTimetable }));
-  }
-  
   if (viewMode === 'teacher' && itemsToRender.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full rounded-lg border-2 border-dashed border-border text-center p-12">
@@ -309,14 +245,6 @@ export default function TimetableGrid() {
       </div>
     );
   }
-  
-  const mobileItemsToRender = useMemo(() => {
-    if (viewMode === 'teacher') {
-      return itemsToRender.map(({ title, filterValue, allTeacherSessions }) => ({ title, filterValue, allTeacherSessions }));
-    }
-    return itemsToRender.map(({ title, filterValue }) => ({ title, filterValue }));
-  }, [itemsToRender, viewMode]);
-
 
   return (
     <ClientOnly>
@@ -363,11 +291,7 @@ export default function TimetableGrid() {
                 </Button>
             </div>
         </div>
-          {isMobile ? (
-              <MobileTimetableView itemsToRender={mobileItemsToRender} />
-          ) : (
-             itemsToRender.map(({ title, filterValue, templateTimetable, allTeacherSessions }) => renderTimetableFor(title, filterValue, templateTimetable, allTeacherSessions))
-          )}
+        {itemsToRender.map(({ title, filterValue, templateTimetable, allTeacherSessions }) => renderTimetableFor(title, filterValue, templateTimetable, allTeacherSessions))}
       </div>
     </ClientOnly>
   );

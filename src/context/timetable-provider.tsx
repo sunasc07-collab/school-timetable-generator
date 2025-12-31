@@ -31,6 +31,9 @@ type TimetableContextType = {
   setViewMode: (mode: ViewMode) => void;
 
   updateTimeSlots: (newTimeSlots: TimeSlot[]) => void;
+  // Exposing these for the view components
+  classes: string[];
+  arms: string[];
 };
 
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined);
@@ -308,7 +311,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
               ...session,
               id: commonId,
               schoolId: activeTimetable.id,
-              day: 'all_week', // master entry
+              day: 'all_week', 
           });
       } else {
           newSessions.push({
@@ -329,13 +332,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       let sessionsToKeep = activeTimetable.lockedSessions;
 
       if(sessionToRemove?.isWeekly) {
-          // It's a derived weekly session, so we need to remove all related sessions
           sessionsToKeep = sessionsToKeep.filter(s => s.weeklyId !== sessionToRemove.weeklyId);
       } else if (sessionToRemove?.day === 'all_week') {
-          // It's the master weekly session
           sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionToRemove.id && s.weeklyId !== sessionToRemove.id);
       } else {
-          // It's a single session
           sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionId);
       }
       
@@ -394,7 +394,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const schoolTimetable = timetables.find(t => t.id === session.schoolId);
             if (!schoolTimetable) return false;
             
-            // Check day constraint from assignment
             const assignment = allCurrentSchoolAssignments.find(a => 
                 a.teacherId === session.teacherId && 
                 a.subject === (session.actualSubject || session.subject) &&
@@ -704,6 +703,33 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     return activeTimetable.lockedSessions.filter(ls => ls.day === 'all_week' || !weeklyIds.has(ls.weeklyId || ''));
   }, [activeTimetable?.lockedSessions]);
 
+  const classes = useMemo(() => activeTimetable?.classes || [], [activeTimetable]);
+  
+  const arms = useMemo(() => {
+    if (!activeTimetable) return [];
+
+    const armSet = new Set<string>();
+    
+    allTeachers.forEach(teacher => {
+        teacher.assignments.forEach(assignment => {
+            if (assignment.schoolId !== activeTimetable.id || !assignment.arms || assignment.arms.length === 0) return;
+            
+            assignment.grades.forEach(grade => {
+                assignment.arms.forEach(arm => {
+                    const fullClassName = `${grade} ${arm}`;
+                    armSet.add(fullClassName);
+                });
+            });
+        });
+    });
+
+    const sortedArms = Array.from(armSet).sort();
+    if (sortedArms.length > 0) return sortedArms;
+
+    return classes.sort();
+  }, [activeTimetable, classes, allTeachers]);
+
+
   return (
     <TimetableContext.Provider
       value={{
@@ -727,7 +753,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         viewMode,
         setViewMode,
         resolveConflicts,
-        updateTimeSlots
+        updateTimeSlots,
+        classes,
+        arms
       }}
     >
       {children}
@@ -742,5 +770,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

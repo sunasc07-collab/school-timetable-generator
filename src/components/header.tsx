@@ -283,62 +283,63 @@ export default function Header() {
                             if(!uniqueSessionBlocks.has(key)) uniqueSessionBlocks.set(key, []);
                             uniqueSessionBlocks.get(key)!.push(session);
                         });
-
-                        const sessionBlockCount = uniqueSessionBlocks.size;
-                        const sessionHeight = (rowHeight - 4) / sessionBlockCount;
                         
-                        let sessionIndex = 0;
-                        uniqueSessionBlocks.forEach((sessionsInBlock) => {
-                             const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
-                             const firstSession = sessionsInBlock[0];
-                             const subject = firstSession.isLocked ? firstSession.subject : (firstSession.optionGroup ? `Option ${firstSession.optionGroup}` : (firstSession.actualSubject || firstSession.subject));
-                             const [r, g, b] = getSubjectColor(subject);
-                             doc.setFillColor(r, g, b);
-                             roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 4, 'F');
+                        const sessionsToRender = (viewType === 'teacher') ? relevantSessions : Array.from(uniqueSessionBlocks.values()).flat();
 
-                             doc.setTextColor(50, 50, 50);
+                        if (sessionsToRender.length > 0) {
+                             const sessionBlockCount = sessionsToRender.length;
+                             const sessionHeight = (rowHeight - 4) / sessionBlockCount;
                              
-                             if (firstSession.isLocked) {
-                                doc.setFontSize(12);
-                                doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 4, { align: 'center' });
-                             } else if (firstSession.optionGroup) {
-                                doc.setFontSize(12);
-                                doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
-                                
-                                doc.setFontSize(9);
-                                doc.setFont(FONT_FAMILY, "bold");
+                             sessionsToRender.forEach((session, sessionIndex) => {
+                                 const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
+                                 const subject = session.isLocked ? session.subject : (session.optionGroup ? `Option ${session.optionGroup}` : (session.actualSubject || session.subject));
+                                 const [r, g, b] = getSubjectColor(subject);
+                                 doc.setFillColor(r, g, b);
+                                 roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 4, 'F');
 
-                                if(viewType === 'class'){
-                                    const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                } else { // teacher view
-                                    const schoolName = timetables.find(t=>t.id === firstSession.schoolId)?.name || '';
-                                    const grades = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(c => c.match(/^(Grade \d+|A-Level Year \d+)/)?.[0] || c)))].join(', ');
-                                    const classText = `Class: ${grades} (${schoolName})`;
-                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                }
+                                 doc.setTextColor(50, 50, 50);
+                                 
+                                 if (session.isLocked) {
+                                    doc.setFontSize(12);
+                                    doc.setFont(FONT_FAMILY, "bold");
+                                    doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 4, { align: 'center' });
+                                 } else if (session.optionGroup) {
+                                    doc.setFontSize(12);
+                                    doc.setFont(FONT_FAMILY, "bold");
+                                    doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
+                                    
+                                    doc.setFontSize(9);
+                                    doc.setFont(FONT_FAMILY, "bold");
 
-                             } else {
-                                doc.setFontSize(11);
-                                doc.setFont(FONT_FAMILY, "bold");
-                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
+                                    if(viewType === 'class'){
+                                        const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
+                                        doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                    } else { // teacher view
+                                        const schoolName = timetables.find(t=>t.id === session.schoolId)?.name || '';
+                                        const grades = [...new Set([session.className].map(c => c.match(/^(Grade \d+|A-Level Year \d+)/)?.[0] || c))].join(', ');
+                                        const classText = `Class: ${grades} (${schoolName})`;
+                                        doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                    }
 
-                                doc.setFontSize(9);
-                                doc.setFont(FONT_FAMILY, "bold");
-                                if(viewType === 'class'){
-                                    const teacherText = `Teacher: ${getTeacherInitials(firstSession.teacher)}`;
-                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                } else { // teacher view
-                                    const schoolName = timetables.find(t=>t.id === firstSession.schoolId)?.name || '';
-                                    const classNames = [...new Set(sessionsInBlock.flatMap(s => s.classes.map(formatClassName)))].join(', ');
-                                    const classText = `Class: ${classNames} (${schoolName})`;
-                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                }
-                             }
-                             sessionIndex++;
-                        });
+                                 } else {
+                                    doc.setFontSize(11);
+                                    doc.setFont(FONT_FAMILY, "bold");
+                                    doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
+
+                                    doc.setFontSize(9);
+                                    doc.setFont(FONT_FAMILY, "bold");
+                                    if(viewType === 'class'){
+                                        const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
+                                        doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                    } else { // teacher view
+                                        const schoolName = timetables.find(t=>t.id === session.schoolId)?.name || '';
+                                        const classNames = formatClassName(session.className);
+                                        const classText = `Class: ${classNames} (${schoolName})`;
+                                        doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                    }
+                                 }
+                             });
+                        }
 
                     } else {
                         doc.setFillColor(255, 255, 255, 0.1);
@@ -380,7 +381,7 @@ export default function Header() {
                         });
                     });
                 });
-                generatePage(`${teacher.name}'s Timetable`, teacher.id, 'teacher', timetables, allTeacherSessions);
+                generatePage(`${teacher.name}'s Timetable`, teacher.id, 'teacher', timetablesForTeacher, allTeacherSessions);
             }
         });
     } else {

@@ -56,6 +56,8 @@ export function Combobox({
     option.label.toLowerCase().includes(search.toLowerCase())
   );
 
+  const showAddOption = search.length > 0 && !filteredOptions.some(opt => opt.label.toLowerCase() === search.toLowerCase());
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -66,7 +68,7 @@ export function Combobox({
           className={cn("w-full justify-between font-normal", className)}
         >
           {value
-            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label
+            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label ?? value
             : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -79,18 +81,19 @@ export function Combobox({
             onValueChange={setSearch}
           />
           <CommandList>
-            {filteredOptions.length === 0 && search.length > 0 && (
+            {filteredOptions.length === 0 && !showAddOption && (
+                <CommandEmpty>{emptyPlaceholder}</CommandEmpty>
+            )}
+            <CommandGroup>
+              {showAddOption && (
                 <CommandItem
                     onSelect={() => handleSelect(search)}
                     value={search}
                 >
-                    Add "{search}"
+                  <span className="mr-2 h-4 w-4" />
+                  Add "{search}"
                 </CommandItem>
-            )}
-            {filteredOptions.length === 0 && search.length === 0 && (
-                <CommandEmpty>{emptyPlaceholder}</CommandEmpty>
-            )}
-            <CommandGroup>
+              )}
               {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}

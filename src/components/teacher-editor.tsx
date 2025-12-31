@@ -103,7 +103,7 @@ const getGradeOptionsForSchool = (schoolName: string) => {
 };
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
-    const { timetables, activeTimetable } = useTimetable();
+    const { timetables, activeTimetable, allTeachers } = useTimetable();
     const { setValue, getValues, trigger, formState: { errors } } = useFormContext();
     
     const [customArms, setCustomArms] = useState<string[]>([]);
@@ -186,6 +186,16 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`, activeTimetable.id);
         }
     }, [activeTimetable, teacherIndex, assignmentIndex, setValue, getValues]);
+
+    const allCurrentSubjects = useMemo(() => {
+        const subjects = new Set(ALL_SUBJECTS);
+        allTeachers.forEach(teacher => {
+            teacher.assignments.forEach(assignment => {
+                subjects.add(assignment.subject);
+            });
+        });
+        return Array.from(subjects).map(s => ({ value: s, label: s }));
+    }, [allTeachers]);
 
 
     const gradeOptions = useMemo(() => {
@@ -296,11 +306,11 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             <FormItem className="flex flex-col">
                                 {assignmentIndex === 0 && <FormLabel>Subject</FormLabel>}
                                 <Combobox
-                                    options={subjectOptions}
+                                    options={allCurrentSubjects}
                                     value={field.value}
                                     onChange={field.onChange}
                                     placeholder="Select subject..."
-                                    searchPlaceholder="Search subjects..."
+                                    searchPlaceholder="Search or add subject..."
                                     emptyPlaceholder="No subject found."
                                 />
                                 <FormMessage />
@@ -1010,5 +1020,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

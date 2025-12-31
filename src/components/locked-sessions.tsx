@@ -13,6 +13,7 @@ import { Lock, Plus, Trash2 } from "lucide-react";
 import type { LockedSession } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
 import { formatTime } from "@/lib/utils";
+import { Input } from "./ui/input";
 
 const lockedSessionSchema = z.object({
     activity: z.string().min(1, "Activity is required"),
@@ -23,8 +24,6 @@ const lockedSessionSchema = z.object({
 });
 
 type LockedSessionFormValues = z.infer<typeof lockedSessionSchema>;
-
-const ACTIVITIES = ["Assembly", "Sports", "Club Activities", "Guidance"];
 
 export default function LockedSessions() {
     const { activeTimetable, addLockedSession, removeLockedSession } = useTimetable();
@@ -73,14 +72,9 @@ export default function LockedSessions() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Activity</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Select Activity..." /></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {ACTIVITIES.map(act => <SelectItem key={act} value={act}>{act}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Assembly" {...field} />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -204,5 +198,3 @@ export default function LockedSessions() {
         </div>
     );
 }
-
-    

@@ -549,89 +549,105 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         allClassSets[tt.id] = new Set<string>();
     });
     
-    const optionalGroups = new Map<string, { assignments: SubjectAssignment[]; grades: Set<string> }>();
+    const schoolAssignments = allCurrentSchoolAssignments.filter(
+        (assignment) => assignment.schoolId === activeTimetable.id
+    );
 
-    allCurrentSchoolAssignments.forEach(assignment => {
-        const { schoolId, subjectType, optionGroup, grades } = assignment;
-        const school = timetables.find(t => t.id === schoolId);
-        if (!school) return;
-        
-        const isSecondary = school.name.toLowerCase().includes('secondary');
-
-        if (isSecondary && subjectType === 'optional' && optionGroup) {
-            const key = `${schoolId}-${optionGroup}`;
-            if (!optionalGroups.has(key)) {
-                optionalGroups.set(key, { assignments: [], grades: new Set() });
-            }
-            optionalGroups.get(key)!.assignments.push(assignment);
-            grades.forEach(g => optionalGroups.get(key)!.grades.add(g));
-        } else {
-            assignment.grades.forEach(grade => {
-                const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
-                effectiveArms.forEach(arm => {
-                    const className = `${grade} ${arm}`.trim();
-                    allClassSets[schoolId]?.add(className);
-                    
-                    let remainingPeriods = assignment.periods;
-                    while (remainingPeriods >= 2) {
-                        const doubleId = crypto.randomUUID();
-                        allUnits.push({
-                            session: { id: doubleId, subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: true, part: 1, period: 0, schoolId, actualSubject: assignment.subject },
-                            partner: { id: doubleId, subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: true, part: 2, period: 0, schoolId, actualSubject: assignment.subject },
-                        });
-                        remainingPeriods -= 2;
-                    }
-                    for (let i = 0; i < remainingPeriods; i++) {
-                        allUnits.push({
-                            id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId, actualSubject: assignment.subject
-                        });
-                    }
+    const secondaryCoreAssignments = schoolAssignments.filter(
+        (a) => a.subjectType === "core"
+    );
+    const secondaryOptionalAssignments = schoolAssignments.filter(
+        (a) => a.subjectType === "optional"
+    );
+    const primaryAssignments = schoolAssignments.filter(
+        (a) => a.subjectType !== "core" && a.subjectType !== "optional"
+    );
+    
+    // Process Primary/Non-Secondary assignments
+    primaryAssignments.forEach(assignment => {
+        assignment.grades.forEach(grade => {
+            const className = grade; // For primary, grade is the class name
+            allClassSets[assignment.schoolId]?.add(className);
+            for (let i = 0; i < assignment.periods; i++) {
+                allUnits.push({
+                    id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
                 });
+            }
+        });
+    });
+
+    // Process Secondary Core assignments
+    secondaryCoreAssignments.forEach(assignment => {
+        assignment.grades.forEach(grade => {
+            const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
+            effectiveArms.forEach(arm => {
+                const className = `${grade} ${arm}`.trim();
+                allClassSets[assignment.schoolId]?.add(className);
+                for (let i = 0; i < assignment.periods; i++) {
+                    allUnits.push({
+                        id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
+                    });
+                }
+            });
+        });
+    });
+
+    // Process Secondary Optional assignments
+    const optionalGroups = new Map<string, { assignments: SubjectAssignment[]; grades: string[], arms: string[] }>();
+    secondaryOptionalAssignments.forEach(assignment => {
+        if (assignment.optionGroup) {
+            assignment.grades.forEach(grade => {
+                const key = `${assignment.schoolId}-${grade}-${assignment.optionGroup}`;
+                if (!optionalGroups.has(key)) {
+                    optionalGroups.set(key, { assignments: [], grades: [grade], arms: [] });
+                }
+                const group = optionalGroups.get(key)!;
+                group.assignments.push(assignment);
+                group.arms = [...new Set([...group.arms, ...(assignment.arms || [])])];
             });
         }
     });
 
-    optionalGroups.forEach(({ assignments, grades }, groupKey) => {
-        const [schoolId, optionGroup] = groupKey.split('-');
+    optionalGroups.forEach(group => {
+        const { assignments, grades, arms } = group;
+        const firstAssignment = assignments[0];
+        if (!firstAssignment) return;
 
-        grades.forEach(grade => {
-            const assignmentsForGrade = assignments.filter(a => a.grades.includes(grade));
-            const periods = assignmentsForGrade[0]?.periods || 1;
-            const armsForGrade = [...new Set(assignmentsForGrade.flatMap(a => a.arms || []))];
-            
-            const classNamesForBlock = armsForGrade.length > 0 
-                ? armsForGrade.map(arm => `${grade} ${arm}`.trim())
-                : [`${grade}`.trim()];
+        const periods = firstAssignment.periods;
+        const schoolId = firstAssignment.schoolId;
+        const optionGroup = firstAssignment.optionGroup!;
+        const grade = grades[0];
 
-            classNamesForBlock.forEach(cn => allClassSets[schoolId]?.add(cn));
+        const classNamesForBlock = arms.length > 0 
+            ? arms.map(arm => `${grade} ${arm}`.trim())
+            : [`${grade}`.trim()];
+
+        classNamesForBlock.forEach(cn => allClassSets[schoolId]?.add(cn));
+        
+        for (let i = 0; i < periods; i++) {
+            const blockId = crypto.randomUUID();
+            const optionSessions: TimetableSession[] = [];
             
-            for (let i = 0; i < periods; i++) {
-                const blockId = crypto.randomUUID();
-                const optionSessions: TimetableSession[] = [];
-                
-                assignmentsForGrade.forEach(assignment => {
-                    const { teacherId, teacherName, subject } = assignment;
-                    optionSessions.push({
-                        id: `${blockId}-${teacherId}-${subject}`,
-                        subject: `Option ${optionGroup}`,
-                        actualSubject: subject,
-                        teacher: teacherName!,
-                        teacherId: teacherId!,
-                        isDouble: false,
-                        period: 0,
-                        schoolId: schoolId,
-                        optionGroup: optionGroup as any,
-                        className: grade,
-                        classes: classNamesForBlock,
-                    });
+            assignments.forEach(assignment => {
+                optionSessions.push({
+                    id: `${blockId}-${assignment.teacherId}-${assignment.subject}`,
+                    subject: `Option ${optionGroup}`,
+                    actualSubject: assignment.subject,
+                    teacher: assignment.teacherName!,
+                    teacherId: assignment.teacherId!,
+                    isDouble: false,
+                    period: 0,
+                    schoolId: schoolId,
+                    optionGroup: optionGroup,
+                    className: grade, // Use the base grade for display
+                    classes: classNamesForBlock, // All arms are in this session
                 });
+            });
 
-                if (optionSessions.length > 0) {
-                    const uniqueTeacherSessions = Array.from(new Map(optionSessions.map(s => [s.teacherId, s])).values());
-                    allUnits.push({ id: blockId, sessions: uniqueTeacherSessions, optionGroup: optionGroup as any });
-                }
+            if (optionSessions.length > 0) {
+                 allUnits.push({ id: blockId, sessions: optionSessions, optionGroup: optionGroup });
             }
-        });
+        }
     });
     
     const shuffledUnits = allUnits.sort(() => Math.random() - 0.5);

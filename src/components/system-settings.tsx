@@ -129,9 +129,20 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                 <DialogHeader>
                     <DialogTitle className="font-headline">System Settings</DialogTitle>
                     <DialogDescription>
-                        Customize the time slots for '{activeTimetable.name}'. Changes will reset the current timetable.
+                        Customize the time slots for the school timetable. Changes will reset the current timetable.
                     </DialogDescription>
                 </DialogHeader>
+                 <div className="space-y-1">
+                    <Label>School</Label>
+                    <Select value={activeTimetable.id} disabled>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="School" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={activeTimetable.id}>{activeTimetable.name}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
                 <div className="max-h-[60vh] overflow-y-auto p-1 pr-4">
                     <div className="grid gap-4 py-4">
                         {localTimeSlots.map((slot, index) => {
@@ -284,3 +295,5 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
+
+    

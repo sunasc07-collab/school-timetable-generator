@@ -725,7 +725,7 @@ export default function TeacherEditor() {
     },
   });
   
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
     control: form.control,
     name: "teachers"
   });
@@ -780,6 +780,16 @@ export default function TeacherEditor() {
     }
     setIsDialogOpen(true);
   }
+  
+  useEffect(() => {
+    // When the active timetable changes, if the dialog is open, close it.
+    if (activeTimetable) {
+        setIsDialogOpen(false);
+        setEditingTeacher(null);
+        form.reset({ teachers: [] });
+    }
+  }, [activeTimetable, form]);
+
 
   function onSubmit(data: MultiTeacherFormValues) {
     if (!activeTimetable) return;
@@ -1026,5 +1036,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

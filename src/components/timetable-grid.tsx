@@ -100,13 +100,13 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
   }
 
 
-  const renderCellContent = (day: string, period: number, filterValue: string, allTeacherSessions: TimetableSession[] = []) => {
+  const renderCellContent = (day: string, period: number, filterValue: string, templateTimetable: Timetable, allTeacherSessions: TimetableSession[] = []) => {
      let relevantSessions: TimetableSession[] = [];
-
+     
      if (viewMode === 'teacher') {
         relevantSessions = allTeacherSessions.filter(s => s.day === day && s.period === period);
      } else {
-        const allSessionsInSlot = activeTimetable?.timetable[day]?.find(slot => slot[0]?.period === period) || [];
+        const allSessionsInSlot = templateTimetable?.timetable[day]?.find(slot => slot[0]?.period === period) || [];
         if (viewMode === 'class' || viewMode === 'arm') {
             relevantSessions = allSessionsInSlot.filter(s => {
                 return s.classes.includes(filterValue);
@@ -115,6 +115,18 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
      }
      
      if (relevantSessions.length > 0) {
+      // Deduplicate option groups for class/arm view
+      if (viewMode === 'class' || viewMode === 'arm') {
+        const uniqueSessions = new Map<string, TimetableSession>();
+        relevantSessions.forEach(session => {
+          const key = session.optionGroup ? `${session.day}-${session.period}-${session.optionGroup}` : session.id + session.className + session.subject;
+          if (!uniqueSessions.has(key)) {
+            uniqueSessions.set(key, session);
+          }
+        });
+        relevantSessions = Array.from(uniqueSessions.values());
+      }
+
       return (
         <div className="space-y-1">
         {relevantSessions.map(session => (
@@ -222,7 +234,7 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
                                     onDragOver={handleDragOver}
                                     onDrop={(e) => handleDrop(e, day, slot.period as number, templateTimetable.id)}
                                 >
-                                    {renderCellContent(day, slot.period as number, filterValue, allTeacherSessions)}
+                                    {renderCellContent(day, slot.period as number, filterValue, templateTimetable, allTeacherSessions)}
                                 </TableCell>
                             );
                         })}
@@ -296,3 +308,5 @@ export default function TimetableGrid({ itemsToRender }: TimetableGridProps) {
     </ClientOnly>
   );
 }
+
+  

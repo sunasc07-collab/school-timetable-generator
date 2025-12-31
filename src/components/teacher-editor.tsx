@@ -384,9 +384,9 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             )}
                         />
                     </div>
-                    {hasSeniorSecondary && (
+                    {isSecondary && (
                         <div className="grid grid-cols-1 gap-4 rounded-md border p-2">
-                          <Label className="text-xs font-medium text-muted-foreground">Senior Secondary Options</Label>
+                          <Label className="text-xs font-medium text-muted-foreground">Secondary Options</Label>
                           <div className="grid grid-cols-2 gap-2">
                              <FormField
                                  control={control}
@@ -496,7 +496,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                         </div>
                     )}
-                     <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || hasSeniorSecondary) && "hidden")}>
+                     <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || hasSeniorSecondary || !isSecondary) && "hidden")}>
                         {showArms && (
                             <FormField
                                 control={control}
@@ -785,6 +785,7 @@ export default function TeacherEditor() {
                 isCore: formAssignment.subjectType === 'core',
                 optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
             };
+            delete (assignmentBase as Partial<typeof assignmentBase>).subjectType;
 
             const school = timetables.find(t => t.id === formAssignment.schoolId);
             const isSecondary = school?.name.toLowerCase().includes('secondary');
@@ -796,33 +797,8 @@ export default function TeacherEditor() {
                     grades: formAssignment.grades,
                     arms: formAssignment.arms || [],
                 });
-            } else if (isSecondary && (formAssignment.subjectType === 'optional' || formAssignment.subjectType === 'core')) {
-                 expandedAssignments.push({
-                    ...assignmentBase,
-                    grades: formAssignment.grades,
-                    arms: formAssignment.arms || [],
-                });
-            } else if (isSecondary) { // Core subjects for Junior secondary are handled like primary
+            } else { // Secondary school logic
                  formAssignment.grades.forEach(grade => {
-                    if (JUNIOR_SECONDARY_GRADES.includes(grade) || PRIMARY_GRADES.includes(grade)) {
-                        (formAssignment.arms && formAssignment.arms.length > 0 ? formAssignment.arms : ['']).forEach(arm => {
-                             expandedAssignments.push({
-                                ...assignmentBase,
-                                grades: [grade],
-                                arms: arm ? [arm] : [],
-                            });
-                        });
-                    } else { // Senior secondary without core/optional type, or A-Levels
-                         expandedAssignments.push({
-                            ...assignmentBase,
-                            grades: [grade],
-                            arms: [], 
-                        });
-                    }
-                });
-            }
-            else { // Fallback for any other cases
-                formAssignment.grades.forEach(grade => {
                     expandedAssignments.push({
                         ...assignmentBase,
                         grades: [grade],
@@ -861,23 +837,23 @@ export default function TeacherEditor() {
   }
   
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
-    if (!activeTimetable || !activeTimetable.timetable || Object.keys(activeTimetable.timetable).length === 0) {
-        return 0;
-    }
-
     let count = 0;
-    for (const day in activeTimetable.timetable) {
-        const daySlots = activeTimetable.timetable[day];
-        for (const slot of daySlots) {
-            for (const session of slot) {
-                if (session.teacherId === teacherId) {
-                    count++;
+    timetables.forEach(tt => {
+      if (tt.timetable && Object.keys(tt.timetable).length > 0) {
+         for (const day in tt.timetable) {
+            const daySlots = tt.timetable[day];
+            for (const slot of daySlots) {
+                for (const session of slot) {
+                    if (session.teacherId === teacherId) {
+                        count++;
+                    }
                 }
             }
         }
-    }
+      }
+    });
     return count;
-  }, [activeTimetable]);
+  }, [timetables]);
 
 
   return (
@@ -941,11 +917,11 @@ export default function TeacherEditor() {
       </Dialog>
       
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground px-2 flex items-center"><Users className="mr-2 h-4 w-4"/>Teachers ({currentTeachers.length})</h3>
+        <h3 className="text-sm font-medium text-muted-foreground px-2 flex items-center"><Users className="mr-2 h-4 w-4"/>Teachers ({allTeachers.length})</h3>
         <ScrollArea className="h-[calc(100vh-12rem)]">
-          {currentTeachers.length > 0 ? (
+          {allTeachers.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {currentTeachers.map((teacher) => (
+              {allTeachers.map((teacher) => (
                 <AccordionItem value={teacher.id} key={teacher.id}>
                   <div className="flex items-center w-full hover:bg-muted/50 rounded-md">
                     <AccordionTrigger className="hover:no-underline px-2 flex-1">
@@ -981,7 +957,7 @@ export default function TeacherEditor() {
                   </div>
                   <AccordionContent className="px-2 pb-4">
                     <div className="space-y-3">
-                      {teacher.assignments.filter(a => a.schoolId === activeTimetable?.id).map((assignment) => (
+                      {teacher.assignments.map((assignment) => (
                         <div key={assignment.id} className="text-sm text-muted-foreground pl-4 border-l-2 ml-2 pl-4 py-1">
                            <div className="flex items-center gap-2 font-semibold text-foreground/90">
                              <Book className="mr-2 h-4 w-4 text-primary" />
@@ -1005,11 +981,6 @@ export default function TeacherEditor() {
                            </div>
                         </div>
                       ))}
-                       {teacher.assignments.filter(a => a.schoolId !== activeTimetable?.id).length > 0 && (
-                          <div className="text-xs text-muted-foreground italic pl-4 mt-4">
-                            Also has {teacher.assignments.filter(a => a.schoolId !== activeTimetable?.id).length} assignment(s) in other schools.
-                          </div>
-                       )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -1026,4 +997,4 @@ export default function TeacherEditor() {
   );
 }
 
-    
+  

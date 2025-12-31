@@ -382,8 +382,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             .map(a => ({ ...a, teacherId: teacher.id, teacherName: teacher.name }))
     );
 
-    const parseTimeToMinutes = (time: string) => {
+    const parseTimeToMinutes = (time: string): number => {
+        if (!time || !time.includes(':')) return 0;
         const [hours, minutes] = time.split(':').map(Number);
+        if (isNaN(hours) || isNaN(minutes)) return 0;
         return hours * 60 + minutes;
     };
 
@@ -397,8 +399,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const schoolTimetable = timetables.find(t => t.id === session.schoolId);
             if (!schoolTimetable) return false;
 
+            // Class clash check
             const targetSlot = boards[session.schoolId][day]?.find(slot => slot[0]?.period === p);
-
             if (targetSlot) {
                 if (targetSlot.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.className === 'all'))) {
                      return false;
@@ -407,14 +409,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                      return false;
                 }
             }
-
-            // Time-based teacher clash detection across all schools
+            
+            // Teacher time-based clash detection across all schools
             if (session.teacherId) {
                 const proposedTimeSlot = schoolTimetable.timeSlots.find(ts => ts.period === p);
                 if (!proposedTimeSlot) return false;
+
                 const [startStr, endStr] = proposedTimeSlot.time.split('-');
                 const proposedStart = parseTimeToMinutes(startStr);
                 const proposedEnd = parseTimeToMinutes(endStr);
+                
+                if (proposedStart >= proposedEnd) return false; // Invalid time slot definition
 
                 for (const schoolId in boards) {
                     const board = boards[schoolId];
@@ -430,10 +435,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                                 const [existingStartStr, existingEndStr] = existingTimeSlot.time.split('-');
                                 const existingStart = parseTimeToMinutes(existingStartStr);
-
                                 const existingEnd = parseTimeToMinutes(existingEndStr);
+                                
+                                if (existingStart >= existingEnd) continue; // Invalid existing slot
 
-                                if (Math.max(proposedStart, existingStart) < Math.min(proposedEnd, existingEnd)) {
+                                // Check for overlap: !(end1 <= start2 || start1 >= end2)
+                                if (proposedStart < existingEnd && proposedEnd > existingStart) {
                                     return false; // Overlap detected
                                 }
                             }
@@ -514,8 +521,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
                    if ('partner' in unit) {
                        placeSession(unit.session, period);
-                       const periodSlotIndex = schoolPeriods.indexOf(period);
-                       const partnerPeriod = schoolPeriods[periodSlotIndex + 1];
+                       
+                       const teachingPeriodsForDay = schoolForUnit.timeSlots
+                           .filter(ts => !ts.isBreak || !(ts.days || schoolForUnit.days).includes(day))
+                           .map(ts => ts.period).filter((p): p is number => p !== null).sort((a,b) => a-b);
+                       const periodSlotIndex = teachingPeriodsForDay.indexOf(period);
+                       const partnerPeriod = teachingPeriodsForDay[periodSlotIndex + 1];
+
                        placeSession(unit.partner, partnerPeriod);
                    } else if ('sessions' in unit) {
                        unit.sessions.forEach(s => placeSession(s, period));
@@ -737,5 +749,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

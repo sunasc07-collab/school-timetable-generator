@@ -511,7 +511,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                         )}
                         </div>
                     )}
-                     <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || !showArms) && "hidden")}>
+                    <div className={cn("grid grid-cols-1 gap-y-2", (hideGradesAndArms || !showArms) && "hidden")}>
                         <FormField
                             control={control}
                             name={`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`}
@@ -570,7 +570,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
                             )}
                         </FormItem>
                         )}
-                    </div>
+                    />
+                </div>
             </div>
         </div>
     )
@@ -801,7 +802,6 @@ export default function TeacherEditor() {
             const isSecondary = school?.name.toLowerCase().includes('secondary');
 
             if (isSecondary) {
-                // Keep secondary grades grouped by assignment for options
                  expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,

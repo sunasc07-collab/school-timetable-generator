@@ -552,99 +552,57 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         allClassSets[tt.id] = new Set<string>();
     });
     
-    // Group optional assignments by school, grade and option group
-    const optionalGroups = new Map<string, (SubjectAssignment & { teacherId: string, teacherName: string })[]>();
-    
-    const regularAssignments = allCurrentSchoolAssignments.filter(assignment => {
-        if (assignment.optionGroup) {
-            const key = `${assignment.schoolId}-${assignment.grades.join(',')}-${assignment.optionGroup}`;
-            if (!optionalGroups.has(key)) optionalGroups.set(key, []);
-            optionalGroups.get(key)!.push(assignment);
-            return false;
-        }
-        return true;
-    });
-
-    // Process regular assignments first
-    regularAssignments.forEach(assignment => {
-        const { schoolId, subject, periods, grades, arms, teacherId, teacherName } = assignment;
+    allCurrentSchoolAssignments.forEach(assignment => {
+        const { schoolId, subject, periods, grades, arms, teacherId, teacherName, optionGroup, isCore, subjectType } = assignment;
         const school = timetables.find(t => t.id === schoolId);
         if (!school) return;
-        
+
         const createUnitsForClass = (classNames: string[]) => {
             let remainingPeriods = periods;
-            // Greedily create double periods
             while (remainingPeriods >= 2) {
                 const doubleId = crypto.randomUUID();
                 allUnits.push({
-                    session: { id: doubleId, subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: true, part: 1, period: 0, schoolId },
-                    partner: { id: doubleId, subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: true, part: 2, period: 0, schoolId },
+                    session: { id: doubleId, subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: true, part: 1, period: 0, schoolId, isCore, optionGroup, actualSubject: subject },
+                    partner: { id: doubleId, subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: true, part: 2, period: 0, schoolId, isCore, optionGroup, actualSubject: subject },
                 });
                 remainingPeriods -= 2;
             }
-            // Create single periods for the remainder
             for (let i = 0; i < remainingPeriods; i++) {
                 allUnits.push({
-                    id: crypto.randomUUID(), subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: false, period: 0, schoolId
+                    id: crypto.randomUUID(), subject, teacher: teacherName, teacherId, className: classNames.join(', '), classes: classNames, isDouble: false, period: 0, schoolId, isCore, optionGroup, actualSubject: subject
                 });
             }
         };
 
-        grades.forEach(grade => {
-            const effectiveArms = arms && arms.length > 0 ? arms : [""];
-            effectiveArms.forEach(arm => {
-                const className = `${grade} ${arm}`.trim();
-                allClassSets[schoolId]?.add(className);
-                createUnitsForClass([className]);
-            });
-        });
-    });
-
-    // Create OptionBlockUnits from the grouped optional assignments
-    optionalGroups.forEach(assignmentsInGroup => {
-        const { optionGroup, schoolId } = assignmentsInGroup[0];
-        if (!optionGroup) return;
-
-        const maxPeriods = Math.max(...assignmentsInGroup.map(a => a.periods));
-        
-        for (let i = 0; i < maxPeriods; i++) {
-            const blockId = crypto.randomUUID();
-            const blockSessions: TimetableSession[] = [];
-            const teachersInBlock = new Set<string>();
-
-            assignmentsInGroup
-                .filter(a => i < a.periods)
-                .forEach(assignment => {
-                    if (teachersInBlock.has(assignment.teacherId)) return;
-                    teachersInBlock.add(assignment.teacherId);
-                    
-                    const classNames = assignment.grades.flatMap(grade => {
-                        const effectiveArms = assignment.arms && assignment.arms.length > 0 ? assignment.arms : [""];
-                        return effectiveArms.map(arm => `${grade} ${arm}`.trim());
-                    });
-                    
-                    classNames.forEach(cn => allClassSets[schoolId]?.add(cn));
-                    
-                    blockSessions.push({
-                        id: blockId,
-                        subject: `Option ${optionGroup}`,
-                        actualSubject: assignment.subject,
-                        teacher: assignment.teacherName,
-                        teacherId: assignment.teacherId,
-                        className: classNames.join(', '),
-                        classes: classNames,
-                        isDouble: false,
-                        optionGroup,
-                        period: 0,
-                        schoolId
-                    });
+        if (optionGroup) {
+            grades.forEach(grade => {
+                const effectiveArms = arms && arms.length > 0 ? arms : [""];
+                effectiveArms.forEach(arm => {
+                    const className = `${grade} ${arm}`.trim();
+                    allClassSets[schoolId]?.add(className);
+                    createUnitsForClass([className]);
                 });
-            
-            if (blockSessions.length > 0) {
-                allUnits.push({ id: blockId, sessions: blockSessions, optionGroup });
-            }
+            });
+        } else if (!school.name.toLowerCase().includes('secondary')) {
+             grades.forEach(grade => {
+                const effectiveArms = arms && arms.length > 0 ? arms : [""];
+                effectiveArms.forEach(arm => {
+                    const className = `${grade} ${arm}`.trim();
+                    allClassSets[schoolId]?.add(className);
+                    createUnitsForClass([className]);
+                });
+            });
+        }
+        else { // Secondary (non-optional) and others
+             const classNames = grades.flatMap(grade => {
+                const effectiveArms = arms && arms.length > 0 ? arms : [""];
+                return effectiveArms.map(arm => `${grade} ${arm}`.trim());
+            });
+             classNames.forEach(cn => allClassSets[schoolId]?.add(cn));
+             if(classNames.length > 0) createUnitsForClass(classNames);
         }
     });
+
     
     // Shuffle units to avoid getting stuck in local optima
     const shuffledUnits = allUnits.sort(() => Math.random() - 0.5);

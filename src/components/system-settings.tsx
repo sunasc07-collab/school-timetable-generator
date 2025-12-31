@@ -21,6 +21,7 @@ import type { TimeSlot } from "@/lib/types";
 import { Checkbox } from "./ui/checkbox";
 import { to12Hour, to24Hour } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface SystemSettingsProps {
     open: boolean;
@@ -73,14 +74,14 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
     }
 
 
-    const handleAddSlot = (index: number) => {
+    const handleAddSlot = (index: number, isBreak: boolean) => {
         const newSlot: TimeSlot = {
             id: crypto.randomUUID(),
             period: null,
             time: '00:00-00:00',
-            isBreak: false,
-            label: '',
-            days: activeTimetable?.days || []
+            isBreak: isBreak,
+            label: isBreak ? 'Short Break' : '',
+            days: isBreak ? (activeTimetable?.days || []) : undefined
         };
         const newTimeSlots = [...localTimeSlots];
         newTimeSlots.splice(index + 1, 0, newSlot);
@@ -252,10 +253,22 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
                                         </div>
 
                                         <div className="flex flex-col gap-2">
-                                            <Button variant="outline" size="sm" className="h-8" onClick={() => handleAddSlot(index)}>
-                                                <Plus className="mr-2 h-4 w-4" />
-                                                Add
-                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="outline" size="sm" className="h-8">
+                                                        <Plus className="mr-2 h-4 w-4" />
+                                                        Add
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem onSelect={() => handleAddSlot(index, false)}>
+                                                        Add Period
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleAddSlot(index, true)}>
+                                                        Add Special Period
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                             <Button variant="destructive" size="sm" className="h-8" onClick={() => handleRemoveSlot(index)} disabled={localTimeSlots.length <= 1}>
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Remove
@@ -295,5 +308,3 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
-
-    

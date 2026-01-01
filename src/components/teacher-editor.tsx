@@ -703,9 +703,8 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 };
 
 export default function TeacherEditor() {
-  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers } = useTimetable();
+  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers, isTeacherEditorOpen, setIsTeacherEditorOpen } = useTimetable();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
   const form = useForm<MultiTeacherFormValues>({
@@ -768,17 +767,23 @@ export default function TeacherEditor() {
     } else {
         form.reset({ teachers: [getNewTeacherForm()] });
     }
-    setIsDialogOpen(true);
+    setIsTeacherEditorOpen(true);
   }
+
+  useEffect(() => {
+    if (isTeacherEditorOpen && !editingTeacher) {
+      form.reset({ teachers: [getNewTeacherForm()] });
+    }
+  }, [isTeacherEditorOpen, editingTeacher, form, getNewTeacherForm]);
   
   useEffect(() => {
     // When the active timetable changes, if the dialog is open, close it.
     if (activeTimetable) {
-        setIsDialogOpen(false);
+        setIsTeacherEditorOpen(false);
         setEditingTeacher(null);
         form.reset({ teachers: [] });
     }
-  }, [activeTimetable, form]);
+  }, [activeTimetable, form, setIsTeacherEditorOpen]);
 
 
   function onSubmit(data: MultiTeacherFormValues) {
@@ -827,7 +832,7 @@ export default function TeacherEditor() {
     });
 
     form.reset({ teachers: [] });
-    setIsDialogOpen(false);
+    setIsTeacherEditorOpen(false);
     setEditingTeacher(null);
   }
 
@@ -861,19 +866,13 @@ export default function TeacherEditor() {
 
   return (
     <div className="p-2 space-y-4">
-      <Dialog open={isDialogOpen} onOpenChange={(open) => {
-        setIsDialogOpen(open);
+      <Dialog open={isTeacherEditorOpen} onOpenChange={(open) => {
+        setIsTeacherEditorOpen(open);
         if (!open) {
           setEditingTeacher(null);
           form.reset({ teachers: [] });
         }
       }}>
-        <DialogTrigger asChild>
-          <Button className="w-full" onClick={() => handleOpenDialog(null)}>
-            <Plus className="mr-2" />
-            Add Teachers
-          </Button>
-        </DialogTrigger>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="font-headline">{editingTeacher ? 'Edit Teacher' : 'Add New Teachers'}</DialogTitle>
@@ -992,7 +991,7 @@ export default function TeacherEditor() {
             </Accordion>
           ) : (
              <div className="text-sm text-muted-foreground text-center p-8">
-                No teachers created yet.
+                No teachers created yet. Add teachers using the menu in the header.
              </div>
           )}
         </ScrollArea>
@@ -1000,5 +999,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-
-    

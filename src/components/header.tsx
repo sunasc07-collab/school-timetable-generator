@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
-import { Download, Printer, View, Plus, Trash2, Edit, Zap, Settings } from "lucide-react";
+import { Download, Printer, View, Plus, Trash2, Edit, Zap, Settings, MenuIcon } from "lucide-react";
 import "jspdf-autotable";
 import {
   DropdownMenu,
@@ -45,7 +45,8 @@ export default function Header() {
     renameTimetable,
     viewMode, 
     setViewMode,
-    generateTimetable
+    generateTimetable,
+    setIsTeacherEditorOpen,
   } = useTimetable();
   
   const [dialogOpen, setDialogOpen] = useState<DialogState>(null);
@@ -133,7 +134,7 @@ export default function Header() {
         const templateTimetable = timetablesForView[0];
         if (!templateTimetable) return;
         
-        const { timeSlots, days, name: timetableName } = templateTimetable;
+        const { timeSlots, days } = templateTimetable;
         
         const FONT_FAMILY = "Helvetica";
         const DAY_HEADER_COLORS = [
@@ -185,7 +186,7 @@ export default function Header() {
                 armPart = armMatch[1].charAt(0).toUpperCase();
             }
 
-            return `${gradePart}${armPart}`;
+            return `${gradePart}${armPart}`.replace(/ /g, '');
         };
         
         const formatTimeForPdf = (timeStr: string) => {
@@ -212,9 +213,6 @@ export default function Header() {
         doc.setFontSize(14);
         doc.text(title, MARGIN, MARGIN + 70);
         
-        doc.setFontSize(12);
-        doc.text(viewType === 'teacher' ? 'Consolidated Schedule' : timetableName, PAGE_WIDTH - MARGIN, MARGIN + 70, { align: 'right' });
-
         const gridX = MARGIN;
         const gridY = MARGIN + 85;
         const gridWidth = PAGE_WIDTH - (MARGIN * 2);
@@ -306,8 +304,8 @@ export default function Header() {
                                         const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
                                         doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     } else { // teacher view
-                                        const grades = [...new Set([session.className].map(c => c.match(/^(Grade \d+|A-Level Year \d+)/)?.[0] || c))].join(', ');
-                                        const classText = `Class: ${grades}`;
+                                        const classNames = formatClassName(session.className);
+                                        const classText = `Class: ${classNames}`;
                                         doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     }
 
@@ -523,10 +521,24 @@ export default function Header() {
             <Zap className="mr-2 h-4 w-4" />
             Generate Timetable
         </Button>
-        
-        <Button onClick={() => setSettingsOpen(true)} variant="outline" size="icon" disabled={!activeTimetable}>
-            <Settings className="h-4 w-4" />
-        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon">
+              <MenuIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setIsTeacherEditorOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Teacher
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSettingsOpen(true)} disabled={!activeTimetable}>
+              <Settings className="mr-2 h-4 w-4" />
+              System Settings
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -571,5 +583,3 @@ export default function Header() {
     </>
   );
 }
-
-    

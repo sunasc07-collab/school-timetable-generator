@@ -147,7 +147,7 @@ function LockedSessionsTab() {
                                         </FormControl>
                                         <SelectContent>
                                             {teachingPeriods.map(p => {
-                                                if (!p.period) return null;
+                                                if (p.period === null) return null;
                                                 const [start, end] = p.time.split('-');
                                                 return (
                                                     <SelectItem key={p.id} value={String(p.period)}>

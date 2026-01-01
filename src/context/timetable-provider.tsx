@@ -45,20 +45,20 @@ const TimetableContext = createContext<TimetableContextType | undefined>(undefin
 
 const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const DEFAULT_TIMESLOTS: TimeSlot[] = [
-    { period: 1, time: '08:00-08:40', id: crypto.randomUUID() },
-    { period: 2, time: '08:40-09:20', id: crypto.randomUUID() },
-    { period: 3, time: '09:20-10:00', id: crypto.randomUUID() },
-    { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: crypto.randomUUID(), days: DEFAULT_DAYS },
-    { period: 4, time: '10:20-11:00', id: crypto.randomUUID() },
-    { period: 5, time: '11:00-11:40', id: crypto.randomUUID() },
-    { period: 6, time: '11:40-12:20', id: crypto.randomUUID() },
-    { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: crypto.randomUUID(), days: DEFAULT_DAYS },
-    { period: 7, time: '13:00-13:40', id: crypto.randomUUID() },
-    { period: 8, time: '13:40-14:20', id: crypto.randomUUID() },
-    { period: 9, time: '14:20-15:00', id: crypto.randomUUID() },
-    { period: 10, time: '15:00-15:40', id: crypto.randomUUID() },
-    { period: 11, time: '15:40-16:20', id: crypto.randomUUID() },
-    { period: 12, time: '16:20-17:00', id: crypto.randomUUID() },
+    { period: 1, time: '08:00-08:40', id: '1' },
+    { period: 2, time: '08:40-09:20', id: '2' },
+    { period: 3, time: '09:20-10:00', id: '3' },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: 'b1' },
+    { period: 4, time: '10:20-11:00', id: '4' },
+    { period: 5, time: '11:00-11:40', id: '5' },
+    { period: 6, time: '11:40-12:20', id: '6' },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: 'b2' },
+    { period: 7, time: '13:00-13:40', id: '7' },
+    { period: 8, time: '13:40-14:20', id: '8' },
+    { period: 9, time: '14:20-15:00', id: '9' },
+    { period: 10, time: '15:00-15:40', id: '10' },
+    { period: 11, time: '15:40-16:20', id: '11' },
+    { period: 12, time: '16:20-17:00', id: '12' },
 ];
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
@@ -89,14 +89,15 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
 };
 
 const createNewTimetable = (name: string, id?: string): Timetable => {
+    const newId = id || `${Date.now()}-${Math.random()}`;
     return {
-        id: id || crypto.randomUUID(),
+        id: newId,
         name,
         timetable: {},
         classes: [],
         conflicts: [],
         days: DEFAULT_DAYS,
-        timeSlots: JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)),
+        timeSlots: JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS.map(ts => ({...ts, id: `${newId}-${ts.id}`})))),
         error: null,
         lockedSessions: [],
     };
@@ -243,7 +244,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const addTeacher = useCallback((teacherData: Teacher) => {
-    const newTeacher = { ...teacherData, id: teacherData.id || crypto.randomUUID() };
+    const newTeacher = { ...teacherData, id: teacherData.id || `${Date.now()}-${Math.random()}` };
     setAllTeachers(prev => [...prev, newTeacher]);
     resetAllTimetables();
   }, [setAllTeachers, resetAllTimetables]);
@@ -274,7 +275,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const addLockedSession = (session: Omit<LockedSession, 'id' | 'schoolId'>) => {
       if (!activeTimetable) return;
 
-      const id = crypto.randomUUID();
+      const id = `${Date.now()}-${Math.random()}`;
       let newSessions: LockedSession[] = [];
       if(session.day === 'all_week') {
          newSessions = activeTimetable.days.map(day => ({
@@ -522,7 +523,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             allClassSets[assignment.schoolId]?.add(className);
             for (let i = 0; i < assignment.periods; i++) {
                 allUnits.push({
-                    id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
+                    id: `${Date.now()}-${Math.random()}`, subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
                 });
             }
         });
@@ -535,7 +536,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 allClassSets[assignment.schoolId]?.add(className);
                 for (let i = 0; i < assignment.periods; i++) {
                     allUnits.push({
-                        id: crypto.randomUUID(), subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
+                        id: `${Date.now()}-${Math.random()}`, subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
                     });
                 }
             });
@@ -574,7 +575,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         classNamesForBlock.forEach(cn => allClassSets[schoolId]?.add(cn));
         
         for (let i = 0; i < periods; i++) {
-            const blockId = crypto.randomUUID();
+            const blockId = `${Date.now()}-${Math.random()}`;
             const optionSessions: TimetableSession[] = [];
             
             assignments.forEach(assignment => {
@@ -755,3 +756,5 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    

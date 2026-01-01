@@ -98,11 +98,10 @@ const getGradeOptionsForSchool = (schoolName: string) => {
     return ALL_GRADE_OPTIONS;
 };
 
-const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
+const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength, customArms, setCustomArms }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number, customArms: string[], setCustomArms: React.Dispatch<React.SetStateAction<string[]>> }) => {
     const { timetables, activeTimetable } = useTimetable();
     const { setValue, getValues, trigger, formState: { errors } } = useFormContext();
     
-    const [customArms, setCustomArms] = useState<string[]>([]);
     const [newArm, setNewArm] = useState('');
     
     const schoolId = useWatch({
@@ -173,6 +172,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
             setCustomArms(prev => [...prev, newArm]);
             const currentArmsValue = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
             setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, [...currentArmsValue, newArm]);
+            trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`);
         }
         setNewArm('');
     };
@@ -587,6 +587,8 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   const { activeTimetable, timetables } = useTimetable();
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
 
+  const [customArms, setCustomArms] = useState<string[]>([]);
+
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
       if (!timetables || timetables.length === 0) {
           return 0;
@@ -618,7 +620,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
   
   const handleAddNewAssignment = () => {
     const newAssignment: SubjectAssignment = { 
-        id: crypto.randomUUID(), 
+        id: `${Date.now()}-${Math.random()}`, 
         grades: [], 
         subject: "", 
         arms: [], 
@@ -678,6 +680,8 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
                 }
               }}
               fieldsLength={fields.length}
+              customArms={customArms}
+              setCustomArms={setCustomArms}
             />
           ))}
         </div>
@@ -721,7 +725,7 @@ export default function TeacherEditor() {
   const getNewTeacherForm = useCallback((): TeacherFormValues => ({
     name: "",
     assignments: [{ 
-        id: crypto.randomUUID(), 
+        id: `${Date.now()}-${Math.random()}`, 
         grades: [], 
         subject: "", 
         arms: [], 
@@ -757,7 +761,7 @@ export default function TeacherEditor() {
             name: editingTeacher.name,
             assignments: groupAssignmentsForEditing(editingTeacher.assignments.map(a => ({
                 ...a,
-                id: a.id || crypto.randomUUID(),
+                id: a.id || `${Date.now()}-${Math.random()}`,
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
                 days: a.days || activeTimetable?.days || []
             }))),
@@ -776,7 +780,7 @@ export default function TeacherEditor() {
         teacherData.assignments.forEach(formAssignment => {
             const assignmentBase = {
                 ...formAssignment,
-                id: formAssignment.id || crypto.randomUUID(),
+                id: formAssignment.id || `${Date.now()}-${Math.random()}`,
                 isCore: formAssignment.subjectType === 'core',
                 optionGroup: formAssignment.subjectType === 'optional' ? formAssignment.optionGroup : null,
             };
@@ -784,7 +788,7 @@ export default function TeacherEditor() {
             const school = timetables.find(t => t.id === formAssignment.schoolId);
             const isSecondary = school?.name.toLowerCase().includes('secondary');
 
-            if (isSecondary) {
+            if (isSecondary && formAssignment.subjectType !== 'optional') {
                  expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,
@@ -802,7 +806,7 @@ export default function TeacherEditor() {
         });
 
         const finalTeacher: Teacher = {
-            id: teacherData.id || crypto.randomUUID(),
+            id: teacherData.id || `${Date.now()}-${Math.random()}`,
             name: teacherData.name,
             assignments: expandedAssignments,
         };
@@ -817,6 +821,12 @@ export default function TeacherEditor() {
     setIsTeacherEditorOpen(false);
     setEditingTeacher(null);
   }
+  
+  const handleOpenDialog = () => {
+    setEditingTeacher(null);
+    setIsTeacherEditorOpen(true);
+  };
+
 
   if (!activeTimetable) {
       return (
@@ -849,10 +859,10 @@ export default function TeacherEditor() {
   return (
     <div className="p-2 space-y-4">
       <Dialog open={isTeacherEditorOpen} onOpenChange={(open) => {
+        setIsTeacherEditorOpen(open);
         if (!open) {
           setEditingTeacher(null);
         }
-        setIsTeacherEditorOpen(open);
       }}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>

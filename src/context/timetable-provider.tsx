@@ -282,14 +282,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const addTeacher = (teacherData: Teacher) => {
     setAllTeachers(prev => {
         const newTeacher = { ...teacherData, id: teacherData.id || `${Date.now()}-${Math.random()}` };
-        return [...prev, newTeacher];
+        const newTeachers = [...prev, newTeacher];
+        return newTeachers;
     });
     resetAllTimetables();
   };
   
   const updateTeacher = (teacherData: Teacher) => {
-    setAllTeachers(prev => prev.map(t => (t.id === teacherData.id ? { ...teacherData } : t)));
-    resetAllTimetables();
+      setAllTeachers(prev => prev.map(t => (t.id === teacherData.id ? {...teacherData} : t)));
+      resetAllTimetables();
   };
 
   const removeTeacher = (teacherId: string) => {
@@ -466,7 +467,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             if (!schoolForUnit) return false;
 
             if ('partner' in unit) { // Double Period
-                const teachingPeriodsForDay = schoolForUnit.timeSlots
+                 const teachingPeriodsForDay = schoolForUnit.timeSlots
                     .filter(ts => !ts.isBreak || !(ts.days || schoolForUnit.days).includes(day))
                     .map(ts => ts.period).filter((p): p is number => p !== null).sort((a,b) => a-b);
                 
@@ -698,41 +699,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     to: { day: string; period: number }
   ) => {
     setTimetables(prevTimetables => {
-      const newTimetables = prevTimetables.map(t => {
-        if (t.id === session.schoolId) {
-          const newTimetableData = JSON.parse(JSON.stringify(t.timetable));
-  
-          // Remove from 'from' slot
-          const fromSlotArr = newTimetableData[from.day];
-          if (fromSlotArr) {
-            const fromSlotIndex = fromSlotArr.findIndex((s: TimetableSession[]) => s[0]?.period === from.period);
-            if (fromSlotIndex > -1) {
-              const sessionIndex = fromSlotArr[fromSlotIndex].findIndex((s: TimetableSession) => s.id === session.id && s.className === session.className && s.part === session.part);
-              if (sessionIndex > -1) {
-                fromSlotArr[fromSlotIndex].splice(sessionIndex, 1);
-                if (fromSlotArr[fromSlotIndex].length === 0) {
-                  fromSlotArr.splice(fromSlotIndex, 1);
-                }
-              }
+      const newTimetables = [...prevTimetables];
+      const schoolIndex = newTimetables.findIndex(t => t.id === session.schoolId);
+      
+      if (schoolIndex === -1) return prevTimetables;
+
+      const newTimetableData = JSON.parse(JSON.stringify(newTimetables[schoolIndex].timetable));
+
+      // Remove from 'from' slot
+      const fromSlotArr = newTimetableData[from.day];
+      if (fromSlotArr) {
+        const fromSlotIndex = fromSlotArr.findIndex((s: TimetableSession[]) => s[0]?.period === from.period);
+        if (fromSlotIndex > -1) {
+          const sessionIndex = fromSlotArr[fromSlotIndex].findIndex((s: TimetableSession) => s.id === session.id && s.className === session.className && s.part === session.part);
+          if (sessionIndex > -1) {
+            fromSlotArr[fromSlotIndex].splice(sessionIndex, 1);
+            if (fromSlotArr[fromSlotIndex].length === 0) {
+              fromSlotArr.splice(fromSlotIndex, 1);
             }
           }
-  
-          // Add to 'to' slot
-          let toSlot = newTimetableData[to.day]?.find((s: TimetableSession[]) => s[0]?.period === to.period);
-          if (toSlot) {
-            toSlot.push({ ...session, day: to.day, period: to.period });
-          } else {
-            if (!newTimetableData[to.day]) newTimetableData[to.day] = [];
-            newTimetableData[to.day].push([{ ...session, day: to.day, period: to.period }]);
-            newTimetableData[to.day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
-          }
-          
-          const updatedTimetable = { ...t, timetable: newTimetableData };
-          findConflicts(session.schoolId, newTimetableData); // This will update state internally
-          return updatedTimetable; 
         }
-        return t;
-      });
+      }
+
+      // Add to 'to' slot
+      let toSlot = newTimetableData[to.day]?.find((s: TimetableSession[]) => s[0]?.period === to.period);
+      const newSession = { ...session, day: to.day, period: to.period };
+
+      if (toSlot) {
+        toSlot.push(newSession);
+      } else {
+        if (!newTimetableData[to.day]) newTimetableData[to.day] = [];
+        newTimetableData[to.day].push([newSession]);
+        newTimetableData[to.day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
+      }
+      
+      newTimetables[schoolIndex] = { ...newTimetables[schoolIndex], timetable: newTimetableData };
+      findConflicts(session.schoolId, newTimetableData);
+      
       return newTimetables;
     });
   };

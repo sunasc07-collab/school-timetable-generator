@@ -38,6 +38,24 @@ export default function AppLayout() {
       allTeacherSessions?: TimetableSession[];
     }[] = [];
 
+    const DEFAULT_TIMESLOTS: Timetable['timeSlots'] = [
+        { period: 1, time: '08:00-08:40', id: '1' },
+        { period: 2, time: '08:40-09:20', id: '2' },
+        { period: 3, time: '09:20-10:00', id: '3' },
+        { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: 'b1' },
+        { period: 4, time: '10:20-11:00', id: '4' },
+        { period: 5, time: '11:00-11:40', id: '5' },
+        { period: 6, time: '11:40-12:20', id: '6' },
+        { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: 'b2' },
+        { period: 7, time: '13:00-13:40', id: '7' },
+        { period: 8, time: '13:40-14:20', id: '8' },
+        { period: 9, time: '14:20-15:00', id: '9' },
+        { period: 10, time: '15:00-15:40', id: '10' },
+        { period: 11, time: '15:40-16:20', id: '11' },
+        { period: 12, time: '16:20-17:00', id: '12' },
+    ];
+
+
     if (viewMode === "class" && activeTimetable) {
       items = classes.map((className) => ({
         title: `${className} Timetable`,
@@ -49,22 +67,7 @@ export default function AppLayout() {
         id: 'consolidated',
         name: 'Consolidated',
         days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        timeSlots: [
-            { period: 1, time: '08:00-08:40', id: '1' },
-            { period: 2, time: '08:40-09:20', id: '2' },
-            { period: 3, time: '09:20-10:00', id: '3' },
-            { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: 'b1' },
-            { period: 4, time: '10:20-11:00', id: '4' },
-            { period: 5, time: '11:00-11:40', id: '5' },
-            { period: 6, time: '11:40-12:20', id: '6' },
-            { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: 'b2' },
-            { period: 7, time: '13:00-13:40', id: '7' },
-            { period: 8, time: '13:40-14:20', id: '8' },
-            { period: 9, time: '14:20-15:00', id: '9' },
-            { period: 10, time: '15:00-15:40', id: '10' },
-            { period: 11, time: '15:40-16:20', id: '11' },
-            { period: 12, time: '16:20-17:00', id: '12' },
-        ],
+        timeSlots: DEFAULT_TIMESLOTS,
         timetable: {},
         classes: [],
         conflicts: [],

@@ -31,7 +31,7 @@ import {
 import { useTimetable } from "@/context/timetable-provider";
 import { Plus, Trash2, Pencil, Book, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import type { Teacher, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -39,7 +39,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { useState } from "react";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -577,7 +576,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     )
 }
 
-const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, removeTeacher: () => void, isEditing: boolean }) => {
+const TeacherForm = ({ index, removeTeacher, isEditing, customArms, setCustomArms }: { index: number, removeTeacher: () => void, isEditing: boolean, customArms: string[], setCustomArms: React.Dispatch<React.SetStateAction<string[]>> }) => {
   const { control } = useFormContext<MultiTeacherFormValues>();
   const { fields, append, remove } = useFieldArray({
     control: control,
@@ -586,8 +585,6 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
   const { activeTimetable, timetables } = useTimetable();
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
-
-  const [customArms, setCustomArms] = useState<string[]>([]);
 
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
       if (!timetables || timetables.length === 0) {
@@ -709,6 +706,7 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
 export default function TeacherEditor() {
   const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers, isTeacherEditorOpen, setIsTeacherEditorOpen, setEditingTeacher, editingTeacher } = useTimetable();
+  const [customArms, setCustomArms] = useState<string[]>([]);
   
   const form = useForm<MultiTeacherFormValues>({
     resolver: zodResolver(multiTeacherSchema),
@@ -721,7 +719,7 @@ export default function TeacherEditor() {
     control: form.control,
     name: "teachers"
   });
-
+  
   const getNewTeacherForm = useCallback((): TeacherFormValues => ({
     name: "",
     assignments: [{ 
@@ -753,6 +751,11 @@ export default function TeacherEditor() {
       return Array.from(grouped.values());
   };
 
+  const handleOpenDialog = () => {
+    setEditingTeacher(null);
+    setIsTeacherEditorOpen(true);
+  };
+  
   useEffect(() => {
     if (isTeacherEditorOpen) {
       if (editingTeacher) {
@@ -766,8 +769,15 @@ export default function TeacherEditor() {
                 days: a.days || activeTimetable?.days || []
             }))),
         };
+        const customArmsFromAssignments = editingTeacher.assignments.flatMap(a => a.arms).filter(arm => 
+            !PRIMARY_ARMS.includes(arm) && 
+            !JUNIOR_SECONDARY_ARMS.includes(arm) && 
+            !SENIOR_SECONDARY_ARMS.includes(arm)
+        );
+        setCustomArms([...new Set(customArmsFromAssignments)]);
         replace([teacherFormData]);
       } else {
+        setCustomArms([]);
         replace([getNewTeacherForm()]);
       }
     }
@@ -821,12 +831,6 @@ export default function TeacherEditor() {
     setIsTeacherEditorOpen(false);
     setEditingTeacher(null);
   }
-  
-  const handleOpenDialog = () => {
-    setEditingTeacher(null);
-    setIsTeacherEditorOpen(true);
-  };
-
 
   if (!activeTimetable) {
       return (
@@ -858,7 +862,7 @@ export default function TeacherEditor() {
 
   return (
     <div className="p-2 space-y-4">
-      <Dialog open={isTeacherEditorOpen} onOpenChange={(open) => {
+       <Dialog open={isTeacherEditorOpen} onOpenChange={(open) => {
         setIsTeacherEditorOpen(open);
         if (!open) {
           setEditingTeacher(null);
@@ -879,6 +883,8 @@ export default function TeacherEditor() {
                             index={index}
                             removeTeacher={() => removeTeacherField(index)}
                             isEditing={!!editingTeacher}
+                            customArms={customArms}
+                            setCustomArms={setCustomArms}
                           />
                       ))}
 

@@ -178,3 +178,4 @@ const DEFAULT_TIMESLOTS = [
     { period: 11, time: '15:40-16:20', id: '11' },
     { period: 12, time: '16:20-17:00', id: '12' },
 ];
+

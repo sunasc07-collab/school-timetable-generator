@@ -61,6 +61,7 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 12, time: '16:20-17:00', id: '12' },
 ];
 
+
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
         if (typeof window === 'undefined') {

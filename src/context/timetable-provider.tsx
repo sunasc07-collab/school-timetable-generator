@@ -470,19 +470,20 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     .filter(ts => !ts.isBreak || !(ts.days || schoolForUnit.days).includes(day))
                     .map(ts => ts.period).filter((p): p is number => p !== null).sort((a,b) => a-b);
                 
-                const periodSlotIndex = teachingPeriodsForDay.indexOf(period);
-                if (periodSlotIndex === -1 || periodSlotIndex + 1 >= teachingPeriodsForDay.length) return false;
+                const periodSlotIndexInDay = teachingPeriodsForDay.indexOf(period);
+                if (periodSlotIndexInDay === -1 || periodSlotIndexInDay + 1 >= teachingPeriodsForDay.length) return false;
                 
-                const nextTeachingPeriod = teachingPeriodsForDay[periodSlotIndex + 1];
+                const nextTeachingPeriod = teachingPeriodsForDay[periodSlotIndexInDay + 1];
 
-                const periodSlotObj = schoolForUnit.timeSlots.find(p => p.period === period);
-                const nextPeriodSlotObj = schoolForUnit.timeSlots.find(p => p.period === nextTeachingPeriod);
-                if (!periodSlotObj || !nextPeriodSlotObj) return false;
+                const periodSlotObjIndex = schoolForUnit.timeSlots.findIndex(p => p.period === period);
+                const nextPeriodSlotObjIndex = schoolForUnit.timeSlots.findIndex(p => p.period === nextTeachingPeriod);
+
+                if (periodSlotObjIndex === -1 || nextPeriodSlotObjIndex === -1) return false;
                 
-                const timeSlotIndex = schoolForUnit.timeSlots.findIndex(p => p.id === periodSlotObj.id);
-                const nextTimeSlotIndex = schoolForUnit.timeSlots.findIndex(p => p.id === nextPeriodSlotObj.id);
-
-                if(timeSlotIndex + 1 !== nextTimeSlotIndex) return false;
+                // Check if the two periods are physically adjacent in the timeSlots array
+                if (periodSlotObjIndex + 1 !== nextPeriodSlotObjIndex) {
+                    return false;
+                }
 
                 return checkSession(unit.session, period) && checkSession(unit.partner, nextTeachingPeriod);
             } else if ('sessions' in unit) { // Option Block

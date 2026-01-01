@@ -703,10 +703,8 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 };
 
 export default function TeacherEditor() {
-  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers, isTeacherEditorOpen, setIsTeacherEditorOpen } = useTimetable();
+  const { activeTimetable, addTeacher, removeTeacher, updateTeacher, timetables, allTeachers, isTeacherEditorOpen, setIsTeacherEditorOpen, setEditingTeacher, editingTeacher } = useTimetable();
   
-  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-
   const form = useForm<MultiTeacherFormValues>({
     resolver: zodResolver(multiTeacherSchema),
     defaultValues: {
@@ -714,7 +712,7 @@ export default function TeacherEditor() {
     },
   });
   
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField } = useFieldArray({
     control: form.control,
     name: "teachers"
   });
@@ -752,11 +750,17 @@ export default function TeacherEditor() {
   
   const handleOpenDialog = (teacher: Teacher | null) => {
     setEditingTeacher(teacher);
-    if (teacher) {
+    setIsTeacherEditorOpen(true);
+  }
+
+  useEffect(() => {
+    if (!isTeacherEditorOpen) return;
+
+    if (editingTeacher) {
         const teacherFormData: TeacherFormValues = {
-            id: teacher.id,
-            name: teacher.name,
-            assignments: groupAssignmentsForEditing(teacher.assignments.map(a => ({
+            id: editingTeacher.id,
+            name: editingTeacher.name,
+            assignments: groupAssignmentsForEditing(editingTeacher.assignments.map(a => ({
                 ...a,
                 id: a.id || crypto.randomUUID(),
                 subjectType: a.isCore ? 'core' : (a.optionGroup ? 'optional' : undefined),
@@ -767,23 +771,15 @@ export default function TeacherEditor() {
     } else {
         form.reset({ teachers: [getNewTeacherForm()] });
     }
-    setIsTeacherEditorOpen(true);
-  }
-
-  useEffect(() => {
-    if (isTeacherEditorOpen && !editingTeacher) {
-      handleOpenDialog(null);
-    }
-  }, [isTeacherEditorOpen, editingTeacher, form, getNewTeacherForm]);
+  }, [isTeacherEditorOpen, editingTeacher, form, getNewTeacherForm, activeTimetable?.days]);
   
   useEffect(() => {
-    // When the active timetable changes, if the dialog is open, close it.
     if (activeTimetable) {
         setIsTeacherEditorOpen(false);
         setEditingTeacher(null);
         form.reset({ teachers: [] });
     }
-  }, [activeTimetable, form, setIsTeacherEditorOpen]);
+  }, [activeTimetable, form, setIsTeacherEditorOpen, setEditingTeacher]);
 
 
   function onSubmit(data: MultiTeacherFormValues) {
@@ -870,7 +866,6 @@ export default function TeacherEditor() {
         setIsTeacherEditorOpen(open);
         if (!open) {
           setEditingTeacher(null);
-          form.reset({ teachers: [] });
         }
       }}>
         <DialogContent className="sm:max-w-4xl">
@@ -939,8 +934,7 @@ export default function TeacherEditor() {
                       className="h-7 w-7 text-muted-foreground hover:text-primary mr-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const teacherToEdit = allTeachers.find(t => t.id === teacher.id);
-                        if (teacherToEdit) handleOpenDialog(teacherToEdit);
+                        handleOpenDialog(teacher);
                       }}
                     >
                       <Pencil className="h-4 w-4" />

@@ -20,6 +20,8 @@ type TimetableContextType = {
 
   isTeacherEditorOpen: boolean;
   setIsTeacherEditorOpen: (isOpen: boolean) => void;
+  editingTeacher: Teacher | null;
+  setEditingTeacher: (teacher: Teacher | null) => void;
 
   addLockedSession: (session: Omit<LockedSession, 'id' | 'schoolId'>) => void;
   removeLockedSession: (sessionId: string) => void;
@@ -112,6 +114,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   const [activeTimetableId, setActiveTimetableId] = usePersistentState<string | null>("active_timetable_id_v30", null);
   const [viewMode, setViewMode] = usePersistentState<ViewMode>('timetable_viewMode_v30', 'class');
   const [isTeacherEditorOpen, setIsTeacherEditorOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   
   const activeTimetable = useMemo(() => {
     const currentTimetable = timetables.find(t => t.id === activeTimetableId);
@@ -724,6 +727,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         updateTeacher,
         isTeacherEditorOpen,
         setIsTeacherEditorOpen,
+        editingTeacher,
+        setEditingTeacher,
         addLockedSession,
         removeLockedSession,
         generateTimetable,

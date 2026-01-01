@@ -171,6 +171,8 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     const handleAddArm = () => {
         if (newArm && !allArmOptions.includes(newArm)) {
             setCustomArms(prev => [...prev, newArm]);
+            const currentArmsValue = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, [...currentArmsValue, newArm]);
         }
         setNewArm('');
     };
@@ -716,11 +718,6 @@ export default function TeacherEditor() {
     name: "teachers"
   });
 
-  const handleOpenDialog = (teacher: Teacher | null) => {
-    setEditingTeacher(teacher);
-    setIsTeacherEditorOpen(true);
-  }
-
   const getNewTeacherForm = useCallback((): TeacherFormValues => ({
     name: "",
     assignments: [{ 
@@ -923,7 +920,8 @@ export default function TeacherEditor() {
                       className="h-7 w-7 text-muted-foreground hover:text-primary mr-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenDialog(teacher);
+                        setEditingTeacher(teacher);
+                        setIsTeacherEditorOpen(true);
                       }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -981,3 +979,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

@@ -33,6 +33,24 @@ import { to12Hour } from "@/lib/utils";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
 
+const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DEFAULT_TIMESLOTS = [
+    { period: 1, time: '08:00-08:40', id: '1' },
+    { period: 2, time: '08:40-09:20', id: '2' },
+    { period: 3, time: '09:20-10:00', id: '3' },
+    { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: 'b1' },
+    { period: 4, time: '10:20-11:00', id: '4' },
+    { period: 5, time: '11:00-11:40', id: '5' },
+    { period: 6, time: '11:40-12:20', id: '6' },
+    { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: 'b2' },
+    { period: 7, time: '13:00-13:40', id: '7' },
+    { period: 8, time: '13:40-14:20', id: '8' },
+    { period: 9, time: '14:20-15:00', id: '9' },
+    { period: 10, time: '15:00-15:40', id: '10' },
+    { period: 11, time: '15:40-16:20', id: '11' },
+    { period: 12, time: '16:20-17:00', id: '12' },
+];
+
 export default function Header() {
   const { 
     activeTimetable, 
@@ -314,6 +332,8 @@ export default function Header() {
                                     const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
                                     doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                 } else { // teacher view
+                                    const school = timetables.find(t => t.id === session.schoolId);
+                                    const schoolName = school ? `(${school.name.substring(0, 1)})` : '';
                                     const className = formatClassName(session.className);
                                     const classText = className;
                                     doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
@@ -366,16 +386,8 @@ export default function Header() {
                 const consolidatedTimetable: Timetable = {
                     id: 'consolidated',
                     name: 'Consolidated',
-                    days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-                    timeSlots: [
-                        { period: 1, time: '08:00-08:40', id: '1' }, { period: 2, time: '08:40-09:20', id: '2' },
-                        { period: 3, time: '09:20-10:00', id: '3' }, { period: null, time: '10:00-10:20', isBreak: true, label: 'Short Break', id: 'b1' },
-                        { period: 4, time: '10:20-11:00', id: '4' }, { period: 5, time: '11:00-11:40', id: '5' },
-                        { period: 6, time: '11:40-12:20', id: '6' }, { period: null, time: '12:20-13:00', isBreak: true, label: 'Lunch', id: 'b2' },
-                        { period: 7, time: '13:00-13:40', id: '7' }, { period: 8, time: '13:40-14:20', id: '8' },
-                        { period: 9, time: '14:20-15:00', id: '9' }, { period: 10, time: '15:00-15:40', id: '10' },
-                        { period: 11, time: '15:40-16:20', id: '11' }, { period: 12, time: '16:20-17:00', id: '12' },
-                    ],
+                    days: DEFAULT_DAYS,
+                    timeSlots: DEFAULT_TIMESLOTS,
                     timetable: {}, classes: [], conflicts: [], error: null, lockedSessions: [],
                 };
                 

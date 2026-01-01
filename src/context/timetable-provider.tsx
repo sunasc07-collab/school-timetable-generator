@@ -94,7 +94,7 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         classes: [],
         conflicts: [],
         days: DEFAULT_DAYS,
-        timeSlots: DEFAULT_TIMESLOTS,
+        timeSlots: JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS)),
         error: null,
         lockedSessions: [],
     };

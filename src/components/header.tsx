@@ -266,65 +266,60 @@ export default function Header() {
                         const allSessionsInSlot = templateTimetable.timetable[day]?.find(s => s[0]?.period === slot.period) || [];
                         relevantSessions = allSessionsInSlot.filter(s => s.classes.includes(filterValue));
                     } else { // teacher view
-                        relevantSessions = allTeacherSessionsForView.filter(s => s.day === day && s.period === slot.period);
+                         relevantSessions = allTeacherSessionsForView.filter(s => s.day === day && s.period === slot.period);
                     }
 
                     if (relevantSessions.length > 0) {
-                         const sessionsToRender = relevantSessions;
-                        
-                        if (sessionsToRender.length > 0) {
-                             const sessionBlockCount = sessionsToRender.length;
-                             const sessionHeight = (rowHeight - 4) / sessionBlockCount;
-                             
-                             sessionsToRender.forEach((session, sessionIndex) => {
-                                 const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
-                                 const subject = session.isLocked ? session.subject : (session.optionGroup ? `Option ${session.optionGroup}` : (session.actualSubject || session.subject));
-                                 const [r, g, b] = getSubjectColor(subject);
-                                 doc.setFillColor(r, g, b);
-                                 roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 4, 'F');
+                        const sessionBlockCount = relevantSessions.length;
+                        const sessionHeight = (rowHeight - 4) / sessionBlockCount;
 
-                                 doc.setTextColor(50, 50, 50);
-                                 
-                                 if (session.isLocked) {
-                                    doc.setFontSize(12);
-                                    doc.setFont(FONT_FAMILY, "bold");
-                                    doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 4, { align: 'center' });
-                                 } else if (session.optionGroup) {
-                                    doc.setFontSize(12);
-                                    doc.setFont(FONT_FAMILY, "bold");
-                                    doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
-                                    
-                                    doc.setFontSize(9);
-                                    doc.setFont(FONT_FAMILY, "bold");
+                        relevantSessions.forEach((session, sessionIndex) => {
+                            const sessionY = currentY + (sessionIndex * sessionHeight) + 2;
+                            const subject = session.isLocked ? session.subject : (session.optionGroup ? `Option ${session.optionGroup}` : (session.actualSubject || session.subject));
+                            const [r, g, b] = getSubjectColor(subject);
+                            doc.setFillColor(r, g, b);
+                            roundedRect(cellX + 2, sessionY, dayColWidth - 4, sessionHeight, 4, 'F');
 
-                                    if(viewType === 'class'){
-                                        const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
-                                        doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                    } else { // teacher view
-                                        const classNames = formatClassName(session.className);
-                                        const classText = `Class: ${classNames}`;
-                                        doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                    }
+                            doc.setTextColor(50, 50, 50);
+                            
+                            if (session.isLocked) {
+                                doc.setFontSize(12);
+                                doc.setFont(FONT_FAMILY, "bold");
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 4, { align: 'center' });
+                            } else if (session.optionGroup) {
+                                doc.setFontSize(12);
+                                doc.setFont(FONT_FAMILY, "bold");
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
+                                
+                                doc.setFontSize(9);
+                                doc.setFont(FONT_FAMILY, "bold");
 
-                                 } else {
-                                    doc.setFontSize(11);
-                                    doc.setFont(FONT_FAMILY, "bold");
-                                    doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
+                                if(viewType === 'class'){
+                                    const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                } else { // teacher view
+                                    const classNames = formatClassName(session.className);
+                                    const classText = `Class: ${classNames}`;
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                }
 
-                                    doc.setFontSize(9);
-                                    doc.setFont(FONT_FAMILY, "bold");
-                                    if(viewType === 'class'){
-                                        const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
-                                        doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                    } else { // teacher view
-                                        const className = formatClassName(session.className);
-                                        const classText = className;
-                                        doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
-                                    }
-                                 }
-                             });
-                        }
+                            } else {
+                                doc.setFontSize(11);
+                                doc.setFont(FONT_FAMILY, "bold");
+                                doc.text(subject, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 - 2, { align: 'center' });
 
+                                doc.setFontSize(9);
+                                doc.setFont(FONT_FAMILY, "bold");
+                                if(viewType === 'class'){
+                                    const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
+                                    doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                } else { // teacher view
+                                    const className = formatClassName(session.className);
+                                    const classText = className;
+                                    doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
+                                }
+                            }
+                        });
                     } else {
                         doc.setFillColor(255, 255, 255, 0.1);
                         roundedRect(cellX + 2, currentY + 2, dayColWidth - 4, rowHeight - 4, 4, 'F');
@@ -561,3 +556,5 @@ export default function Header() {
     </>
   );
 }
+
+    

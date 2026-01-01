@@ -751,11 +751,6 @@ export default function TeacherEditor() {
       return Array.from(grouped.values());
   };
 
-  const handleOpenDialog = () => {
-    setEditingTeacher(null);
-    setIsTeacherEditorOpen(true);
-  };
-  
   useEffect(() => {
     if (isTeacherEditorOpen) {
       if (editingTeacher) {
@@ -831,6 +826,12 @@ export default function TeacherEditor() {
     setIsTeacherEditorOpen(false);
     setEditingTeacher(null);
   }
+
+  const handleAddTeacherClick = () => {
+    setEditingTeacher(null);
+    setIsTeacherEditorOpen(true);
+  };
+
 
   if (!activeTimetable) {
       return (

@@ -395,6 +395,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             const checkSession = (session: TimetableSession, p: number): boolean => {
                 const schoolTimetable = currentTimetables.find(t => t.id === session.schoolId);
                 if (!schoolTimetable) return false;
+
+                if (!schoolTimetable.timeSlots.some(ts => ts.period === p)) {
+                    return false;
+                }
                 
                 const assignment = allCurrentSchoolAssignments.find(a => 
                     a.teacherId === session.teacherId &&

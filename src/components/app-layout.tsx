@@ -132,6 +132,7 @@ export default function AppLayout() {
         <SidebarHeader>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold font-headline">Teachers</h2>
+            <ClientOnly>
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -149,6 +150,7 @@ export default function AppLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </ClientOnly>
           </div>
         </SidebarHeader>
         <SidebarContent>

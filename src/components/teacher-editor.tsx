@@ -772,7 +772,7 @@ export default function TeacherEditor() {
 
   useEffect(() => {
     if (isTeacherEditorOpen && !editingTeacher) {
-      form.reset({ teachers: [getNewTeacherForm()] });
+      handleOpenDialog(null);
     }
   }, [isTeacherEditorOpen, editingTeacher, form, getNewTeacherForm]);
   

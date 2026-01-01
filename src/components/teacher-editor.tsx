@@ -71,7 +71,7 @@ type TeacherFormValues = z.infer<typeof teacherSchema>;
 type MultiTeacherFormValues = z.infer<typeof multiTeacherSchema>;
 
 const ALL_GRADE_OPTIONS = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "A-Level Year 1", "A-Level Year 2"];
-const PRE_SCHOOL_GRADES = ["Nursery 1", "Nursery 2", "Kindergarten"];
+const PRE_SCHOOL_GRADES = ["Smart Tods", "Pre-Nursery", "Nursery 1", "Nursery 2", "Kindergarten"];
 const PRIMARY_GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 const JUNIOR_SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9"];
 const SECONDARY_GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
@@ -174,9 +174,10 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     const handleAddArm = () => {
         if (newArm && !allArmOptions.includes(newArm)) {
-            setCustomArms(prev => [...prev, newArm]);
+            const newArmUpper = newArm.toUpperCase();
+            setCustomArms(prev => [...prev, newArmUpper]);
             const currentArmsValue = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`) || [];
-            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, [...currentArmsValue, newArm]);
+            setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, [...currentArmsValue, newArmUpper]);
             trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`);
         }
         setNewArm('');
@@ -200,8 +201,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
             if (isSpecialtySchool(newSchoolName)) {
                 // For specialty schools, set the grade automatically and clear arms
-                const implicitGrade = newSchoolName.toLowerCase().includes('a-level') ? "A-Level Year 1" : newSchoolName;
-                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [implicitGrade]);
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, []);
                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
                 trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
             } else {
@@ -216,6 +216,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
             }
         }
     }, [setValue, getValues, trigger, teacherIndex, assignmentIndex, selectedSchool]);
+
 
     useEffect(() => {
         const isOptionalOrCoreSenior = hasSeniorSecondary && (getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional' || getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'core');
@@ -798,9 +799,14 @@ export default function TeacherEditor() {
             
             const school = timetables.find(t => t.id === formAssignment.schoolId);
             const schoolName = school?.name || '';
-            const isSecondary = schoolName.toLowerCase().includes('secondary');
-
-            if (isSecondary && formAssignment.subjectType !== 'optional' && !isSpecialtySchool(schoolName)) {
+            
+            if (isSpecialtySchool(schoolName) || formAssignment.grades.length === 0) {
+                 expandedAssignments.push({
+                    ...assignmentBase,
+                    grades: [], // No grades for specialty schools
+                    arms: [],
+                });
+            } else if (isSpecialtySchool(schoolName)) {
                  expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,

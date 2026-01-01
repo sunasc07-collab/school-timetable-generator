@@ -390,8 +390,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         function isValidPlacement(
             boards: { [schoolId: string]: TimetableData }, 
             unit: PlacementUnit, 
-            day: string, 
-            period: number
+            day: string,             period: number
         ): boolean {
             const checkSession = (session: TimetableSession, p: number): boolean => {
                 const schoolTimetable = currentTimetables.find(t => t.id === session.schoolId);
@@ -699,12 +698,12 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     to: { day: string; period: number }
   ) => {
     setTimetables(prevTimetables => {
-      const newTimetables = [...prevTimetables];
-      const schoolIndex = newTimetables.findIndex(t => t.id === session.schoolId);
+      const newTimetables = JSON.parse(JSON.stringify(prevTimetables));
+      const schoolIndex = newTimetables.findIndex((t: Timetable) => t.id === session.schoolId);
       
       if (schoolIndex === -1) return prevTimetables;
 
-      const newTimetableData = JSON.parse(JSON.stringify(newTimetables[schoolIndex].timetable));
+      const newTimetableData = newTimetables[schoolIndex].timetable;
 
       // Remove from 'from' slot
       const fromSlotArr = newTimetableData[from.day];

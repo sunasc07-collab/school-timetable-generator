@@ -147,7 +147,7 @@ function LockedSessionsTab() {
                                         </FormControl>
                                         <SelectContent>
                                             {teachingPeriods.map(p => {
-                                                if (!p.time || !p.period) return null;
+                                                if (!p.period) return null;
                                                 const [start, end] = p.time.split('-');
                                                 return (
                                                     <SelectItem key={p.id} value={String(p.period)}>
@@ -259,7 +259,7 @@ function TimeSlotsTab({ onSaveChanges }: { onSaveChanges: () => void }) {
         if (!activeTimetable) return;
         const newTimeSlots = [...localTimeSlots];
         const slot = newTimeSlots[index];
-        const currentDays = slot.days || activeTimetable.days || [];
+        const currentDays = slot.days || activeTimetable?.days || [];
         const newDays = currentDays.includes(day)
             ? currentDays.filter(d => d !== day)
             : [...currentDays, day];

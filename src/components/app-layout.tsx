@@ -15,13 +15,20 @@ import TimetableGrid from "./timetable-grid";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileTimetableView from "./mobile-timetable-view";
 import { useTimetable } from "@/context/timetable-provider";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Timetable, TimetableSession } from "@/lib/types";
+import { Button } from "./ui/button";
+import { Plus, Settings, Menu } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import SystemSettings from "./system-settings";
+
 
 export default function AppLayout() {
   const isMobile = useIsMobile();
-  const { activeTimetable, allTeachers, viewMode, timetables, classes, arms } =
+  const { activeTimetable, allTeachers, viewMode, timetables, classes, arms, setIsTeacherEditorOpen } =
     useTimetable();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const itemsToRender = useMemo(() => {
     let items: {
@@ -108,24 +115,25 @@ export default function AppLayout() {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-6 h-6 text-primary"
-            >
-              <path d="M3 6h18" />
-              <path d="M12 12h-9" />
-              <path d="M12 18h-6" />
-              <path d="M18 12h3" />
-              <path d="M6 3v18" />
-            </svg>
-            <h2 className="text-lg font-semibold font-headline">Controls</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold font-headline">Teachers</h2>
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setIsTeacherEditorOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Teacher
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSettingsOpen(true)} disabled={!activeTimetable}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  System Settings
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -139,6 +147,7 @@ export default function AppLayout() {
           <Header />
         </ClientOnly>
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
+           {activeTimetable && <SystemSettings open={settingsOpen} onOpenChange={setSettingsOpen} />}
           <ClientOnly>
             {isMobile ? (
               <MobileTimetableView itemsToRender={mobileItemsToRender} />

@@ -919,8 +919,7 @@ export default function TeacherEditor() {
       </Dialog>
       
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground px-2 flex items-center"><Users className="mr-2 h-4 w-4"/>Teachers ({allTeachers.length})</h3>
-        <ScrollArea className="h-[calc(100vh-12rem)]">
+        <ScrollArea className="h-[calc(100vh-8rem)]">
           {allTeachers.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
               {allTeachers.map((teacher) => (
@@ -991,7 +990,7 @@ export default function TeacherEditor() {
             </Accordion>
           ) : (
              <div className="text-sm text-muted-foreground text-center p-8">
-                No teachers created yet. Add teachers using the menu in the header.
+                No teachers created yet. Add teachers using the menu above.
              </div>
           )}
         </ScrollArea>

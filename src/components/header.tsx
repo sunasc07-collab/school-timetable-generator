@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTimetable } from "@/context/timetable-provider";
-import { Download, Printer, View, Plus, Trash2, Edit, Zap, Settings, MenuIcon } from "lucide-react";
+import { Download, Printer, View, Plus, Trash2, Edit, Zap } from "lucide-react";
 import "jspdf-autotable";
 import {
   DropdownMenu,
@@ -29,7 +29,6 @@ import {
 import { Input } from "./ui/input";
 import { useState, useMemo } from "react";
 import type { ViewMode, TimetableSession, Teacher, Timetable } from "@/lib/types";
-import SystemSettings from "./system-settings";
 import { to12Hour } from "@/lib/utils";
 
 type DialogState = 'add' | 'rename' | 'remove' | 'regenerate' | null;
@@ -46,11 +45,9 @@ export default function Header() {
     viewMode, 
     setViewMode,
     generateTimetable,
-    setIsTeacherEditorOpen,
   } = useTimetable();
   
   const [dialogOpen, setDialogOpen] = useState<DialogState>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [timetableName, setTimetableName] = useState("");
   const [timetableToEdit, setTimetableToEdit] = useState<string | null>(null);
 
@@ -320,8 +317,8 @@ export default function Header() {
                                         const teacherText = `Teacher: ${getTeacherInitials(session.teacher)}`;
                                         doc.text(teacherText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     } else { // teacher view
-                                        const classNames = formatClassName(session.className);
-                                        const classText = `Class: ${classNames}`;
+                                        const className = formatClassName(session.className);
+                                        const classText = className;
                                         doc.text(classText, cellX + dayColWidth / 2, sessionY + sessionHeight / 2 + 9, { align: 'center' });
                                     }
                                  }
@@ -475,7 +472,6 @@ export default function Header() {
         </AlertDialogContent>
       </AlertDialog>
       
-      {activeTimetable && <SystemSettings open={settingsOpen} onOpenChange={setSettingsOpen} />}
 
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2">
@@ -521,24 +517,6 @@ export default function Header() {
             <Zap className="mr-2 h-4 w-4" />
             Generate Timetable
         </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
-              <MenuIcon className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setIsTeacherEditorOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Teacher
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setSettingsOpen(true)} disabled={!activeTimetable}>
-              <Settings className="mr-2 h-4 w-4" />
-              System Settings
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

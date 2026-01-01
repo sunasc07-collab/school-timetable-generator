@@ -56,9 +56,6 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 7, time: '13:00-13:40', id: '7' },
     { period: 8, time: '13:40-14:20', id: '8' },
     { period: 9, time: '14:20-15:00', id: '9' },
-    { period: 10, time: '15:00-15:40', id: '10' },
-    { period: 11, time: '15:40-16:20', id: '11' },
-    { period: 12, time: '16:20-17:00', id: '12' },
 ];
 
 const PRIMARY_SCHOOL_TIMESLOTS: TimeSlot[] = [

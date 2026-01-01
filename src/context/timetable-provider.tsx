@@ -61,6 +61,23 @@ const DEFAULT_TIMESLOTS: TimeSlot[] = [
     { period: 12, time: '16:20-17:00', id: '12' },
 ];
 
+const PRIMARY_SCHOOL_TIMESLOTS: TimeSlot[] = [
+    { period: 1, time: '08:00-08:40', id: 'ps1' },
+    { period: 2, time: '08:40-09:20', id: 'ps2' },
+    { period: 3, time: '09:20-10:00', id: 'ps3' },
+    { period: null, time: '10:00-10:30', isBreak: true, label: 'Snack Time', id: 'psb1' },
+    { period: 4, time: '10:30-11:10', id: 'ps4' },
+    { period: 5, time: '11:10-11:50', id: 'ps5' },
+    { period: null, time: '11:50-12:50', isBreak: true, label: 'Lunch', id: 'psb2' },
+    { period: 6, time: '12:50-13:30', id: 'ps6' },
+    { period: 7, time: '13:30-14:10', id: 'ps7' },
+];
+
+const PRIMARY_SCHOOL_LOCKED_PERIODS: Omit<LockedSession, 'id' | 'schoolId'>[] = [
+    { day: 'Mon', period: 1, activity: 'Assembly', className: 'all' },
+    { day: 'Fri', period: 7, activity: 'Sports', className: 'all' },
+];
+
 
 const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
     const [state, setState] = useState(() => {
@@ -91,6 +108,19 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
 
 const createNewTimetable = (name: string, id?: string): Timetable => {
     const newId = id || `${Date.now()}-${Math.random()}`;
+    const isPrimary = name.toLowerCase().includes('primary');
+
+    const timeSlots = isPrimary ? PRIMARY_SCHOOL_TIMESLOTS : DEFAULT_TIMESLOTS;
+    
+    let lockedSessions: LockedSession[] = [];
+    if (isPrimary) {
+        lockedSessions = PRIMARY_SCHOOL_LOCKED_PERIODS.map(ls => ({
+            ...ls,
+            id: `${newId}-${ls.day}-${ls.period}-${Math.random()}`,
+            schoolId: newId,
+        }));
+    }
+
     return {
         id: newId,
         name,
@@ -98,9 +128,9 @@ const createNewTimetable = (name: string, id?: string): Timetable => {
         classes: [],
         conflicts: [],
         days: DEFAULT_DAYS,
-        timeSlots: JSON.parse(JSON.stringify(DEFAULT_TIMESLOTS.map(ts => ({...ts, id: `${newId}-${ts.id}`})))),
+        timeSlots: JSON.parse(JSON.stringify(timeSlots.map(ts => ({...ts, id: `${newId}-${ts.id}`})))),
         error: null,
-        lockedSessions: [],
+        lockedSessions: lockedSessions,
     };
 }
 
@@ -229,41 +259,43 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
 
   const removeTimetable = (timetableId: string) => {
-      setAllTeachers(prev => {
-          const newTeachers = prev.map(teacher => ({
-              ...teacher,
-              assignments: teacher.assignments.filter(a => a.schoolId !== timetableId)
-          }));
-          return newTeachers.filter(teacher => teacher.assignments.length > 0);
-      });
-      setTimetables(prev => {
-          const newTimetables = prev.filter(t => t.id !== timetableId);
-          if (activeTimetableId === timetableId) {
-              setActiveTimetableId(newTimetables[0]?.id || null);
-          }
-          return newTimetables;
-      });
+    setTimetables(prev => {
+        const newTimetables = prev.filter(t => t.id !== timetableId);
+        if (activeTimetableId === timetableId) {
+            setActiveTimetableId(newTimetables[0]?.id || null);
+        }
+        return newTimetables;
+    });
+    setAllTeachers(prev => {
+        const newTeachers = prev.map(teacher => ({
+            ...teacher,
+            assignments: teacher.assignments.filter(a => a.schoolId !== timetableId)
+        }));
+        return newTeachers.filter(teacher => teacher.assignments.length > 0);
+    });
   }
   
   const renameTimetable = (timetableId: string, newName: string) => {
       updateTimetable(timetableId, { name: newName });
   }
 
-  const addTeacher = useCallback((teacherData: Teacher) => {
-    const newTeacher = { ...teacherData, id: teacherData.id || `${Date.now()}-${Math.random()}` };
-    setAllTeachers(prev => [...prev, newTeacher]);
+  const addTeacher = (teacherData: Teacher) => {
+    setAllTeachers(prev => {
+        const newTeacher = { ...teacherData, id: teacherData.id || `${Date.now()}-${Math.random()}` };
+        return [...prev, newTeacher];
+    });
     resetAllTimetables();
-  }, [setAllTeachers, resetAllTimetables]);
+  };
   
-  const updateTeacher = useCallback((teacherData: Teacher) => {
-      setAllTeachers(prev => prev.map(t => t.id === teacherData.id ? teacherData : t));
-      resetAllTimetables();
-  }, [setAllTeachers, resetAllTimetables]);
+  const updateTeacher = (teacherData: Teacher) => {
+    setAllTeachers(prev => prev.map(t => (t.id === teacherData.id ? { ...teacherData } : t)));
+    resetAllTimetables();
+  };
 
-  const removeTeacher = useCallback((teacherId: string) => {
+  const removeTeacher = (teacherId: string) => {
     setAllTeachers(prev => prev.filter(t => t.id !== teacherId));
     resetAllTimetables();
-  }, [setAllTeachers, resetAllTimetables]);
+  };
 
   const updateTimeSlots = (newTimeSlots: TimeSlot[]) => {
     if (!activeTimetable) return;
@@ -318,7 +350,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
       resetAllTimetables();
   };
   
-  const generateTimetable = useCallback(() => {
+  const generateTimetable = () => {
     setTimetables(currentTimetables => {
         let allSolvedBoards: { [schoolId: string]: TimetableData } = {};
         
@@ -649,7 +681,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         return newTimetables;
 
     });
-  }, [allTeachers, setTimetables, findConflicts]);
+  };
 
 
   const clearTimetable = () => {
@@ -657,44 +689,49 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   }
   
   const moveSession = (
-    session: TimetableSession, 
+    session: TimetableSession,
     from: { day: string; period: number },
     to: { day: string; period: number }
   ) => {
     setTimetables(prevTimetables => {
-        const schoolTimetable = prevTimetables.find(t => t.id === session.schoolId);
-        if (!schoolTimetable?.timetable) return prevTimetables;
-
-        const newTimetableData = JSON.parse(JSON.stringify(schoolTimetable.timetable));
-        
-        const fromSlotArr = newTimetableData[from.day];
-        if (fromSlotArr) {
+      const newTimetables = prevTimetables.map(t => {
+        if (t.id === session.schoolId) {
+          const newTimetableData = JSON.parse(JSON.stringify(t.timetable));
+  
+          // Remove from 'from' slot
+          const fromSlotArr = newTimetableData[from.day];
+          if (fromSlotArr) {
             const fromSlotIndex = fromSlotArr.findIndex((s: TimetableSession[]) => s[0]?.period === from.period);
             if (fromSlotIndex > -1) {
-                const sessionIndex = fromSlotArr[fromSlotIndex].findIndex((s: TimetableSession) => s.id === session.id && s.className === session.className && s.part === session.part);
-                if (sessionIndex > -1) {
-                    fromSlotArr[fromSlotIndex].splice(sessionIndex, 1);
-                    if (fromSlotArr[fromSlotIndex].length === 0) {
-                        fromSlotArr.splice(fromSlotIndex, 1);
-                    }
+              const sessionIndex = fromSlotArr[fromSlotIndex].findIndex((s: TimetableSession) => s.id === session.id && s.className === session.className && s.part === session.part);
+              if (sessionIndex > -1) {
+                fromSlotArr[fromSlotIndex].splice(sessionIndex, 1);
+                if (fromSlotArr[fromSlotIndex].length === 0) {
+                  fromSlotArr.splice(fromSlotIndex, 1);
                 }
+              }
             }
-        }
-
-        let toSlot = newTimetableData[to.day]?.find((s: TimetableSession[]) => s[0]?.period === to.period);
-        if (toSlot) {
+          }
+  
+          // Add to 'to' slot
+          let toSlot = newTimetableData[to.day]?.find((s: TimetableSession[]) => s[0]?.period === to.period);
+          if (toSlot) {
             toSlot.push({ ...session, day: to.day, period: to.period });
-        } else {
+          } else {
             if (!newTimetableData[to.day]) newTimetableData[to.day] = [];
             newTimetableData[to.day].push([{ ...session, day: to.day, period: to.period }]);
             newTimetableData[to.day].sort((a: TimetableSession[], b: TimetableSession[]) => (a[0]?.period || 0) - (b[0]?.period || 0));
+          }
+          
+          const updatedTimetable = { ...t, timetable: newTimetableData };
+          findConflicts(session.schoolId, newTimetableData); // This will update state internally
+          return updatedTimetable; 
         }
-        
-        findConflicts(session.schoolId, newTimetableData);
-
-        return prevTimetables.map(t => t.id === session.schoolId ? { ...t, timetable: newTimetableData } : t);
+        return t;
+      });
+      return newTimetables;
     });
-  }
+  };
 
   const resolveConflicts = () => {
     clearTimetable();

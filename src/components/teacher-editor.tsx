@@ -92,10 +92,18 @@ const getGradeOptionsForSchool = (schoolName: string) => {
         return [...SECONDARY_GRADES, ...A_LEVEL_GRADES];
     }
      if (lowerCaseSchoolName.includes('a-level')) {
-        return [];
+        return A_LEVEL_GRADES;
+    }
+     if (lowerCaseSchoolName.includes('nursery')) {
+        return PRE_SCHOOL_GRADES;
     }
     return ALL_GRADE_OPTIONS;
 };
+
+const isSpecialtySchool = (schoolName: string) => {
+    const lowerCaseSchoolName = schoolName.toLowerCase();
+    return lowerCaseSchoolName.includes('a-level') || lowerCaseSchoolName.includes('nursery');
+}
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength, customArms, setCustomArms }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number, customArms: string[], setCustomArms: React.Dispatch<React.SetStateAction<string[]>> }) => {
     const { timetables, activeTimetable } = useTimetable();
@@ -119,16 +127,14 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
     })
 
     const selectedSchool = useMemo(() => timetables.find(t => t.id === schoolId), [schoolId, timetables]);
-    const schoolName = selectedSchool?.name.toLowerCase() || '';
+    const schoolName = selectedSchool?.name || '';
 
-    const isSecondary = schoolName.includes('secondary');
-    const isPrimary = schoolName.includes('primary');
+    const isSecondary = schoolName.toLowerCase().includes('secondary');
+    const isPrimary = schoolName.toLowerCase().includes('primary');
     
-    const isALevelSchool = schoolName.includes('a-level');
-    const isNurserySchool = schoolName.includes('nursery');
-    
+    const hideGradesAndArms = isSpecialtySchool(schoolName);
+
     const hasALevel = selectedGrades.some((g: string) => g.startsWith("A-Level"));
-
     const hasJuniorSecondary = selectedGrades.some((g: string) => JUNIOR_SECONDARY_GRADES.includes(g));
     const hasSeniorSecondary = Array.isArray(selectedGrades) && selectedGrades.some((g: string) => SENIOR_SECONDARY_GRADES.includes(g));
     
@@ -175,8 +181,6 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
         }
         setNewArm('');
     };
-
-    const hideGradesAndArms = isALevelSchool || isNurserySchool;
     
     useEffect(() => {
         if (!getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.schoolId`) && activeTimetable) {
@@ -191,25 +195,27 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 
     useEffect(() => {
         if (selectedSchool) {
+            const newSchoolName = selectedSchool.name;
             const currentGrades = getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`) || [];
-            const newSchoolName = selectedSchool.name.toLowerCase();
-            const isNewALevel = newSchoolName.includes('a-level');
-            const isNewNursery = newSchoolName.includes('nursery');
 
-            if(isNewALevel) {
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, ["A-Level"]);
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
-            } else if(isNewNursery) {
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [selectedSchool.name]);
-                 setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+            if (isSpecialtySchool(newSchoolName)) {
+                // For specialty schools, set the grade automatically and clear arms
+                const implicitGrade = newSchoolName.toLowerCase().includes('a-level') ? "A-Level Year 1" : newSchoolName;
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, [implicitGrade]);
+                setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.arms`, []);
+                trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
             } else {
-                const stillValidGrades = currentGrades.filter((g: string) => gradeOptions.includes(g));
-                 if (stillValidGrades.length !== currentGrades.length) {
+                // For other schools, filter out invalid grades
+                const validGradesForNewSchool = getGradeOptionsForSchool(newSchoolName);
+                const stillValidGrades = currentGrades.filter((g: string) => validGradesForNewSchool.includes(g));
+
+                if (stillValidGrades.length !== currentGrades.length) {
                     setValue(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`, stillValidGrades);
+                    trigger(`teachers.${teacherIndex}.assignments.${assignmentIndex}.grades`);
                 }
             }
         }
-    }, [setValue, getValues, teacherIndex, assignmentIndex, selectedSchool, gradeOptions]);
+    }, [setValue, getValues, trigger, teacherIndex, assignmentIndex, selectedSchool]);
 
     useEffect(() => {
         const isOptionalOrCoreSenior = hasSeniorSecondary && (getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'optional' || getValues(`teachers.${teacherIndex}.assignments.${assignmentIndex}.subjectType`) === 'core');
@@ -791,9 +797,10 @@ export default function TeacherEditor() {
             };
             
             const school = timetables.find(t => t.id === formAssignment.schoolId);
-            const isSecondary = school?.name.toLowerCase().includes('secondary');
+            const schoolName = school?.name || '';
+            const isSecondary = schoolName.toLowerCase().includes('secondary');
 
-            if (isSecondary && formAssignment.subjectType !== 'optional') {
+            if (isSecondary && formAssignment.subjectType !== 'optional' && !isSpecialtySchool(schoolName)) {
                  expandedAssignments.push({
                     ...assignmentBase,
                     grades: formAssignment.grades,
@@ -996,3 +1003,5 @@ export default function TeacherEditor() {
     </div>
   );
 }
+
+    

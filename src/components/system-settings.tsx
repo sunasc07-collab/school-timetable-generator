@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { ScrollArea } from "./ui/scroll-area";
 
 
@@ -38,7 +38,7 @@ interface SystemSettingsProps {
 const lockedSessionSchema = z.object({
     activity: z.string().min(1, "Activity is required"),
     day: z.string().min(1, "Day is required"),
-    period: z.coerce.number({ invalid_type_error: "Period is required" }),
+    periods: z.array(z.number()).min(1, "At least one period is required"),
     className: z.string().min(1, "Class is required"),
     allWeek: z.boolean().default(false),
 });
@@ -53,6 +53,7 @@ function LockedSessionsTab() {
         defaultValues: {
             activity: "",
             day: "",
+            periods: [],
             className: "",
             allWeek: false,
         }
@@ -63,13 +64,19 @@ function LockedSessionsTab() {
     const { days, timeSlots, lockedSessions } = activeTimetable;
 
     const onSubmit = (data: LockedSessionFormValues) => {
-        addLockedSession({
-            ...data,
-            day: data.allWeek ? 'all_week' : data.day,
+        data.periods.forEach(period => {
+            addLockedSession({
+                activity: data.activity,
+                className: data.className,
+                day: data.allWeek ? 'all_week' : data.day,
+                period: period,
+            });
         });
+        
         form.reset({
             activity: "",
             day: "",
+            periods: [],
             className: "",
             allWeek: false,
         });
@@ -82,7 +89,7 @@ function LockedSessionsTab() {
         <div className="space-y-4 py-4">
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4 border rounded-lg">
-                     <h3 className="text-base font-medium text-foreground flex items-center"><Lock className="mr-2 h-4 w-4" />Add New Locked Period</h3>
+                     <h3 className="text-base font-medium text-foreground flex items-center"><Lock className="mr-2 h-4 w-4" />Add New Locked Period(s)</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
@@ -137,26 +144,48 @@ function LockedSessionsTab() {
                         />
                        <FormField
                             control={form.control}
-                            name="period"
-                            render={({ field }) => (
+                            name="periods"
+                            render={() => (
                                 <FormItem>
-                                    <FormLabel>Period</FormLabel>
-                                     <Select onValueChange={field.onChange} value={String(field.value)}>
-                                        <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Select Period..." /></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {teachingPeriods.map(p => {
-                                                if (p.period === null) return null;
-                                                const [start, end] = p.time.split('-');
-                                                return (
-                                                    <SelectItem key={p.id} value={String(p.period)}>
-                                                        {`Period ${p.period} (${formatTime(start)}-${formatTime(end)})`}
-                                                    </SelectItem>
-                                                )
-                                            })}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormLabel>Periods</FormLabel>
+                                    <div className="grid grid-cols-3 gap-x-4 gap-y-2 p-2 border rounded-md h-auto items-center">
+                                        {teachingPeriods.map((p) => {
+                                            if (p.period === null) return null;
+                                            return (
+                                                <FormField
+                                                key={p.id}
+                                                control={form.control}
+                                                name="periods"
+                                                render={({ field }) => {
+                                                    return (
+                                                    <FormItem
+                                                        key={p.period}
+                                                        className="flex flex-row items-start space-x-2 space-y-0"
+                                                    >
+                                                        <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value?.includes(p.period as number)}
+                                                            onCheckedChange={(checked) => {
+                                                            return checked
+                                                                ? field.onChange([...field.value, p.period as number])
+                                                                : field.onChange(
+                                                                    field.value?.filter(
+                                                                    (value) => value !== p.period
+                                                                    )
+                                                                )
+                                                            }}
+                                                        />
+                                                        </FormControl>
+                                                        <FormLabel className="text-sm font-normal">
+                                                            Period {p.period}
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                    )
+                                                }}
+                                                />
+                                            )
+                                        })}
+                                    </div>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -190,7 +219,7 @@ function LockedSessionsTab() {
                     />
                     <Button type="submit" size="sm" className="w-full">
                         <Plus className="mr-2 h-4 w-4" />
-                        Add Locked Period
+                        Add Locked Period(s)
                     </Button>
                 </form>
             </Form>
@@ -269,7 +298,7 @@ function TimeSlotsTab({ onSaveChanges }: { onSaveChanges: () => void }) {
 
     const handleAddSlot = (index: number, isBreak: boolean) => {
         const newSlot: TimeSlot = {
-            id: crypto.randomUUID(),
+            id: `${Date.now()}-${Math.random()}`,
             period: null,
             time: '00:00-00:00',
             isBreak: isBreak,
@@ -517,5 +546,3 @@ export default function SystemSettings({ open, onOpenChange }: SystemSettingsPro
         </Dialog>
     )
 }
-
-    

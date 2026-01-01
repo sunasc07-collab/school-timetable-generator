@@ -19,7 +19,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -30,9 +29,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useTimetable } from "@/context/timetable-provider";
-import { Plus, Trash2, Users, Pencil, Book, GraduationCap, Building } from "lucide-react";
+import { Plus, Trash2, Pencil, Book, GraduationCap, Building } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import type { Teacher, SubjectAssignment } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -40,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { useState } from "react";
 
 const assignmentSchema = z.object({
   id: z.string().optional(),
@@ -99,7 +99,7 @@ const getGradeOptionsForSchool = (schoolName: string) => {
 };
 
 const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsLength }: { teacherIndex: number, assignmentIndex: number, control: any, remove: (index: number) => void, fieldsLength: number }) => {
-    const { timetables, activeTimetable, allTeachers } = useTimetable();
+    const { timetables, activeTimetable } = useTimetable();
     const { setValue, getValues, trigger, formState: { errors } } = useFormContext();
     
     const [customArms, setCustomArms] = useState<string[]>([]);
@@ -576,7 +576,7 @@ const AssignmentRow = ({ teacherIndex, assignmentIndex, control, remove, fieldsL
 }
 
 const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, removeTeacher: () => void, isEditing: boolean }) => {
-  const { control, setValue } = useFormContext<MultiTeacherFormValues>();
+  const { control } = useFormContext<MultiTeacherFormValues>();
   const { fields, append, remove } = useFieldArray({
     control: control,
     name: `teachers.${index}.assignments`
@@ -584,7 +584,6 @@ const TeacherForm = ({ index, removeTeacher, isEditing }: { index: number, remov
 
   const { activeTimetable, timetables } = useTimetable();
   const teacherId = useWatch({ control, name: `teachers.${index}.id`});
-  const teacherName = useWatch({ control, name: `teachers.${index}.name`});
 
   const getGeneratedPeriodsForTeacher = useCallback((teacherId: string) => {
       if (!timetables || timetables.length === 0) {
@@ -772,14 +771,6 @@ export default function TeacherEditor() {
         form.reset({ teachers: [getNewTeacherForm()] });
     }
   }, [isTeacherEditorOpen, editingTeacher, form, getNewTeacherForm, activeTimetable?.days]);
-  
-  useEffect(() => {
-    if (activeTimetable) {
-        setIsTeacherEditorOpen(false);
-        setEditingTeacher(null);
-        form.reset({ teachers: [] });
-    }
-  }, [activeTimetable, form, setIsTeacherEditorOpen, setEditingTeacher]);
 
 
   function onSubmit(data: MultiTeacherFormValues) {
@@ -992,3 +983,4 @@ export default function TeacherEditor() {
     </div>
   );
 }
+

@@ -25,7 +25,7 @@ import SystemSettings from "./system-settings";
 
 export default function AppLayout() {
   const isMobile = useIsMobile();
-  const { activeTimetable, allTeachers, viewMode, timetables, classes, arms, setIsTeacherEditorOpen } =
+  const { activeTimetable, allTeachers, viewMode, timetables, classes, arms, setIsTeacherEditorOpen, setEditingTeacher } =
     useTimetable();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -128,6 +128,11 @@ export default function AppLayout() {
       templateTimetable
     }));
   }, [itemsToRender, viewMode]);
+  
+  const handleAddTeacherClick = () => {
+    setEditingTeacher(null);
+    setIsTeacherEditorOpen(true);
+  };
 
   return (
     <SidebarProvider>
@@ -143,7 +148,7 @@ export default function AppLayout() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => setIsTeacherEditorOpen(true)}>
+                <DropdownMenuItem onSelect={handleAddTeacherClick}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Teacher
                 </DropdownMenuItem>

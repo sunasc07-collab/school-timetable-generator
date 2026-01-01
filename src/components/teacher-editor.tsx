@@ -711,10 +711,15 @@ export default function TeacherEditor() {
     },
   });
   
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField } = useFieldArray({
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacherField, replace } = useFieldArray({
     control: form.control,
     name: "teachers"
   });
+
+  const handleOpenDialog = (teacher: Teacher | null) => {
+    setEditingTeacher(teacher);
+    setIsTeacherEditorOpen(true);
+  }
 
   const getNewTeacherForm = useCallback((): TeacherFormValues => ({
     name: "",
@@ -746,16 +751,10 @@ export default function TeacherEditor() {
       });
       return Array.from(grouped.values());
   };
-  
-  const handleOpenDialog = (teacher: Teacher | null) => {
-    setEditingTeacher(teacher);
-    setIsTeacherEditorOpen(true);
-  }
 
   useEffect(() => {
-    if (!isTeacherEditorOpen) return;
-
-    if (editingTeacher) {
+    if (isTeacherEditorOpen) {
+      if (editingTeacher) {
         const teacherFormData: TeacherFormValues = {
             id: editingTeacher.id,
             name: editingTeacher.name,
@@ -766,12 +765,12 @@ export default function TeacherEditor() {
                 days: a.days || activeTimetable?.days || []
             }))),
         };
-        form.reset({ teachers: [teacherFormData] });
-    } else {
-        form.reset({ teachers: [getNewTeacherForm()] });
+        replace([teacherFormData]);
+      } else {
+        replace([getNewTeacherForm()]);
+      }
     }
-  }, [isTeacherEditorOpen, editingTeacher, form, getNewTeacherForm, activeTimetable?.days]);
-
+  }, [isTeacherEditorOpen, editingTeacher, replace, getNewTeacherForm, activeTimetable?.days]);
 
   function onSubmit(data: MultiTeacherFormValues) {
     data.teachers.forEach(teacherData => {
@@ -805,20 +804,19 @@ export default function TeacherEditor() {
             }
         });
 
-        const teacherWithId: Teacher = {
-            ...teacherData,
+        const finalTeacher: Teacher = {
             id: teacherData.id || crypto.randomUUID(),
+            name: teacherData.name,
             assignments: expandedAssignments,
         };
 
         if (editingTeacher) {
-            updateTeacher(teacherWithId);
+            updateTeacher(finalTeacher);
         } else {
-            addTeacher(teacherWithId);
+            addTeacher(finalTeacher);
         }
     });
 
-    form.reset({ teachers: [] });
     setIsTeacherEditorOpen(false);
     setEditingTeacher(null);
   }
@@ -854,10 +852,10 @@ export default function TeacherEditor() {
   return (
     <div className="p-2 space-y-4">
       <Dialog open={isTeacherEditorOpen} onOpenChange={(open) => {
-        setIsTeacherEditorOpen(open);
         if (!open) {
           setEditingTeacher(null);
         }
+        setIsTeacherEditorOpen(open);
       }}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
@@ -983,4 +981,3 @@ export default function TeacherEditor() {
     </div>
   );
 }
-

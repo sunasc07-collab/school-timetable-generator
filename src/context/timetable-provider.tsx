@@ -363,6 +363,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
             allClassSets[tt.id] = new Set<string>();
             const assignmentsForSchool = allCurrentSchoolAssignments.filter(a => a.schoolId === tt.id);
             assignmentsForSchool.forEach(assignment => {
+                if (assignment.grades.length === 0 && !assignment.subject.toLowerCase().includes('level')) { // Handle specialty school cases
+                    const className = tt.name; // or a more appropriate name
+                    allClassSets[tt.id].add(className);
+                }
                 assignment.grades.forEach(grade => {
                      (assignment.arms && assignment.arms.length > 0 ? assignment.arms : ['']).forEach(arm => {
                         const className = `${grade} ${arm}`.trim();
@@ -388,7 +392,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     ? Array.from(allClassSets[tt.id] || [])
                     : [ls.className];
                 
-                if (classNames.length === 0 && ls.className === 'all') return;
+                if (classNames.length === 0) return;
                 
                 const lockedSession: TimetableSession = {
                     id: ls.id,
@@ -441,7 +445,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     a.teacherId === session.teacherId &&
                     a.schoolId === session.schoolId &&
                     a.subject === (session.actualSubject || session.subject) &&
-                    a.grades.some(g => session.classes.some(c => c.startsWith(g)))
+                    (a.grades.length === 0 || a.grades.some(g => session.classes.some(c => c.startsWith(g))))
                 );
                 if (assignment && assignment.days && assignment.days.length > 0 && !assignment.days.includes(day)) {
                     return false;
@@ -453,7 +457,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const targetSlot = boards[session.schoolId]?.[day]?.[periodIndex];
                 
                 if (targetSlot && targetSlot.length > 0) {
-                    if (targetSlot.some(s => s.isLocked && (s.classes.includes(session.className) || s.className === 'all'))) {
+                    if (targetSlot.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.classes.includes('all')))) {
                         return false;
                     }
                     if (targetSlot.some(s => s.classes.some(c => session.classes.includes(c)))) {
@@ -591,19 +595,42 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
         
         const allUnits: PlacementUnit[] = [];
         
-        const primaryAssignments = allCurrentSchoolAssignments.filter(a => !currentTimetables.find(t => t.id === a.schoolId)?.name.toLowerCase().includes('secondary'));
-        const secondaryCoreAssignments = allCurrentSchoolAssignments.filter(a => currentTimetables.find(t => t.id === a.schoolId)?.name.toLowerCase().includes('secondary') && a.subjectType === 'core');
-        const secondaryOptionalAssignments = allCurrentSchoolAssignments.filter(a => currentTimetables.find(t => t.id === a.schoolId)?.name.toLowerCase().includes('secondary') && a.subjectType === 'optional');
+        const primaryAssignments = allCurrentSchoolAssignments.filter(a => {
+            const school = currentTimetables.find(t => t.id === a.schoolId);
+            return school && !school.name.toLowerCase().includes('secondary');
+        });
+        
+        const secondaryCoreAssignments = allCurrentSchoolAssignments.filter(a => {
+            const school = currentTimetables.find(t => t.id === a.schoolId);
+            return school && school.name.toLowerCase().includes('secondary') && a.subjectType === 'core';
+        });
+
+        const secondaryOptionalAssignments = allCurrentSchoolAssignments.filter(a => {
+            const school = currentTimetables.find(t => t.id === a.schoolId);
+            return school && school.name.toLowerCase().includes('secondary') && a.subjectType === 'optional';
+        });
 
         primaryAssignments.forEach(assignment => {
-            assignment.grades.forEach(grade => {
-                const className = grade;
-                for (let i = 0; i < assignment.periods; i++) {
+            if (assignment.grades.length === 0) {
+                 const className = currentTimetables.find(t => t.id === assignment.schoolId)?.name || '';
+                 if (!className) return;
+                 for (let i = 0; i < assignment.periods; i++) {
                     allUnits.push({
                         id: `${Date.now()}-${Math.random()}`, subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
                     });
                 }
-            });
+            } else {
+                assignment.grades.forEach(grade => {
+                    (assignment.arms && assignment.arms.length > 0 ? assignment.arms : ['']).forEach(arm => {
+                        const className = `${grade} ${arm}`.trim();
+                        for (let i = 0; i < assignment.periods; i++) {
+                            allUnits.push({
+                                id: `${Date.now()}-${Math.random()}`, subject: assignment.subject, teacher: assignment.teacherName!, teacherId: assignment.teacherId!, className, classes: [className], isDouble: false, period: 0, schoolId: assignment.schoolId, actualSubject: assignment.subject
+                            });
+                        }
+                    });
+                });
+            }
         });
 
         secondaryCoreAssignments.forEach(assignment => {
@@ -855,6 +882,8 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
+
+    
 
     
 

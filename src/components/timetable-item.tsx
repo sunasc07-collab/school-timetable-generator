@@ -20,6 +20,10 @@ export default function TimetableItem({
   const { viewMode, isConflict, timetables } = useTimetable();
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    if (session.isLocked) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.effectAllowed = "move";
     const dragData: TimetableDragData = { session, from };
     e.dataTransfer.setData("application/json", JSON.stringify(dragData));
@@ -53,10 +57,11 @@ export default function TimetableItem({
 
   return (
     <Card
-      draggable
+      draggable={!session.isLocked}
       onDragStart={handleDragStart}
       className={cn(
-        "cursor-grab active:cursor-grabbing transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
+        "transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full flex flex-col items-center justify-center relative group",
+        !session.isLocked && "cursor-grab active:cursor-grabbing",
         hasConflict ? "bg-destructive/80 border-destructive text-destructive-foreground" : "bg-card",
         session.isDouble && session.part === 1 ? "rounded-b-none border-b-0" : "",
         session.isDouble && session.part === 2 ? "rounded-t-none border-t-0" : ""

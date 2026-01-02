@@ -42,7 +42,7 @@ export default function TimetableItem({
         <CardContent className="p-1.5 text-center space-y-1 w-full text-xs">
             <div className={cn("flex items-center justify-center gap-1.5 font-bold text-muted-foreground")}>
               <Lock className="h-4 w-4 text-muted-foreground/80 shrink-0"/>
-              <span className="truncate">{session.subject}</span>
+              <span className="truncate font-bold">{session.subject}</span>
             </div>
         </CardContent>
        </Card>
@@ -90,3 +90,5 @@ export default function TimetableItem({
     </Card>
   );
 }
+
+    

@@ -330,23 +330,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
   };
 
   const removeLockedSession = (sessionId: string) => {
-      if (!activeTimetable || !activeTimetable.lockedSessions) return;
-      const sessionToRemove = activeTimetable.lockedSessions.find(s => s.id === sessionId);
-      
-      let sessionsToKeep = activeTimetable.lockedSessions;
-      if (sessionToRemove?.day === 'all_week') {
-          sessionsToKeep = sessionsToKeep.filter(s => !s.id.startsWith(sessionId));
-      } else {
-           sessionsToKeep = sessionsToKeep.filter(s => s.id !== sessionId);
-           const weekEntryId = sessionToRemove?.id.substring(0, sessionToRemove.id.lastIndexOf('-'));
-            if(weekEntryId) {
-                sessionsToKeep = sessionsToKeep.filter(s => s.id !== weekEntryId);
-            }
-      }
-      
-      updateTimetable(activeTimetable.id, { lockedSessions: sessionsToKeep });
-      resetAllTimetables();
-  };
+    if (!activeTimetable || !activeTimetable.lockedSessions) return;
+    const sessionsToKeep = activeTimetable.lockedSessions.filter(s => s.id !== sessionId);
+    updateTimetable(activeTimetable.id, { lockedSessions: sessionsToKeep });
+    resetAllTimetables();
+};
   
   const generateTimetable = () => {
     setTimetables(currentTimetables => {
@@ -894,3 +882,4 @@ export const useTimetable = (): TimetableContextType => {
     
 
     
+

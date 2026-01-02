@@ -331,10 +331,34 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
   const removeLockedSession = (sessionId: string) => {
     if (!activeTimetable || !activeTimetable.lockedSessions) return;
-    const sessionsToKeep = activeTimetable.lockedSessions.filter(s => s.id !== sessionId);
+    
+    const sessionToRemove = activeTimetable.lockedSessions.find(s => s.id === sessionId);
+    if (!sessionToRemove) return;
+
+    let sessionsToKeep = activeTimetable.lockedSessions.filter(s => s.id !== sessionId);
+
+    // If the removed session was part of an 'all_week' group, check if we should remove the 'all_week' meta-entry
+    const groupBaseId = sessionId.substring(0, sessionId.lastIndexOf('-'));
+    const isPartOfGroup = activeTimetable.days.some(day => `${groupBaseId}-${day}` === sessionId);
+
+    if (isPartOfGroup) {
+      const allWeekMetaEntry = activeTimetable.lockedSessions.find(s => s.id === groupBaseId && s.day === 'all_week');
+      if (allWeekMetaEntry) {
+        // Find other daily entries of the same group
+        const otherGroupEntries = sessionsToKeep.filter(s => s.id.startsWith(groupBaseId) && s.day !== 'all_week');
+        if (otherGroupEntries.length === 0) {
+          // If no other daily entries exist, remove the meta-entry
+          sessionsToKeep = sessionsToKeep.filter(s => s.id !== allWeekMetaEntry.id);
+        }
+      }
+    } else if (sessionToRemove.day === 'all_week') {
+        // If the 'all_week' meta entry itself is removed, remove all associated daily entries
+        sessionsToKeep = sessionsToKeep.filter(s => !s.id.startsWith(sessionToRemove.id) || s.id === sessionToRemove.id);
+    }
+    
     updateTimetable(activeTimetable.id, { lockedSessions: sessionsToKeep });
     resetAllTimetables();
-};
+  };
   
   const generateTimetable = () => {
     setTimetables(currentTimetables => {
@@ -380,7 +404,10 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     ? Array.from(allClassSets[tt.id] || [])
                     : [ls.className];
                 
-                if (classNames.length === 0) return;
+                if (classNames.length === 0 && ls.className !== 'all') {
+                  // This can happen if a class for a locked session doesn't exist anymore
+                  return;
+                }
                 
                 const lockedSession: TimetableSession = {
                     id: ls.id,
@@ -397,7 +424,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 let daySchedule = allSolvedBoards[tt.id][ls.day];
                 const periodIndex = tt.timeSlots.filter(ts => ts.period !== null).findIndex(ts => ts.period === ls.period);
 
-                if (periodIndex > -1) {
+                if (daySchedule && periodIndex > -1) {
                     if (daySchedule[periodIndex]) {
                         daySchedule[periodIndex].push(lockedSession);
                     } else {
@@ -447,11 +474,11 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 
                 if (targetSlot && targetSlot.length > 0) {
                      if (targetSlot.some(s => s.isLocked)) {
-                        const lockedSession = targetSlot.find(s => s.isLocked);
-                        if (lockedSession) {
-                            if (lockedSession.classes.includes('all') || session.classes.some(c => lockedSession.classes.includes(c))) {
-                                return false; // Slot is locked for this class or all classes
-                            }
+                        const lockedSessionsInSlot = targetSlot.filter(s => s.isLocked);
+                        for (const locked of lockedSessionsInSlot) {
+                           if (locked.className === 'all' || session.classes.some(c => locked.classes.includes(c))) {
+                             return false; // Slot is locked for this class or all classes
+                           }
                         }
                     }
                     if (targetSlot.some(s => s.classes.some(c => session.classes.includes(c)))) {
@@ -883,3 +910,6 @@ export const useTimetable = (): TimetableContextType => {
 
     
 
+
+
+    

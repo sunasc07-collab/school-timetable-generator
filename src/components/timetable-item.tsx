@@ -4,7 +4,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TimetableDragData, TimetableSession } from "@/lib/types";
-import { BookOpen, GraduationCap, User, AlertCircle, Users, Lock, Building } from "lucide-react";
+import { BookOpen, GraduationCap, User, AlertCircle, Lock, Building } from "lucide-react";
 import { useTimetable } from "@/context/timetable-provider";
 import { useMemo } from "react";
 

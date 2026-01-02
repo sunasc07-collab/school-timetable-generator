@@ -437,7 +437,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const schoolTimetable = currentTimetables.find(t => t.id === session.schoolId);
                 if (!schoolTimetable) return false;
 
-                if (!schoolTimetable.timeSlots.some(ts => ts.period === p)) {
+                const schoolPeriods = schoolTimetable.timeSlots.filter(ts => !ts.isBreak).map(ts => ts.period);
+                if (!schoolPeriods.includes(p)) {
                     return false;
                 }
                 
@@ -457,8 +458,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const targetSlot = boards[session.schoolId]?.[day]?.[periodIndex];
                 
                 if (targetSlot && targetSlot.length > 0) {
-                    if (targetSlot.some(s => s.isLocked && (s.classes.some(c => session.classes.includes(c)) || s.classes.includes('all')))) {
-                        return false;
+                     if (targetSlot.some(s => s.isLocked)) {
+                        const lockedSession = targetSlot.find(s => s.isLocked);
+                        if (lockedSession) {
+                            if (lockedSession.classes.includes('all') || session.classes.some(c => lockedSession.classes.includes(c))) {
+                                return false; // Slot is locked for this class or all classes
+                            }
+                        }
                     }
                     if (targetSlot.some(s => s.classes.some(c => session.classes.includes(c)))) {
                         return false;

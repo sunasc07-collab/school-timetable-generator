@@ -335,7 +335,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
     const sessionToRemove = activeTimetable.lockedSessions.find(s => s.id === sessionId);
     if (!sessionToRemove) return;
 
-    let sessionsToKeep = activeTimetable.lockedSessions.filter(s => s.id !== sessionId);
+    let sessionsToKeep = activeTimetables.lockedSessions.filter(s => s.id !== sessionId);
 
     // If removing the 'all_week' meta entry, remove all associated daily entries too
     if (sessionToRemove.day === 'all_week') {
@@ -458,7 +458,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const targetSlot = boards[session.schoolId]?.[day]?.[periodIndex];
                 
                 if (targetSlot) {
-                    for (const existing of targetSlot) {
+                     for (const existing of targetSlot) {
                         if (existing.isLocked) {
                            if (existing.className === 'all' || session.classes.some(c => existing.classes.includes(c))) {
                              return false; 

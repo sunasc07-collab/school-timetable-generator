@@ -337,22 +337,9 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     let sessionsToKeep = activeTimetable.lockedSessions.filter(s => s.id !== sessionId);
 
-    // If removing a daily entry from an 'all_week' group, just remove that day's entry
-    // The meta-entry for 'all_week' itself is kept as long as at least one daily entry remains
-    if (sessionToRemove.day !== 'all_week') {
-        const groupBaseId = sessionId.substring(0, sessionId.lastIndexOf('-'));
-        const isPartOfGroup = activeTimetable.lockedSessions.some(s => s.id === groupBaseId && s.day === 'all_week');
-        
-        if (isPartOfGroup) {
-            const otherGroupEntries = sessionsToKeep.filter(s => s.id.startsWith(groupBaseId) && s.day !== 'all_week');
-            if (otherGroupEntries.length === 0) {
-                // If this was the last daily entry, also remove the 'all_week' meta-entry
-                sessionsToKeep = sessionsToKeep.filter(s => s.id !== groupBaseId);
-            }
-        }
-    } else if (sessionToRemove.day === 'all_week') {
-        // If the 'all_week' meta entry itself is removed, remove all associated daily entries
-        sessionsToKeep = sessionsToKeep.filter(s => !s.id.startsWith(sessionToRemove.id) || s.id === sessionToRemove.id);
+    // If removing the 'all_week' meta entry, remove all associated daily entries too
+    if (sessionToRemove.day === 'all_week') {
+      sessionsToKeep = sessionsToKeep.filter(s => !s.id.startsWith(sessionToRemove.id) || s.id === sessionToRemove.id);
     }
     
     updateTimetable(activeTimetable.id, { lockedSessions: sessionsToKeep });
@@ -404,7 +391,6 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     : [ls.className];
                 
                 if (classNames.length === 0 && ls.className !== 'all') {
-                  // This can happen if a class for a locked session doesn't exist anymore
                   return;
                 }
                 
@@ -420,8 +406,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     schoolId: tt.id
                 };
 
-                let daySchedule = allSolvedBoards[tt.id][ls.day];
-                const periodIndex = tt.timeSlots.filter(ts => ts.period !== null).findIndex(ts => ts.period === ls.period);
+                const daySchedule = allSolvedBoards[tt.id][ls.day];
+                const periodIndex = tt.timeSlots.filter(ts => !ts.isBreak).findIndex(ts => ts.period === ls.period);
 
                 if (daySchedule && periodIndex > -1) {
                     if (daySchedule[periodIndex]) {
@@ -451,7 +437,7 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                 const schoolTimetable = currentTimetables.find(t => t.id === session.schoolId);
                 if (!schoolTimetable) return false;
 
-                const schoolPeriods = schoolTimetable.timeSlots.filter(ts => !ts.isBreak).map(ts => ts.period);
+                const schoolPeriods = schoolTimetable.timeSlots.filter(ts => !ts.isBreak).map(ts => ts.period as number);
                 if (!schoolPeriods.includes(p)) {
                     return false;
                 }
@@ -466,16 +452,15 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                     return false;
                 }
                 
-                const periodIndex = schoolTimetable.timeSlots.filter(ts => ts.period !== null).findIndex(ts => ts.period === p);
+                const periodIndex = schoolTimetable.timeSlots.filter(ts => !ts.isBreak).findIndex(ts => ts.period === p);
                 if (periodIndex === -1) return false;
                 
                 const targetSlot = boards[session.schoolId]?.[day]?.[periodIndex];
                 
-                if (targetSlot && targetSlot.length > 0) {
-                     if (targetSlot.some(s => s.isLocked)) {
-                        const lockedSessionsInSlot = targetSlot.filter(s => s.isLocked);
-                        for (const locked of lockedSessionsInSlot) {
-                           if (locked.className === 'all' || session.classes.some(c => locked.classes.includes(c))) {
+                if (targetSlot) {
+                    for (const existing of targetSlot) {
+                        if (existing.isLocked) {
+                           if (existing.className === 'all' || session.classes.some(c => existing.classes.includes(c))) {
                              return false; 
                            }
                         }
@@ -577,8 +562,8 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                        const newBoards = JSON.parse(JSON.stringify(boards));
                        
                        const placeSession = (session: TimetableSession, p: number) => {
-                           let daySchedule = newBoards[session.schoolId][day];
-                           const periodIndex = schoolForUnit.timeSlots.filter(ts => ts.period !== null).findIndex(ts => ts.period === p);
+                           const daySchedule = newBoards[session.schoolId][day];
+                           const periodIndex = schoolForUnit.timeSlots.filter(ts => !ts.isBreak).findIndex(ts => ts.period === p);
                            if (periodIndex !== -1) {
                                const newSessionData = { ...session, period: p, day: day };
                                if (daySchedule[periodIndex]) {
@@ -902,5 +887,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    

@@ -337,19 +337,17 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
 
     let sessionsToKeep = activeTimetable.lockedSessions.filter(s => s.id !== sessionId);
 
-    // If the removed session was part of an 'all_week' group, check if we should remove the 'all_week' meta-entry
+    // If removing a daily entry from an 'all_week' group, just remove that day's entry
     const groupBaseId = sessionId.substring(0, sessionId.lastIndexOf('-'));
     const isPartOfGroup = activeTimetable.days.some(day => `${groupBaseId}-${day}` === sessionId);
 
     if (isPartOfGroup) {
-      const allWeekMetaEntry = activeTimetable.lockedSessions.find(s => s.id === groupBaseId && s.day === 'all_week');
-      if (allWeekMetaEntry) {
-        // Find other daily entries of the same group
-        const otherGroupEntries = sessionsToKeep.filter(s => s.id.startsWith(groupBaseId) && s.day !== 'all_week');
-        if (otherGroupEntries.length === 0) {
-          // If no other daily entries exist, remove the meta-entry
-          sessionsToKeep = sessionsToKeep.filter(s => s.id !== allWeekMetaEntry.id);
-        }
+      // It's a daily entry of a larger group, just remove it.
+      // The 'all_week' meta entry remains as long as other days exist.
+      const otherGroupEntries = sessionsToKeep.filter(s => s.id.startsWith(groupBaseId) && s.day !== 'all_week');
+      if (otherGroupEntries.length === 0) {
+          // If no other daily entries exist, also remove the 'all_week' meta-entry
+          sessionsToKeep = sessionsToKeep.filter(s => s.id !== groupBaseId);
       }
     } else if (sessionToRemove.day === 'all_week') {
         // If the 'all_week' meta entry itself is removed, remove all associated daily entries
@@ -476,11 +474,13 @@ export function TimetableProvider({ children }: { children: ReactNode }) {
                      if (targetSlot.some(s => s.isLocked)) {
                         const lockedSessionsInSlot = targetSlot.filter(s => s.isLocked);
                         for (const locked of lockedSessionsInSlot) {
+                           // A slot is blocked if it's locked for 'all' classes, or for any of the specific classes of the session we're trying to place.
                            if (locked.className === 'all' || session.classes.some(c => locked.classes.includes(c))) {
-                             return false; // Slot is locked for this class or all classes
+                             return false; 
                            }
                         }
                     }
+                    // Check for class clashes with non-locked sessions
                     if (targetSlot.some(s => s.classes.some(c => session.classes.includes(c)))) {
                         return false;
                     }
@@ -903,13 +903,3 @@ export const useTimetable = (): TimetableContextType => {
   }
   return context;
 };
-
-    
-
-    
-
-    
-
-
-
-    
